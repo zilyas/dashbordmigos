@@ -1,0 +1,584 @@
+// Store Management Dashboard — Prisma schema
+// Multi-tenant: every store-owned entity carries a storeId and is fully isolated per Store.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  SELLER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StoreStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
+enum MovementType {
+  IN
+  OUT
+  RETURN
+  ADJUSTMENT
+  SUPPLIER_DELIVERY
+  MANUAL_EDIT
+}
+
+enum ExpenseCategory {
+  RENT
+  ELECTRICITY
+  PACKAGING
+  SHIPPING
+  ADVERTISING
+  TRANSPORT
+  OTHER
+}
+
+enum NotificationType {
+  LOW_STOCK
+  NEW_SALE
+  SYSTEM
+  USER
+  NEW_MESSAGE
+  NEW_ANNOUNCEMENT
+  SELLER_ADDED
+  MANAGER_ASSIGNED
+  PASSWORD_CHANGED
+  STORE_CREATED
+  SYSTEM_ALERT
+}
+
+enum BackupStatus {
+  COMPLETED
+  FAILED
+}
+
+// ---------- Models ----------
+
+model Store {
+  id                  String      @id @default(cuid())
+  name                String
+  code                String      @unique
+  currency            String      @default("USD")
+  taxRate             Decimal     @db.Decimal(5, 2) @default(0)
+  allowSellerViewCost Boolean     @default(false)
+  address             String?
+  city                String?
+  country             String?
+  phone               String?
+  email               String?
+  logo                String?
+  status              StoreStatus @default(ACTIVE)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  users               User[]
+  products            Product[]
+  categories          Category[]
+  suppliers           Supplier[]
+  sales               Sale[]
+  expenses            Expense[]
+  inventoryMovements  InventoryMovement[]
+  notifications       Notification[]
+  activityLogs        ActivityLog[]
+  conversations       Conversation[]
+  announcements       Announcement[]
+
+  @@map("stores")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(SELLER)
+  storeId      String?
+  store        Store?     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdById  String?
+  createdBy    User?      @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers User[]     @relation("UserCreatedBy")
+  phone        String?
+  avatar       String?
+  status       UserStatus @default(ACTIVE)
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  lastLogin    DateTime?
+
+  productsCreated    Product[]           @relation("ProductCreatedBy")
+  sales              Sale[]
+  inventoryMovements InventoryMovement[]
+  activityLogs       ActivityLog[]
+  notifications      Notification[]
+  userSessions        UserSession[]
+  passwordResetTokens PasswordResetToken[]
+  passwordHistory     PasswordHistory[]
+  twoFactorCredential TwoFactorCredential?
+  backupRecords       BackupRecord[]
+
+  conversationsCreated      Conversation[]            @relation("ConversationCreatedBy")
+  conversationParticipants  ConversationParticipant[]
+  messagesSent              Message[]
+  readReceipts              ReadReceipt[]
+  announcementsCreated      Announcement[]             @relation("AnnouncementCreatedBy")
+  announcementRecipients    AnnouncementRecipient[]
+
+  @@index([storeId])
+  @@map("users")
+}
+
+model Product {
+  id               String        @id @default(cuid())
+  storeId          String
+  store            Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  sku              String
+  barcode          String?
+  name             String
+  slug             String
+  description      String?
+  categoryId       String?
+  category         Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type             String?
+  size             String?
+  color            String?
+  fabricationPrice Decimal       @db.Decimal(10, 2)
+  sellingPrice     Decimal       @db.Decimal(10, 2)
+  profitMargin     Decimal       @db.Decimal(6, 2) @default(0)
+  stock            Int           @default(0)
+  minimumStock     Int           @default(5)
+  status           ProductStatus @default(ACTIVE)
+  createdById      String
+  createdBy        User          @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  images             ProductImage[]
+  saleItems          SaleItem[]
+  inventoryMovements InventoryMovement[]
+
+  @@unique([storeId, sku])
+  @@unique([storeId, barcode])
+  @@unique([storeId, slug])
+  @@index([storeId, status])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  name        String
+  slug        String
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([storeId, name])
+  @@unique([storeId, slug])
+  @@index([storeId])
+  @@map("categories")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+  @@map("suppliers")
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  invoiceNumber String
+  sellerId      String
+  seller        User          @relation(fields: [sellerId], references: [id])
+  customerName  String?
+  customerPhone String?
+  subtotal      Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @db.Decimal(10, 2) @default(0)
+  tax           Decimal       @db.Decimal(10, 2) @default(0)
+  total         Decimal       @db.Decimal(10, 2)
+  netProfit     Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @default(CASH)
+  items         SaleItem[]
+  createdAt     DateTime      @default(now())
+
+  @@unique([storeId, invoiceNumber])
+  @@index([storeId, createdAt])
+  @@index([sellerId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id               String  @id @default(cuid())
+  saleId           String
+  sale             Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product @relation(fields: [productId], references: [id])
+  quantity         Int
+  sellingPrice     Decimal @db.Decimal(10, 2)
+  fabricationPrice Decimal @db.Decimal(10, 2)
+  profit           Decimal @db.Decimal(10, 2)
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model InventoryMovement {
+  id          String       @id @default(cuid())
+  storeId     String
+  store       Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  type        MovementType
+  quantity    Int
+  note        String?
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([storeId])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
+model Expense {
+  id        String          @id @default(cuid())
+  storeId   String
+  store     Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category  ExpenseCategory
+  amount    Decimal         @db.Decimal(10, 2)
+  note      String?
+  createdAt DateTime        @default(now())
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@map("expenses")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  storeId   String?
+  store     Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([storeId])
+  @@map("notifications")
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+/// Revocation ledger for JWT sessions. The JWT itself carries a `sid` claim
+/// matching `tokenId` here; every Node-runtime request re-checks this row
+/// via getSessionContext() so "logout everywhere" / "terminate session" are
+/// possible despite the session strategy being stateless JWTs.
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId       String    @unique
+  ipAddress     String?
+  userAgent     String?
+  browser       String?
+  os            String?
+  rememberMe    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+/// Every login attempt, successful or not — brute-force visibility and the
+/// source of truth for rate limiting / lockouts.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  email      String
+  success    Boolean
+  ipAddress  String?
+  userAgent  String?
+  failReason String?
+  createdAt  DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("login_attempts")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// Last-N password hashes, checked on password change/reset to block reuse.
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
+model TwoFactorCredential {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret     String
+  enabled    Boolean   @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  recoveryCodes RecoveryCode[]
+
+  @@map("two_factor_credentials")
+}
+
+model RecoveryCode {
+  id          String    @id @default(cuid())
+  twoFactorId String
+  twoFactor   TwoFactorCredential @relation(fields: [twoFactorId], references: [id], onDelete: Cascade)
+  codeHash    String
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([twoFactorId])
+  @@map("recovery_codes")
+}
+
+model BackupRecord {
+  id          String       @id @default(cuid())
+  filename    String
+  sizeBytes   Int
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  status      BackupStatus
+  createdAt   DateTime     @default(now())
+
+  @@map("backup_records")
+}
+
+// ---------- Communication (Part 2) ----------
+
+enum AnnouncementScope {
+  PLATFORM
+  STORE
+}
+
+/// A DM or group thread. `storeId` is null for Super-Admin conversations that
+/// span the whole platform (e.g. messaging a specific Manager directly).
+model Conversation {
+  id          String   @id @default(cuid())
+  storeId     String?
+  store       Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  isGroup     Boolean  @default(false)
+  title       String?
+  createdById String
+  createdBy   User     @relation("ConversationCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([storeId])
+  @@map("conversations")
+}
+
+/// Membership + read cursor. `lastReadAt` alone is enough to compute an
+/// unread badge without a receipt row per message per participant.
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  attachments  MessageAttachment[]
+  readReceipts ReadReceipt[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+/// Schema only this phase — no upload UI wired up yet (future-ready, per spec).
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  url       String
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+model ReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("read_receipts")
+}
+
+/// Platform-wide (Super Admin) or store-scoped (Manager) broadcast.
+/// Recipient rows are fanned out eagerly at creation time — store sizes are
+/// small enough that this is simpler and cheap compared to a lazy read model.
+model Announcement {
+  id          String            @id @default(cuid())
+  scope       AnnouncementScope
+  storeId     String?
+  store       Store?            @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  title       String
+  body        String
+  createdById String
+  createdBy   User              @relation("AnnouncementCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+
+  recipients AnnouncementRecipient[]
+
+  @@index([storeId])
+  @@index([scope])
+  @@map("announcements")
+}
+
+model AnnouncementRecipient {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime?
+
+  @@unique([announcementId, userId])
+  @@index([userId, readAt])
+  @@map("announcement_recipients")
+}
