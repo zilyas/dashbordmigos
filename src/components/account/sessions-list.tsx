@@ -54,13 +54,18 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between border-b pb-4">
+      <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Active sessions</CardTitle>
           <CardDescription>Devices and browsers currently signed in to your account.</CardDescription>
         </div>
         {otherSessionCount > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setTerminateAllOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => setTerminateAllOpen(true)}
+          >
             Sign out other sessions
           </Button>
         )}
@@ -69,18 +74,20 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
         {sessions.map((session) => {
           const isCurrent = session.tokenId === currentSid;
           return (
-            <div key={session.id} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex items-center gap-3">
+            <div key={session.id} className="flex items-center gap-4 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
                   <MonitorSmartphone className="size-4 text-muted-foreground" />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                    {session.browser ?? "Unknown browser"} · {session.os ?? "Unknown OS"}
+                    <span className="truncate">
+                      {session.browser ?? "Unknown browser"} · {session.os ?? "Unknown OS"}
+                    </span>
                     {isCurrent && <StatusBadge variant="success">This device</StatusBadge>}
                     {session.rememberMe && <StatusBadge variant="neutral">Remembered</StatusBadge>}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     {session.ipAddress ?? "Unknown IP"} · Last active {formatDateTime(session.lastSeenAt)}
                   </p>
                 </div>
@@ -89,7 +96,7 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
+                  className="shrink-0 text-destructive hover:text-destructive"
                   disabled={isPending}
                   onClick={() => setTerminateTarget(session)}
                 >

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/generated/prisma/enums";
+import type { PaymentMethod, Role } from "@/generated/prisma/enums";
 
 const LIST_CAP = 500;
 
@@ -71,38 +71,20 @@ export async function getSales({
 
 export type SaleListItem = Awaited<ReturnType<typeof getSales>>[number];
 
-export async function getSaleReceipt(id: string, storeId: string) {
-  const sale = await prisma.sale.findFirst({
-    where: { id, storeId },
-    include: {
-      seller: { select: { name: true } },
-      store: true,
-      items: { include: { product: { select: { name: true, sku: true } } } },
-    },
-  });
-  if (!sale) return null;
-
-  return {
-    id: sale.id,
-    invoiceNumber: sale.invoiceNumber,
-    sellerName: sale.seller.name,
-    customerName: sale.customerName,
-    customerPhone: sale.customerPhone,
-    subtotal: Number(sale.subtotal),
-    discount: Number(sale.discount),
-    tax: Number(sale.tax),
-    total: Number(sale.total),
-    paymentMethod: sale.paymentMethod,
-    createdAt: sale.createdAt.toISOString(),
-    storeName: sale.store.name,
-    currency: sale.store.currency,
-    items: sale.items.map((i) => ({
-      name: i.product.name,
-      sku: i.product.sku,
-      quantity: i.quantity,
-      sellingPrice: Number(i.sellingPrice),
-    })),
-  };
-}
-
-export type SaleReceipt = Awaited<ReturnType<typeof getSaleReceipt>>;
+/** Shape the POS terminal builds client-side after a successful sale — not fetched from the DB. */
+export type SaleReceipt = {
+  id: string;
+  invoiceNumber: string;
+  sellerName: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paymentMethod: PaymentMethod;
+  createdAt: string;
+  storeName: string;
+  currency: string;
+  items: { name: string; sku: string; quantity: number; sellingPrice: number }[];
+} | null;

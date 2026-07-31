@@ -17,7 +17,7 @@ export function UnreadAnnouncementsCard({ announcements }: { announcements: Unre
 
   return (
     <Card className="border-primary/30 bg-primary/5">
-      <CardHeader className="flex-row items-center justify-between border-b pb-4">
+      <CardHeader className="flex flex-col items-start gap-2 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
           <Megaphone className="size-4 text-primary" />
           {announcements.length} unread announcement{announcements.length === 1 ? "" : "s"}

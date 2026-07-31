@@ -1,0 +1,35 @@
+# Single-service compose file — the database is external (Neon), so there's
+# no local Postgres container to orchestrate. Useful for local Docker
+# smoke-testing and as a reference for Coolify's Docker Compose deployment
+# mode; Coolify's own UI is the source of truth for the running deployment.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        AUTH_SECRET: ${AUTH_SECRET}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    # Run at a single replica: the in-memory rate limiter
+    # (src/lib/security/rate-limit.ts) is per-instance, not shared across
+    # replicas. Scaling beyond 1 requires moving it to Redis/Upstash first.
+    deploy:
+      replicas: 1
+    volumes:
+      - uploads:/app/public/uploads
+      - backups:/app/storage/backups
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  uploads:
+  backups:

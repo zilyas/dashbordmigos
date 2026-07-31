@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
-import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,9 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { BrandMark } from "@/components/shared/brand-mark";
 import { loginAction } from "@/actions/auth";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
-
-const DEMO_ACCOUNTS = [
-  { role: "Super Admin", email: "superadmin@store.dev", tint: "bg-primary/10 text-primary" },
-];
-
-const DEMO_PASSWORD = "Password123!";
 
 export function LoginForm() {
   const router = useRouter();
@@ -60,12 +55,6 @@ export function LoginForm() {
     });
   }
 
-  function fillDemo(email: string) {
-    form.setValue("email", email);
-    form.setValue("password", DEMO_PASSWORD);
-    setServerError(null);
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -73,12 +62,7 @@ export function LoginForm() {
       transition={{ duration: 0.35, ease: "easeOut" }}
       className="w-full max-w-sm"
     >
-      <div className="mb-8 flex items-center gap-2">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Sparkles className="size-4.5" />
-        </div>
-        <span className="text-lg font-semibold tracking-tight">Store OS</span>
-      </div>
+      <BrandMark className="mb-8" />
 
       <h1 className="text-2xl font-semibold tracking-tight">Sign in to your workspace</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
@@ -95,7 +79,7 @@ export function LoginForm() {
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="you@store.dev"
+              placeholder="you@company.com"
               disabled={needsTwoFactor}
               aria-invalid={!!form.formState.errors.email}
               {...form.register("email")}
@@ -205,30 +189,6 @@ export function LoginForm() {
           </Button>
         </FieldGroup>
       </form>
-
-      {!needsTwoFactor && (
-        <div className="mt-8 rounded-xl border bg-muted/40 p-4">
-          <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <ShieldCheck className="size-3.5" />
-            Platform owner account — create Stores &amp; Managers from inside
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {DEMO_ACCOUNTS.map((acct) => (
-              <button
-                key={acct.email}
-                type="button"
-                onClick={() => fillDemo(acct.email)}
-                className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-accent"
-              >
-                <span className="text-muted-foreground">{acct.email}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${acct.tint}`}>
-                  {acct.role}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 }

@@ -125,7 +125,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
   return (
     <>
       <Card>
-        <CardHeader className="flex-row items-center justify-between border-b pb-4">
+        <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Two-factor authentication</CardTitle>
             <CardDescription>

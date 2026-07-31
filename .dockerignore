@@ -1,0 +1,30 @@
+node_modules
+.next
+.git
+.gitignore
+
+# env files never ship in the image — real values come from Coolify at
+# deploy time (buildtime-available vars for the build stage, runtime env
+# for the container)
+.env
+.env.*
+!.env.example
+
+# local-disk storage adapters write here — must never end up in a build
+# artifact. Backups contain password hashes and TOTP secrets; Next's file
+# tracer will happily copy whatever exists on disk at build time if these
+# aren't excluded here.
+/public/uploads
+/storage/backups
+
+*.tsbuildinfo
+npm-debug.log*
+
+.claude
+.vscode
+.github
+
+*.md
+!README.md
+
+coverage

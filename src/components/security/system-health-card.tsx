@@ -15,7 +15,7 @@ export function SystemHealthCard({ health }: { health: Awaited<ReturnType<typeof
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between border-b pb-4">
+      <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>System health</CardTitle>
           <CardDescription>Database connectivity and platform-wide row counts.</CardDescription>

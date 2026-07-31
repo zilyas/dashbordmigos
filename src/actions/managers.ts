@@ -1,11 +1,9 @@
 "use server";
 
-import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
-import { hashPassword } from "@/lib/security/password";
+import { requirePermission } from "@/lib/rbac-guards";
+import { generateTempPassword, hashPassword } from "@/lib/security/password";
 import { logActivity } from "@/lib/audit";
 import {
   createManagerSchema,
@@ -15,20 +13,7 @@ import {
 } from "@/lib/validations/manager";
 import { Prisma } from "@/generated/prisma/client";
 
-function generateTempPassword() {
-  return randomBytes(9)
-    .toString("base64")
-    .replace(/[+/=]/g, "")
-    .slice(0, 12);
-}
-
-async function requirePlatformAdmin() {
-  const session = await auth();
-  if (!session?.user || !can(session.user.role, "manager.manage")) {
-    throw new Error("Not authorized");
-  }
-  return session;
-}
+const requirePlatformAdmin = requirePermission("manager.manage");
 
 async function requireManagerRow(id: string) {
   return prisma.user.findFirst({ where: { id, role: "MANAGER" } });

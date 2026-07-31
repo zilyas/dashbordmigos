@@ -3,16 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ROLE_LABELS } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
+import { initials } from "@/lib/utils";
 import type { Role } from "@/generated/prisma/enums";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function ProfileCard({
   name,

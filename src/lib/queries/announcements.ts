@@ -21,7 +21,3 @@ export async function getUnreadAnnouncementsForUser(userId: string, limit = 5) {
     include: ANNOUNCEMENT_INCLUDE,
   });
 }
-
-export async function getUnreadAnnouncementCount(userId: string) {
-  return prisma.announcementRecipient.count({ where: { userId, readAt: null } });
-}

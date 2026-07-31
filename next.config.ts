@@ -39,6 +39,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  // Traces only the files each route actually needs into .next/standalone —
+  // the Docker runner image copies that instead of the full node_modules.
+  output: "standalone",
   images: {
     // Local placeholder art ships as SVG; uploads are served from /public/uploads.
     dangerouslyAllowSVG: true,

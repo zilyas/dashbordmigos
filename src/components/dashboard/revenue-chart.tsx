@@ -7,6 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { DEFAULT_CURRENCY, formatCurrency, formatNumber } from "@/lib/format";
 
 const chartConfig = {
   revenue: { label: "Revenue", color: "var(--chart-1)" },
@@ -15,8 +16,10 @@ const chartConfig = {
 
 export function RevenueChart({
   data,
+  currency = DEFAULT_CURRENCY,
 }: {
   data: { date: string; revenue: number; profit: number }[];
+  currency?: string;
 }) {
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
@@ -39,8 +42,28 @@ export function RevenueChart({
           tickMargin={8}
           interval="preserveStartEnd"
         />
-        <YAxis tickLine={false} axisLine={false} tickMargin={8} width={40} />
-        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          width={40}
+          tickFormatter={(value: number) => formatNumber(value)}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              indicator="dot"
+              formatter={(value, name) => (
+                <span className="flex w-full items-center justify-between gap-4">
+                  <span className="text-muted-foreground capitalize">{name}</span>
+                  <span className="font-mono font-medium tabular-nums">
+                    {formatCurrency(value as number, currency)}
+                  </span>
+                </span>
+              )}
+            />
+          }
+        />
         <Area
           dataKey="revenue"
           type="monotone"

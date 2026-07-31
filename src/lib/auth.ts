@@ -9,6 +9,9 @@ import { hashPassword, needsRehash, verifyPassword } from "@/lib/security/passwo
 import { extractRequestInfo, type RequestInfo } from "@/lib/security/request-info";
 import { RATE_LIMITS, rateLimit, resetRateLimit } from "@/lib/security/rate-limit";
 import { verifyTotpCode } from "@/lib/security/two-factor";
+import { scopedLogger } from "@/lib/logger";
+
+const authLogger = scopedLogger("auth");
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
@@ -81,6 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const limit = rateLimit(limitKey, RATE_LIMITS.login);
         if (!limit.success) {
           await logAttempt(email, false, info, "rate_limited");
+          authLogger.warn({ email, ipAddress: info.ipAddress }, "login rate limited");
           throw new RateLimitedSignin();
         }
 
@@ -96,6 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
           await logAttempt(email, false, info, "account_locked");
+          authLogger.warn({ email, userId: user.id, ipAddress: info.ipAddress }, "login attempt on locked account");
           throw new AccountLockedSignin();
         }
 
@@ -103,13 +108,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!validPassword) {
           await logAttempt(email, false, info, "invalid_credentials");
           const attempts = user.failedLoginAttempts + 1;
+          const justLocked = attempts >= MAX_FAILED_ATTEMPTS;
           await prisma.user.update({
             where: { id: user.id },
             data: {
               failedLoginAttempts: attempts,
-              lockedUntil: attempts >= MAX_FAILED_ATTEMPTS ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+              lockedUntil: justLocked ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
             },
           });
+          if (justLocked) {
+            authLogger.warn({ email, userId: user.id, ipAddress: info.ipAddress }, "account locked after too many failed attempts");
+          }
           return null;
         }
 
@@ -140,6 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         resetRateLimit(limitKey);
         await logAttempt(email, true, info);
+        authLogger.info({ email, userId: user.id, ipAddress: info.ipAddress }, "user signed in");
         await logActivity({
           storeId: user.storeId,
           userId: user.id,

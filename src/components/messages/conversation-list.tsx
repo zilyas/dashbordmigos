@@ -3,19 +3,10 @@
 import { Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/shared/empty-state";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { formatChatTimestamp } from "@/lib/format";
 import { conversationLabel } from "@/lib/messages-format";
 import type { ConversationSummary } from "@/actions/messages";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function ConversationList({
   conversations,

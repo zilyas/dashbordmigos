@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { MessageSquarePlus, Search } from "lucide-react";
 
@@ -10,6 +10,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ConversationList } from "@/components/messages/conversation-list";
 import { ThreadView } from "@/components/messages/thread-view";
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
   fetchConversationMessages,
   fetchConversations,
@@ -42,8 +44,23 @@ export function MessagesApp({
   const [search, setSearch] = useState("");
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [isSending, startSendTransition] = useTransition();
+  const isMobile = useIsMobile();
+
+  // Desktop opens straight into the first conversation; mobile should land
+  // on the conversation list first (WhatsApp/Telegram-style), so undo that
+  // default the first time we detect a mobile viewport. Only runs once —
+  // resizing back and forth afterward won't keep resetting the selection.
+  const didInitMobileRef = useRef(false);
+  useEffect(() => {
+    if (isMobile && !didInitMobileRef.current) {
+      didInitMobileRef.current = true;
+      setSelectedId(null);
+    }
+  }, [isMobile]);
 
   const selectedConversation = conversations.find((c) => c.id === selectedId) ?? null;
+  const showThreadPane = !isMobile || !!selectedId;
+  const showListPane = !isMobile || !selectedId;
 
   const refreshConversations = useCallback(async () => {
     const result = await fetchConversations();
@@ -104,10 +121,11 @@ export function MessagesApp({
   }, [conversations, search, currentUserId]);
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] min-h-[28rem] flex-col gap-4">
+    <div className="flex h-[calc(100dvh-10rem)] min-h-[28rem] flex-col gap-4">
       <PageHeader
         title="Messages"
         description="Direct messages across your team."
+        className={cn(isMobile && selectedId && "hidden")}
         actions={
           <Button onClick={() => setNewConversationOpen(true)}>
             <MessageSquarePlus className="size-4" />
@@ -116,35 +134,40 @@ export function MessagesApp({
         }
       />
       <div className="flex flex-1 overflow-hidden rounded-xl border">
-        <div className="flex w-full max-w-xs shrink-0 flex-col border-r">
-          <div className="border-b p-3">
-            <div className="relative">
-              <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search conversations"
-                className="pl-8"
-              />
+        {showListPane && (
+          <div className="flex w-full shrink-0 flex-col border-r md:w-80 md:max-w-xs">
+            <div className="border-b p-3">
+              <div className="relative">
+                <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search conversations"
+                  className="pl-8"
+                />
+              </div>
             </div>
+            <ConversationList
+              conversations={filteredConversations}
+              currentUserId={currentUserId}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           </div>
-          <ConversationList
-            conversations={filteredConversations}
-            currentUserId={currentUserId}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
-        </div>
-        <div className="flex flex-1 flex-col">
-          <ThreadView
-            conversation={selectedConversation}
-            messages={messages}
-            participants={participants}
-            currentUserId={currentUserId}
-            onSend={handleSend}
-            isSending={isSending}
-          />
-        </div>
+        )}
+        {showThreadPane && (
+          <div className="flex flex-1 flex-col">
+            <ThreadView
+              conversation={selectedConversation}
+              messages={messages}
+              participants={participants}
+              currentUserId={currentUserId}
+              onSend={handleSend}
+              isSending={isSending}
+              onBack={isMobile ? () => setSelectedId(null) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       <NewConversationDialog

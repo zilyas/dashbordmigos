@@ -28,16 +28,17 @@ export function AppTopbar({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-8 w-full max-w-72 items-center gap-2 rounded-lg border bg-muted/40 px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+        aria-label="Search"
+        className="flex size-8 shrink-0 items-center justify-center gap-2 rounded-lg border bg-muted/40 text-sm text-muted-foreground transition-colors hover:bg-muted sm:w-full sm:min-w-0 sm:max-w-72 sm:shrink sm:justify-start sm:px-2.5"
       >
-        <Search className="size-3.5" />
-        <span className="flex-1 text-left">Search...</span>
-        <kbd className="hidden rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
+        <Search className="size-3.5 shrink-0" />
+        <span className="hidden min-w-0 flex-1 truncate text-left sm:inline">Search...</span>
+        <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
           {isMac ? "⌘K" : "Ctrl K"}
         </kbd>
       </button>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         <ThemeToggle />
         <NotificationsMenu notifications={notifications} />
         <Separator orientation="vertical" className="mx-1 h-5" />

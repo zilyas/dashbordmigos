@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { requireStorePermission } from "@/lib/rbac-guards";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
 import { productSchema, type ProductInput } from "@/lib/validations/product";
@@ -15,13 +16,7 @@ function computeProfitMargin(sellingPrice: number, fabricationPrice: number) {
   return ((sellingPrice - fabricationPrice) / sellingPrice) * 100;
 }
 
-async function requireProductEditor() {
-  const context = await getSessionContext();
-  if (!context || !can(context.role, "product.create")) {
-    throw new Error("Not authorized");
-  }
-  return { ...context, storeId: requireStoreId(context) };
-}
+const requireProductEditor = requireStorePermission("product.create");
 
 async function uniqueSlug(storeId: string, base: string, excludeId?: string) {
   const slugBase = slugify(base) || "product";

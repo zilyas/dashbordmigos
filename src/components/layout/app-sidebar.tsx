@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { navItemsForRole } from "@/lib/nav-config";
@@ -21,11 +22,16 @@ import type { Role } from "@/generated/prisma/enums";
 export function AppSidebar({ role, unreadMessageCount = 0 }: { role: Role; unreadMessageCount?: number }) {
   const pathname = usePathname();
   const items = navItemsForRole(role);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  function closeOnMobile() {
+    if (isMobile) setOpenMobile(false);
+  }
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="gap-3 px-3 py-3">
-        <Link href="/dashboard" className="flex items-center gap-2 px-1">
+        <Link href="/dashboard" onClick={closeOnMobile} className="flex items-center gap-2 px-1">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Sparkles className="size-4" />
           </div>
@@ -35,7 +41,7 @@ export function AppSidebar({ role, unreadMessageCount = 0 }: { role: Role; unrea
         </Link>
         {role !== "SUPER_ADMIN" && (
           <Button asChild size="sm" className="justify-start gap-2 group-data-[collapsible=icon]:justify-center">
-            <Link href="/sales/new">
+            <Link href="/sales/new" onClick={closeOnMobile}>
               <Plus className="size-4" />
               <span className="group-data-[collapsible=icon]:hidden">New Sale</span>
             </Link>
@@ -53,7 +59,7 @@ export function AppSidebar({ role, unreadMessageCount = 0 }: { role: Role; unrea
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={closeOnMobile}>
                         <item.icon />
                         <span>{item.title}</span>
                         {item.href === "/messages" && unreadMessageCount > 0 && (

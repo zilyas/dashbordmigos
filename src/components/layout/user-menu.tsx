@@ -16,16 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logoutAction } from "@/actions/auth";
 import { ROLE_LABELS } from "@/lib/labels";
+import { initials } from "@/lib/utils";
 import type { Role } from "@/generated/prisma/enums";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function UserMenu({
   name,

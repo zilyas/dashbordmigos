@@ -2,15 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatDateTime } from "@/lib/format";
+import { FAIL_REASON_LABELS } from "@/lib/labels";
 import { History } from "lucide-react";
-
-const FAIL_REASON_LABELS: Record<string, string> = {
-  invalid_credentials: "Invalid email or password",
-  account_locked: "Account locked",
-  rate_limited: "Rate limited",
-  two_factor_required: "Two-factor code required",
-  invalid_two_factor_code: "Invalid two-factor code",
-};
 
 export function RecentLoginAttempts({
   attempts,
@@ -36,15 +29,15 @@ export function RecentLoginAttempts({
         ) : (
           <div className="flex max-h-96 flex-col divide-y overflow-y-auto">
             {attempts.map((attempt) => (
-              <div key={attempt.id} className="flex items-center justify-between gap-4 py-3">
-                <div>
+              <div key={attempt.id} className="flex items-center gap-4 py-3">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <StatusBadge variant={attempt.success ? "success" : "destructive"}>
+                    <StatusBadge variant={attempt.success ? "success" : "destructive"} className="shrink-0">
                       {attempt.success ? "Success" : "Failed"}
                     </StatusBadge>
-                    {attempt.email}
+                    <span className="truncate">{attempt.email}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {attempt.ipAddress ?? "Unknown IP"}
                     {attempt.failReason ? ` · ${FAIL_REASON_LABELS[attempt.failReason] ?? attempt.failReason}` : ""}
                     {" · "}

@@ -1,24 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CheckCheck, Loader2, MessageCircle, Send, Users } from "lucide-react";
+import { ChevronLeft, Check, CheckCheck, Loader2, MessageCircle, Send, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { formatChatTimestamp } from "@/lib/format";
 import { conversationLabel } from "@/lib/messages-format";
 import type { ConversationSummary, MessageItem, ParticipantSummary } from "@/actions/messages";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function ThreadView({
   conversation,
@@ -27,6 +18,7 @@ export function ThreadView({
   currentUserId,
   onSend,
   isSending,
+  onBack,
 }: {
   conversation: ConversationSummary | null;
   messages: MessageItem[];
@@ -34,6 +26,8 @@ export function ThreadView({
   currentUserId: string;
   onSend: (body: string) => void;
   isSending: boolean;
+  /** Present only in the mobile single-pane layout — renders a back button that returns to the conversation list. */
+  onBack?: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -72,7 +66,18 @@ export function ThreadView({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
+      <div className="flex items-center gap-2 border-b px-3 py-3 sm:gap-3 sm:px-4">
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="-ml-1 shrink-0"
+            onClick={onBack}
+            aria-label="Back to conversations"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+        )}
         <Avatar className="size-8">
           {other?.avatar && <AvatarImage src={other.avatar} alt={label} />}
           <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
@@ -133,7 +138,7 @@ export function ThreadView({
         )}
       </div>
 
-      <div className="flex items-end gap-2 border-t p-3">
+      <div className="safe-bottom flex items-end gap-2 border-t p-3">
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

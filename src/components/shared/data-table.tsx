@@ -200,17 +200,17 @@ export function DataTable<TData>({
       </div>
 
       {table.getPageCount() > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <span className="text-sm text-muted-foreground">
             Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="gap-1"
+              className="flex-1 gap-1 sm:flex-none"
             >
               <ChevronLeft className="size-3.5" />
               Previous
@@ -220,7 +220,7 @@ export function DataTable<TData>({
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="gap-1"
+              className="flex-1 gap-1 sm:flex-none"
             >
               Next
               <ChevronRight className="size-3.5" />

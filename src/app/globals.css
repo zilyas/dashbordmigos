@@ -4,6 +4,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Safe-area insets for iPhone notch/Dynamic Island and Android gesture nav —
+   applied where fixed/full-bleed surfaces render (topbar, mobile sidebar
+   drawer, dialogs). Requires viewport-fit=cover, set in app/layout.tsx. */
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+@utility safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -137,7 +153,7 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans overflow-x-clip;
   }
 }
 

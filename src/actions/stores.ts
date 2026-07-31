@@ -1,21 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { requirePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
 import { storeSchema, type StoreInput } from "@/lib/validations/store";
 import { Prisma } from "@/generated/prisma/client";
 import type { StoreStatus } from "@/generated/prisma/enums";
 
-async function requireStoreManager() {
-  const session = await auth();
-  if (!session?.user || !can(session.user.role, "store.manage")) {
-    throw new Error("Not authorized");
-  }
-  return session;
-}
+const requireStoreManager = requirePermission("store.manage");
 
 export async function createStore(input: StoreInput) {
   const session = await requireStoreManager();

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -19,6 +19,16 @@ export const metadata: Metadata = {
     template: "%s · Store Management",
   },
   description: "Manage products, inventory, sales, and reports.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Lets fixed/full-bleed surfaces (topbar, mobile drawers, dialogs) extend
+  // under the iPhone notch/Dynamic Island and Android gesture bar instead of
+  // leaving a hard edge — safe-area padding is applied where those surfaces
+  // render (see globals.css and the app shell).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

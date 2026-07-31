@@ -13,11 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { initials } from "@/lib/utils";
 import type { ManagerListItem } from "@/lib/queries/users";
-
-function initials(name: string) {
-  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
-}
 
 export function buildManagerColumns({
   onEdit,

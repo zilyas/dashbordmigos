@@ -72,16 +72,16 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Active Stores" value={`${data.stores.active} / ${data.stores.total}`} icon={<Store />} tint="primary" />
           <StatCard label="Total Users" value={formatNumber(data.users.total)} icon={<Users />} tint="primary" />
-          <StatCard label="Today's Revenue" value={formatCurrency(data.today.revenue, "USD")} icon={<DollarSign />} tint="success" />
+          <StatCard label="Today's Revenue" value={formatCurrency(data.today.revenue)} icon={<DollarSign />} tint="success" />
           <StatCard label="Today's Orders" value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
           <StatCard
             label="Monthly Revenue"
-            value={formatCurrency(data.monthly.revenue, "USD")}
+            value={formatCurrency(data.monthly.revenue)}
             icon={<TrendingUp />}
             tint="primary"
             trend={{ value: data.monthly.revenueGrowth, label: "vs last month" }}
           />
-          <StatCard label="Monthly Profit" value={formatCurrency(data.monthly.profit, "USD")} icon={<DollarSign />} tint="success" />
+          <StatCard label="Monthly Profit" value={formatCurrency(data.monthly.profit)} icon={<DollarSign />} tint="success" />
           <StatCard label="Monthly Orders" value={formatNumber(data.monthly.orders)} icon={<ShoppingCart />} tint="primary" />
         </div>
 
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">{store.name}</span>
                           <span className="tabular-nums text-muted-foreground">
-                            {formatCurrency(store.revenue, "USD")}
+                            {formatCurrency(store.revenue)}
                           </span>
                         </div>
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -174,7 +174,7 @@ export default async function DashboardPage() {
         </div>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between border-b pb-4">
+          <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>My recent sales</CardTitle>
               <CardDescription>Your last 8 completed sales</CardDescription>
@@ -269,7 +269,7 @@ export default async function DashboardPage() {
             <CardDescription>Last 14 days</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <RevenueChart data={data.revenueTrend} />
+            <RevenueChart data={data.revenueTrend} currency={currency} />
           </CardContent>
         </Card>
 

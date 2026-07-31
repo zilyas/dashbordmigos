@@ -23,14 +23,16 @@ export function LockedAccountsCard({
         ) : (
           <div className="flex flex-col divide-y">
             {accounts.map((account) => (
-              <div key={account.id} className="flex items-center justify-between gap-4 py-3">
-                <div>
+              <div key={account.id} className="flex items-center gap-4 py-3">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <ShieldAlert className="size-4 text-destructive" />
-                    {account.name}
-                    <StatusBadge variant="neutral">{ROLE_LABELS[account.role]}</StatusBadge>
+                    <ShieldAlert className="size-4 shrink-0 text-destructive" />
+                    <span className="truncate">{account.name}</span>
+                    <StatusBadge variant="neutral" className="shrink-0">
+                      {ROLE_LABELS[account.role]}
+                    </StatusBadge>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {account.email} · {account.failedLoginAttempts} failed attempts
                     {account.lockedUntil ? ` · locked until ${formatDateTime(account.lockedUntil)}` : ""}
                   </p>

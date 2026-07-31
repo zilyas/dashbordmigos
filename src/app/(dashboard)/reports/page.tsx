@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { getReportData, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { getStoreSettings } from "@/lib/queries/settings";
 import { getSessionContext } from "@/lib/store-context";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { DEFAULT_CURRENCY, formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -41,7 +41,7 @@ export default async function ReportsPage({
     getReportData(period, storeId),
     storeId ? getStoreSettings(storeId) : Promise.resolve(null),
   ]);
-  const currency = settings?.currency ?? "USD";
+  const currency = settings?.currency ?? DEFAULT_CURRENCY;
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,7 +95,10 @@ export default async function ReportsPage({
           {data.breakdown.every((b) => b.revenue === 0) ? (
             <EmptyState icon={<BarChart3 />} title="No sales in this period" className="h-64 border-none" />
           ) : (
-            <RevenueChart data={data.breakdown.map((b) => ({ date: b.label, revenue: b.revenue, profit: b.profit }))} />
+            <RevenueChart
+              data={data.breakdown.map((b) => ({ date: b.label, revenue: b.revenue, profit: b.profit }))}
+              currency={currency}
+            />
           )}
         </CardContent>
       </Card>

@@ -53,7 +53,7 @@ export function StoreDialog({
     defaultValues: {
       name: "",
       code: "",
-      currency: "USD",
+      currency: "MAD",
       taxRate: 0,
       address: "",
       city: "",
@@ -123,7 +123,7 @@ export function StoreDialog({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.currency}>
                 <FieldLabel htmlFor="store-currency">Currency</FieldLabel>
-                <Input id="store-currency" placeholder="USD" maxLength={3} {...form.register("currency")} />
+                <Input id="store-currency" placeholder="MAD" maxLength={3} {...form.register("currency")} />
                 {form.formState.errors.currency && (
                   <FieldError>{form.formState.errors.currency.message}</FieldError>
                 )}

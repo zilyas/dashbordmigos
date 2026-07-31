@@ -1,6 +1,12 @@
+import { randomBytes } from "crypto";
 import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+
+/** Random temporary password for admin-triggered resets (e.g. "Reset password" on a Manager/Seller). */
+export function generateTempPassword(): string {
+  return randomBytes(9).toString("base64").replace(/[+/=]/g, "").slice(0, 12);
+}
 
 // OWASP-recommended Argon2id parameters for interactive login (~19 MiB, 2 passes, 1 lane).
 // Argon2id is the library default, so `algorithm` is left unset — the const

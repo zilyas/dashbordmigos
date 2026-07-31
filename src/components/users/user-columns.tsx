@@ -14,11 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/format";
+import { initials } from "@/lib/utils";
 import type { SellerListItem } from "@/lib/queries/users";
-
-function initials(name: string) {
-  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
-}
 
 export function buildSellerColumns({
   currency,

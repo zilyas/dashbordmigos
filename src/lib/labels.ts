@@ -44,3 +44,11 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   SUPPLIER_DELIVERY: "Supplier Delivery",
   MANUAL_EDIT: "Manual Edit",
 };
+
+export const FAIL_REASON_LABELS: Record<string, string> = {
+  invalid_credentials: "Invalid email or password",
+  account_locked: "Account locked",
+  rate_limited: "Rate limited",
+  two_factor_required: "Two-factor code required",
+  invalid_two_factor_code: "Invalid two-factor code",
+};

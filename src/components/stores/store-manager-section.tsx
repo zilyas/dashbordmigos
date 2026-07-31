@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AssignManagerDialog } from "@/components/stores/assign-manager-dialog";
-
-function initials(name: string) {
-  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
-}
+import { initials } from "@/lib/utils";
 
 export function StoreManagerSection({
   storeId,

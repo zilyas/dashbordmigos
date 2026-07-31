@@ -2,19 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
-import { getSessionContext, requireStoreId } from "@/lib/store-context";
+import { requireStorePermission } from "@/lib/rbac-guards";
 import { categorySchema, type CategoryInput } from "@/lib/validations/category";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
 
-async function requireCategoryManager() {
-  const context = await getSessionContext();
-  if (!context || !can(context.role, "category.manage")) {
-    throw new Error("Not authorized");
-  }
-  return { ...context, storeId: requireStoreId(context) };
-}
+const requireCategoryManager = requireStorePermission("category.manage");
 
 export async function createCategory(input: CategoryInput) {
   const session = await requireCategoryManager();

@@ -16,17 +16,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/labels";
+import { initials } from "@/lib/utils";
 import { startDirectConversation, startGroupConversation, type BroadcastTarget } from "@/actions/messages";
 import type { MessageableUser } from "@/lib/messaging-permissions";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function NewConversationDialog({
   open,
@@ -180,8 +172,8 @@ export function NewConversationDialog({
                   {initials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="flex-1">{user.name}</span>
-              <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
+              <span className="min-w-0 flex-1 truncate">{user.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
             </CommandItem>
           ))}
         </CommandGroup>

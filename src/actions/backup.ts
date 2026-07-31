@@ -2,22 +2,16 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { requirePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
+import { logServerError } from "@/lib/logger";
 import { createBackupPayload, isValidBackupPayload, restoreBackupPayload } from "@/lib/backup";
 import { writeBackupFile } from "@/lib/storage/backups";
 
 const RESTORE_CONFIRMATION_TEXT = "RESTORE";
 
-async function requireSuperAdmin() {
-  const session = await auth();
-  if (!session?.user || !can(session.user.role, "backup.manage")) {
-    throw new Error("Not authorized");
-  }
-  return session;
-}
+const requireSuperAdmin = requirePermission("backup.manage");
 
 export async function createBackup() {
   const session = await requireSuperAdmin();
@@ -49,7 +43,8 @@ export async function createBackup() {
 
     revalidatePath("/backups");
     return { success: true as const, id: record.id };
-  } catch {
+  } catch (error) {
+    logServerError("app", error, { action: "backup.created", filename, userId: session.user.id });
     const record = await prisma.backupRecord.create({
       data: { filename, sizeBytes: 0, createdById: session.user.id, status: "FAILED" },
     });
@@ -86,6 +81,7 @@ export async function restoreBackup(fileContent: string, confirmText: string) {
   try {
     await restoreBackupPayload(payload);
   } catch (error) {
+    logServerError("app", error, { action: "backup.restored", userId: session.user.id });
     const message = error instanceof Error ? error.message : "Restore failed.";
     return { error: `Restore failed: ${message}` };
   }

@@ -80,7 +80,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
               </Field>
               <Field data-invalid={!!form.formState.errors.currency}>
                 <FieldLabel htmlFor="currency">Currency code</FieldLabel>
-                <Input id="currency" placeholder="USD" maxLength={3} {...form.register("currency")} />
+                <Input id="currency" placeholder="MAD" maxLength={3} {...form.register("currency")} />
                 {form.formState.errors.currency && (
                   <FieldError>{form.formState.errors.currency.message}</FieldError>
                 )}
@@ -131,7 +131,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
               </Field>
             </div>
 
-            <Field orientation="horizontal" className="items-center justify-between rounded-lg border p-3">
+            <Field orientation="responsive" className="justify-between gap-3 rounded-lg border p-3">
               <div>
                 <FieldLabel htmlFor="allowSellerViewCost">Sellers can see fabrication cost</FieldLabel>
                 <FieldDescription>

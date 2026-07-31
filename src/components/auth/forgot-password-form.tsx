@@ -89,7 +89,7 @@ export function ForgotPasswordForm() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@store.dev"
+                placeholder="you@company.com"
                 aria-invalid={!!form.formState.errors.email}
                 {...form.register("email")}
               />

@@ -86,14 +86,12 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <CardHeader className="flex-row items-center justify-between border-b pb-4">
-          <div>
-            <CardTitle>Create a backup</CardTitle>
-            <CardDescription>
-              Exports every table to a downloadable JSON file. Contains sensitive data — store it
-              securely.
-            </CardDescription>
-          </div>
+        <CardHeader className="border-b pb-4">
+          <CardTitle>Create a backup</CardTitle>
+          <CardDescription>
+            Exports every table to a downloadable JSON file. Contains sensitive data — store it
+            securely.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2 pt-4">
           <Button onClick={handleCreate} disabled={isCreating}>
@@ -127,23 +125,26 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
             <div className="flex flex-col divide-y">
               {records.map((record) => (
                 <div key={record.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 text-sm font-medium">
-                      {record.filename}
-                      <StatusBadge variant={record.status === "COMPLETED" ? "success" : "destructive"}>
+                      <span className="truncate">{record.filename}</span>
+                      <StatusBadge
+                        variant={record.status === "COMPLETED" ? "success" : "destructive"}
+                        className="shrink-0"
+                      >
                         {record.status === "COMPLETED" ? "Completed" : "Failed"}
                       </StatusBadge>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
                       {formatBytes(record.sizeBytes)} · by {record.createdBy.name} ·{" "}
                       {formatDateTime(record.createdAt)}
                     </p>
                   </div>
                   {record.status === "COMPLETED" && (
-                    <Button variant="ghost" size="sm" asChild>
+                    <Button variant="ghost" size="sm" className="shrink-0" asChild>
                       <a href={`/api/backups/${record.id}/download`} download>
                         <Download className="size-4" />
-                        Download
+                        <span className="hidden sm:inline">Download</span>
                       </a>
                     </Button>
                   )}

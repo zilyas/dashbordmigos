@@ -1,11 +1,9 @@
 "use server";
 
-import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
-import { getSessionContext, requireStoreId } from "@/lib/store-context";
-import { hashPassword } from "@/lib/security/password";
+import { requireStorePermission } from "@/lib/rbac-guards";
+import { generateTempPassword, hashPassword } from "@/lib/security/password";
 import { logActivity } from "@/lib/audit";
 import {
   createSellerSchema,
@@ -15,20 +13,7 @@ import {
 } from "@/lib/validations/user";
 import { Prisma } from "@/generated/prisma/client";
 
-function generateTempPassword() {
-  return randomBytes(9)
-    .toString("base64")
-    .replace(/[+/=]/g, "")
-    .slice(0, 12);
-}
-
-async function requireSellerManager() {
-  const context = await getSessionContext();
-  if (!context || !can(context.role, "seller.manage")) {
-    throw new Error("Not authorized");
-  }
-  return { ...context, storeId: requireStoreId(context) };
-}
+const requireSellerManager = requireStorePermission("seller.manage");
 
 /** Verifies a target Seller belongs to the acting Manager's store before any mutation. */
 async function requireOwnedSeller(id: string, storeId: string) {

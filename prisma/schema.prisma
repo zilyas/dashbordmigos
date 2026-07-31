@@ -85,7 +85,7 @@ model Store {
   id                  String      @id @default(cuid())
   name                String
   code                String      @unique
-  currency            String      @default("USD")
+  currency            String      @default("MAD")
   taxRate             Decimal     @db.Decimal(5, 2) @default(0)
   allowSellerViewCost Boolean     @default(false)
   address             String?
@@ -110,6 +110,7 @@ model Store {
   conversations       Conversation[]
   announcements       Announcement[]
 
+  @@index([status])
   @@map("stores")
 }
 
@@ -152,6 +153,7 @@ model User {
   announcementRecipients    AnnouncementRecipient[]
 
   @@index([storeId])
+  @@index([role])
   @@map("users")
 }
 

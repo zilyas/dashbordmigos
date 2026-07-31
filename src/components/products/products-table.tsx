@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Package, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Package, Archive, ArchiveRestore } from "lucide-react";
 import {
   Select,
   SelectContent,

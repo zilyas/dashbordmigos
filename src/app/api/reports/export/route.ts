@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { logActivity } from "@/lib/audit";
 import { getReportData, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
+import { getStoreSettings } from "@/lib/queries/settings";
+import { DEFAULT_CURRENCY } from "@/lib/format";
 
 function csvEscape(value: string | number) {
   const str = String(value);
@@ -22,7 +24,11 @@ export async function GET(request: Request) {
     : "monthly";
 
   const storeId = session.user.role === "SUPER_ADMIN" ? null : session.user.storeId;
-  const data = await getReportData(period, storeId);
+  const [data, settings] = await Promise.all([
+    getReportData(period, storeId),
+    storeId ? getStoreSettings(storeId) : Promise.resolve(null),
+  ]);
+  const currency = settings?.currency ?? DEFAULT_CURRENCY;
 
   await logActivity({
     storeId,
@@ -33,6 +39,8 @@ export async function GET(request: Request) {
   });
 
   const rows = [
+    ["Currency", currency],
+    [],
     ["Period", "Revenue", "Profit", "Orders"],
     ...data.breakdown.map((b) => [b.label, b.revenue, b.profit, b.orders]),
     [],
