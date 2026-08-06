@@ -43,6 +43,16 @@ const nextConfig: NextConfig = {
   // Traces only the files each route actually needs into .next/standalone —
   // the Docker runner image copies that instead of the full node_modules.
   output: "standalone",
+  // sharp is a native module — keep it external (don't bundle it) so it loads
+  // its platform binary at runtime the normal way.
+  serverExternalPackages: ["sharp"],
+  // Next's file tracer misses sharp's platform-specific native binaries when
+  // building the standalone output, so the upload route 500s at runtime with
+  // "Could not load the sharp module". Force the whole sharp + @img tree
+  // (which holds the linux-musl libvips binary) into the trace for that route.
+  outputFileTracingIncludes: {
+    "/api/uploads": ["./node_modules/sharp/**/*", "./node_modules/@img/**/*"],
+  },
   images: {
     // Local placeholder art ships as SVG; uploads are served from /public/uploads.
     dangerouslyAllowSVG: true,
