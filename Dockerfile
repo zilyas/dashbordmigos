@@ -5,9 +5,14 @@ FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Retries/timeouts bumped up — this step is the most exposed to transient
-# registry connection drops (ECONNRESET) on slower/flakier networks.
-RUN npm ci --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=120000
+# Registry-side robustness for constrained build servers: --no-audit/--no-fund
+# skip the bulk POST that npm fires at the very end of install (the exact point
+# where flaky builds kept resetting); --maxsockets caps parallel connections so
+# a swarm of sockets can't overwhelm the host's connection tracking; retries +
+# long timeouts ride out transient drops.
+RUN npm ci --no-audit --no-fund --maxsockets=5 \
+      --fetch-retries=5 --fetch-retry-factor=2 \
+      --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=120000
 
 # ---- builder ----
 FROM node:24-alpine AS builder
