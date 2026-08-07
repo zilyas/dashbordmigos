@@ -5,14 +5,19 @@ FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Registry-side robustness for constrained build servers: --no-audit/--no-fund
-# skip the bulk POST that npm fires at the very end of install (the exact point
-# where flaky builds kept resetting); --maxsockets caps parallel connections so
-# a swarm of sockets can't overwhelm the host's connection tracking; retries +
-# long timeouts ride out transient drops.
-RUN npm ci --no-audit --no-fund --maxsockets=5 \
-      --fetch-retries=5 --fetch-retry-factor=2 \
-      --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=120000
+# This build server's registry connection keeps dropping partway through the
+# ~900-package install (ECONNRESET/ETIMEDOUT), even though raw throughput to
+# the registry measures fine (33MB @ 10.9MB/s). The BuildKit cache mount is
+# the key mitigation: tarballs already fetched persist in the build cache even
+# when the step fails, so each retry resumes where the last left off instead
+# of starting from zero — consecutive attempts get further until one completes.
+# Do NOT `docker builder prune` between retries; that wipes this cache.
+# The flags reduce concurrency and ride out slow responses.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund --maxsockets=3 \
+      --fetch-timeout=600000 \
+      --fetch-retries=8 --fetch-retry-factor=2 \
+      --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=180000
 
 # ---- builder ----
 FROM node:24-alpine AS builder
