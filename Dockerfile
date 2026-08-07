@@ -55,6 +55,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Belt-and-braces for sharp (used by the image-upload route). Next's file
+# tracer is unreliable about pulling native modules into the standalone
+# bundle — when it misses them, /api/uploads 500s at import time. Copy the
+# installed sharp + its libvips binaries in explicitly. Must come *after* the
+# standalone copy above, since that is what creates ./node_modules.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/sharp ./node_modules/sharp
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@img ./node_modules/@img
+
 # Next's file tracer copies whatever already exists on disk at these paths
 # at build time — on a dev machine that can include real uploaded images or
 # backup files (password hashes, TOTP secrets). .dockerignore keeps them out
