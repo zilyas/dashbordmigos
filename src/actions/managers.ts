@@ -12,6 +12,7 @@ import {
   type UpdateManagerInput,
 } from "@/lib/validations/manager";
 import { Prisma } from "@/generated/prisma/client";
+import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 
 const requirePlatformAdmin = requirePermission("manager.manage");
 
@@ -147,7 +148,7 @@ export async function deleteManager(id: string) {
     revalidatePath("/managers");
     return { success: true as const, deactivated: false };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+    if (isForeignKeyConstraintError(error)) {
       await prisma.user.update({ where: { id }, data: { status: "INACTIVE" } });
 
       await logActivity({

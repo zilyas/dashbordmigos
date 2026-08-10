@@ -9,6 +9,7 @@ import { logActivity } from "@/lib/audit";
 import { productSchema, type ProductInput } from "@/lib/validations/product";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
+import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 import type { ProductStatus } from "@/generated/prisma/enums";
 
 function computeProfitMargin(sellingPrice: number, fabricationPrice: number) {
@@ -218,7 +219,7 @@ export async function deleteProduct(id: string) {
     revalidatePath("/products");
     return { success: true as const, archived: false };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+    if (isForeignKeyConstraintError(error)) {
       await prisma.product.update({ where: { id }, data: { status: "ARCHIVED" } });
 
       await logActivity({

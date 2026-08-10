@@ -26,11 +26,26 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   const session = await auth();
   if (!session?.user || !session.sid) return null;
 
-  const userSession = await prisma.userSession.findUnique({
-    where: { tokenId: session.sid },
-    select: { revokedAt: true, expiresAt: true },
-  });
+  // Verify the user session is still valid (not revoked/expired)
+  // and that the user account itself is still active
+  const [userSession, user] = await Promise.all([
+    prisma.userSession.findUnique({
+      where: { tokenId: session.sid },
+      select: { revokedAt: true, expiresAt: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { status: true },
+    }),
+  ]);
+
+  // Check session validity
   if (!userSession || userSession.revokedAt || userSession.expiresAt.getTime() <= Date.now()) {
+    return null;
+  }
+
+  // Check user account status (CRITICAL: prevent deactivated users from acting)
+  if (!user || user.status !== "ACTIVE") {
     return null;
   }
 

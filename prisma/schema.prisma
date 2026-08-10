@@ -358,7 +358,12 @@ model Notification {
   storeId   String?
   store     Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
   userId    String
-  user      User             @relation(fields: [userId], references: [id])
+  /// Cascades: a notification is ephemeral UI state with no historical or
+  /// audit value, so it must never be the thing that blocks deleting a user.
+  /// Records that DO carry history — sales, activity logs, products created,
+  /// messages — deliberately stay RESTRICT, which turns a delete into a
+  /// deactivation instead (see isForeignKeyConstraintError callers).
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
   message   String
