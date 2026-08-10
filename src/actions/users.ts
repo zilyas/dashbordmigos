@@ -12,6 +12,7 @@ import {
   type UpdateSellerInput,
 } from "@/lib/validations/user";
 import { Prisma } from "@/generated/prisma/client";
+import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 
 const requireSellerManager = requireStorePermission("seller.manage");
 
@@ -149,7 +150,7 @@ export async function deleteSeller(id: string) {
     revalidatePath("/users");
     return { success: true as const, deactivated: false };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+    if (isForeignKeyConstraintError(error)) {
       await prisma.user.update({ where: { id }, data: { status: "INACTIVE" } });
 
       await logActivity({

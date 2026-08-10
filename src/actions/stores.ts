@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
 import { storeSchema, type StoreInput } from "@/lib/validations/store";
 import { Prisma } from "@/generated/prisma/client";
+import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 import type { StoreStatus } from "@/generated/prisma/enums";
 
 const requireStoreManager = requirePermission("store.manage");
@@ -158,7 +159,7 @@ export async function deleteStore(id: string) {
     revalidatePath("/stores");
     return { success: true as const, deactivated: false };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+    if (isForeignKeyConstraintError(error)) {
       await prisma.store.update({ where: { id }, data: { status: "INACTIVE" } });
 
       await logActivity({
