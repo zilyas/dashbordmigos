@@ -11,15 +11,17 @@ export function SalesTable({
   currency,
   showSeller,
   showProfit,
+  canManage = false,
 }: {
   sales: SaleListItem[];
   currency: string;
   showSeller: boolean;
   showProfit: boolean;
+  canManage?: boolean;
 }) {
   const columns = useMemo(
-    () => buildSalesColumns({ currency, showSeller, showProfit }),
-    [currency, showSeller, showProfit]
+    () => buildSalesColumns({ currency, showSeller, showProfit, canManage }),
+    [currency, showSeller, showProfit, canManage]
   );
 
   return (

@@ -9,6 +9,12 @@ import { Prisma } from "@/generated/prisma/client";
 import type { StoreStatus } from "@/generated/prisma/enums";
 
 const requireStoreManager = requirePermission("store.manage");
+const requireStoreReset = requirePermission("store.reset");
+
+// Typed by the operator to confirm an irreversible store reset. Kept in sync
+// with the same constant in the reset dialog — this module is "use server",
+// so it can only export async functions, not shared constants.
+const RESET_CONFIRMATION_TEXT = "RESET";
 
 export async function createStore(input: StoreInput) {
   const session = await requireStoreManager();
@@ -168,5 +174,66 @@ export async function deleteStore(id: string) {
       return { success: true as const, deactivated: true };
     }
     throw error;
+  }
+}
+
+/**
+ * Wipes a store's trading history — sales, sale items, inventory movements
+ * and expenses — while leaving the catalogue (products, categories), staff
+ * and settings intact, so the store keeps its setup but starts fresh
+ * financially.
+ *
+ * Product stock levels are deliberately NOT rewound to pre-sale values:
+ * current stock reflects physical reality on the shelf, and the sales that
+ * moved it are exactly what is being erased. Stock stays as-is and can be
+ * corrected afterwards via inventory adjustment if needed.
+ */
+export async function resetStoreData(storeId: string, confirmText: string) {
+  const session = await requireStoreReset();
+
+  if (confirmText !== RESET_CONFIRMATION_TEXT) {
+    return { error: `Type "${RESET_CONFIRMATION_TEXT}" to confirm.` };
+  }
+
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store) return { error: "Store not found" };
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // SaleItem rows cascade from Sale, so they need no explicit delete.
+      const [sales, movements, expenses] = await Promise.all([
+        tx.sale.deleteMany({ where: { storeId } }),
+        tx.inventoryMovement.deleteMany({ where: { storeId } }),
+        tx.expense.deleteMany({ where: { storeId } }),
+      ]);
+
+      await logActivity(
+        {
+          storeId,
+          userId: session.user.id,
+          action: "store.data_reset",
+          entity: "Store",
+          entityId: storeId,
+          metadata: {
+            name: store.name,
+            salesDeleted: sales.count,
+            movementsDeleted: movements.count,
+            expensesDeleted: expenses.count,
+          },
+        },
+        tx
+      );
+
+      return { sales: sales.count, movements: movements.count, expenses: expenses.count };
+    });
+
+    revalidatePath("/stores");
+    revalidatePath(`/stores/${storeId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+
+    return { success: true as const, ...result };
+  } catch {
+    return { error: "Failed to reset the store. Please try again." };
   }
 }

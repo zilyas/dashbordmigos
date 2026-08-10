@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SaleActions } from "@/components/sales/sale-actions";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
@@ -10,17 +11,31 @@ export function buildSalesColumns({
   currency,
   showSeller,
   showProfit,
+  canManage,
 }: {
   currency: string;
   showSeller: boolean;
   showProfit: boolean;
+  /** Managers can refund/edit/delete; Sellers only ever read their own sales. */
+  canManage: boolean;
 }): ColumnDef<SaleListItem, unknown>[] {
   const columns: ColumnDef<SaleListItem, unknown>[] = [
     {
       id: "invoiceNumber",
       accessorFn: (row) => row.invoiceNumber,
       header: "Invoice",
-      cell: ({ row }) => <span className="font-medium">{row.original.invoiceNumber}</span>,
+      cell: ({ row }) => {
+        const sale = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{sale.invoiceNumber}</span>
+            {sale.status === "REFUNDED" && <StatusBadge variant="destructive">Returned</StatusBadge>}
+            {sale.status === "PARTIALLY_REFUNDED" && (
+              <StatusBadge variant="warning">Part-returned</StatusBadge>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "createdAt",
@@ -64,9 +79,19 @@ export function buildSalesColumns({
       id: "total",
       accessorFn: (row) => row.total,
       header: "Total",
-      cell: ({ row }) => (
-        <span className="font-medium tabular-nums">{formatCurrency(row.original.total, currency)}</span>
-      ),
+      cell: ({ row }) => {
+        const sale = row.original;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium tabular-nums">{formatCurrency(sale.total, currency)}</span>
+            {sale.refundedTotal > 0 && (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatCurrency(sale.refundedTotal, currency)} refunded
+              </span>
+            )}
+          </div>
+        );
+      },
     }
   );
 
@@ -78,6 +103,15 @@ export function buildSalesColumns({
       cell: ({ row }) => (
         <span className="tabular-nums text-success">{formatCurrency(row.original.netProfit, currency)}</span>
       ),
+    });
+  }
+
+  if (canManage) {
+    columns.push({
+      id: "actions",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => <SaleActions sale={row.original} currency={currency} />,
     });
   }
 

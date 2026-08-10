@@ -41,6 +41,12 @@ enum PaymentMethod {
   OTHER
 }
 
+enum SaleStatus {
+  COMPLETED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
 enum MovementType {
   IN
   OUT
@@ -239,6 +245,12 @@ model Supplier {
   @@map("suppliers")
 }
 
+/// Monetary fields hold the CURRENT (net-of-returns) value, not the original
+/// amount charged. A return recalculates them in place, so every revenue and
+/// profit aggregate across the app reports net figures without each query
+/// needing to know returns exist. The original amount is recoverable as
+/// `total + refundedTotal`, and per-item history lives in
+/// `SaleItem.returnedQuantity`.
 model Sale {
   id            String        @id @default(cuid())
   storeId       String
@@ -254,6 +266,10 @@ model Sale {
   total         Decimal       @db.Decimal(10, 2)
   netProfit     Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(CASH)
+  status        SaleStatus    @default(COMPLETED)
+  /// Cumulative amount refunded to the customer across all returns on this
+  /// sale. Display/reporting only — `total` is already net of it.
+  refundedTotal Decimal       @db.Decimal(10, 2) @default(0)
   items         SaleItem[]
   createdAt     DateTime      @default(now())
 
@@ -269,7 +285,12 @@ model SaleItem {
   sale             Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   productId        String
   product          Product @relation(fields: [productId], references: [id])
+  /// Units originally sold — never reduced by a return, so the invoice can
+  /// still show what the customer actually bought.
   quantity         Int
+  /// Units given back so far; always <= quantity. Units still kept by the
+  /// customer are `quantity - returnedQuantity`.
+  returnedQuantity Int     @default(0)
   sellingPrice     Decimal @db.Decimal(10, 2)
   fabricationPrice Decimal @db.Decimal(10, 2)
   profit           Decimal @db.Decimal(10, 2)

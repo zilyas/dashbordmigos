@@ -11,6 +11,9 @@ export type Permission =
   | "sale.viewOwn"
   | "sale.viewAll"
   | "sale.viewProfit"
+  | "sale.refund"
+  | "sale.edit"
+  | "sale.delete"
   | "seller.manage"
   | "manager.manage"
   | "store.manage"
@@ -21,11 +24,13 @@ export type Permission =
   | "platform.analytics.view"
   | "backup.manage"
   | "security.view"
-  | "announcement.manage";
+  | "announcement.manage"
+  | "store.reset";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: [
     "store.manage",
+    "store.reset",
     "manager.manage",
     "platform.analytics.view",
     "product.view",
@@ -49,6 +54,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "sale.viewOwn",
     "sale.viewAll",
     "sale.viewProfit",
+    // Correcting and refunding sales is deliberately Manager-only — Sellers
+    // can ring up a sale but never unwind one.
+    "sale.refund",
+    "sale.edit",
+    "sale.delete",
     "seller.manage",
     "report.view",
     "report.export",

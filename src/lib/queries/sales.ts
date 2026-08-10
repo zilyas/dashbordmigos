@@ -48,7 +48,17 @@ export async function getSales({
     include: {
       seller: { select: { name: true } },
       store: { select: { name: true } },
-      items: { select: { quantity: true } },
+      // Line detail is carried on the list rows so the Manager return dialog
+      // can open instantly without a second round-trip per sale.
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+          returnedQuantity: true,
+          sellingPrice: true,
+          product: { select: { id: true, name: true, sku: true } },
+        },
+      },
     },
   });
 
@@ -58,14 +68,26 @@ export async function getSales({
     sellerName: s.seller.name,
     storeName: s.store.name,
     customerName: s.customerName,
+    customerPhone: s.customerPhone,
     itemCount: s.items.reduce((sum, i) => sum + i.quantity, 0),
     subtotal: Number(s.subtotal),
     discount: Number(s.discount),
     tax: Number(s.tax),
     total: Number(s.total),
     netProfit: Number(s.netProfit),
+    refundedTotal: Number(s.refundedTotal),
+    status: s.status,
     paymentMethod: s.paymentMethod,
     createdAt: s.createdAt.toISOString(),
+    items: s.items.map((i) => ({
+      id: i.id,
+      productId: i.product.id,
+      productName: i.product.name,
+      sku: i.product.sku,
+      quantity: i.quantity,
+      returnedQuantity: i.returnedQuantity,
+      sellingPrice: Number(i.sellingPrice),
+    })),
   }));
 }
 

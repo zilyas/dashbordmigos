@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StoreManagerSection } from "@/components/stores/store-manager-section";
+import { StoreDangerZone } from "@/components/stores/store-danger-zone";
 import { getStoreById, getStoreStats } from "@/lib/queries/stores";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { STORE_STATUS_LABELS } from "@/lib/labels";
@@ -99,6 +100,8 @@ export default async function StoreDetailPage({
 
         <StoreManagerSection storeId={store.id} storeName={store.name} manager={stats.manager} />
       </div>
+
+      <StoreDangerZone storeId={store.id} storeName={store.name} />
     </div>
   );
 }

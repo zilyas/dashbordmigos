@@ -40,6 +40,7 @@ export default async function SalesPage() {
         currency={settings.currency}
         showSeller={role !== "SELLER"}
         showProfit={can(role, "sale.viewProfit")}
+        canManage={can(role, "sale.refund")}
       />
     </div>
   );
