@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { parseFeatures, type StoreFeatures } from "@/lib/features";
 
 export type StoreSettings = {
   id: string;
   storeName: string;
   currency: string;
+  timezone: string;
   taxRate: number;
   allowSellerViewCost: boolean;
   address: string | null;
@@ -12,6 +14,7 @@ export type StoreSettings = {
   phone: string | null;
   email: string | null;
   logo: string | null;
+  features: StoreFeatures;
 };
 
 export async function getStoreSettings(storeId: string): Promise<StoreSettings> {
@@ -21,6 +24,7 @@ export async function getStoreSettings(storeId: string): Promise<StoreSettings> 
     id: store.id,
     storeName: store.name,
     currency: store.currency,
+    timezone: store.timezone,
     taxRate: Number(store.taxRate),
     allowSellerViewCost: store.allowSellerViewCost,
     address: store.address,
@@ -29,5 +33,6 @@ export async function getStoreSettings(storeId: string): Promise<StoreSettings> 
     phone: store.phone,
     email: store.email,
     logo: store.logo,
+    features: parseFeatures(store.features),
   };
 }
