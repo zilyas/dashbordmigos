@@ -41,6 +41,13 @@ enum PaymentMethod {
   OTHER
 }
 
+enum AttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+}
+
 enum SaleStatus {
   COMPLETED
   PARTIALLY_REFUNDED
@@ -54,6 +61,16 @@ enum MovementType {
   ADJUSTMENT
   SUPPLIER_DELIVERY
   MANUAL_EDIT
+}
+
+/// Lifecycle of a ProductBatch (Phase 4a foundation — dormant). ACTIVE = sellable,
+/// DEPLETED = stock hit 0, EXPIRED = past its expiry date, ARCHIVED = manually
+/// retired. Set by future operational phases; nothing writes these yet.
+enum BatchStatus {
+  ACTIVE
+  DEPLETED
+  EXPIRED
+  ARCHIVED
 }
 
 enum ExpenseCategory {
@@ -78,6 +95,8 @@ enum NotificationType {
   PASSWORD_CHANGED
   STORE_CREATED
   SYSTEM_ALERT
+  EXPIRING_STOCK
+  EXPIRED_STOCK
 }
 
 enum BackupStatus {
@@ -92,7 +111,7 @@ model Store {
   name                String
   code                String      @unique
   currency            String      @default("MAD")
-  taxRate             Decimal     @db.Decimal(5, 2) @default(0)
+  taxRate             Decimal     @default(0) @db.Decimal(5, 2)
   allowSellerViewCost Boolean     @default(false)
   address             String?
   city                String?
@@ -101,62 +120,76 @@ model Store {
   email               String?
   logo                String?
   status              StoreStatus @default(ACTIVE)
+  /// IANA timezone identifier (e.g. "Africa/Casablanca"). Used for date-only
+  /// business comparisons like batch expiry — never store a fixed UTC offset,
+  /// as that ignores daylight-saving rules. Defaults to UTC (Phase 4c1).
+  timezone            String      @default("UTC")
+  /// Per-store feature flags for optional multi-vertical extensions. Shape:
+  /// { units_enabled, custom_variant_axes_enabled, category_attributes_enabled,
+  /// expiry_batch_enabled } — all default false (see src/lib/features.ts).
+  features            Json?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  users               User[]
-  products            Product[]
-  categories          Category[]
-  suppliers           Supplier[]
-  sales               Sale[]
-  expenses            Expense[]
-  inventoryMovements  InventoryMovement[]
-  notifications       Notification[]
-  activityLogs        ActivityLog[]
-  conversations       Conversation[]
-  announcements       Announcement[]
+  users                        User[]
+  products                     Product[]
+  productVariants              ProductVariant[]
+  categories                   Category[]
+  categoryAttributeDefinitions CategoryAttributeDefinition[]
+  variantAxisDefinitions       VariantAxisDefinition[]
+  sizes                        Size[]
+  colors                       Color[]
+  suppliers                    Supplier[]
+  sales                        Sale[]
+  expenses                     Expense[]
+  inventoryMovements           InventoryMovement[]
+  productBatches               ProductBatch[]
+  notifications                Notification[]
+  activityLogs                 ActivityLog[]
+  conversations                Conversation[]
+  announcements                Announcement[]
 
   @@index([status])
   @@map("stores")
 }
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  role         Role       @default(SELLER)
-  storeId      String?
-  store        Store?     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  createdById  String?
-  createdBy    User?      @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdUsers User[]     @relation("UserCreatedBy")
-  phone        String?
-  avatar       String?
-  status       UserStatus @default(ACTIVE)
-  failedLoginAttempts Int      @default(0)
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  passwordHash        String
+  role                Role       @default(SELLER)
+  storeId             String?
+  store               Store?     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdById         String?
+  createdBy           User?      @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers        User[]     @relation("UserCreatedBy")
+  phone               String?
+  avatar              String?
+  status              UserStatus @default(ACTIVE)
+  failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  lastLogin    DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  lastLogin           DateTime?
 
-  productsCreated    Product[]           @relation("ProductCreatedBy")
-  sales              Sale[]
-  inventoryMovements InventoryMovement[]
-  activityLogs       ActivityLog[]
-  notifications      Notification[]
+  productsCreated     Product[]            @relation("ProductCreatedBy")
+  sales               Sale[]
+  inventoryMovements  InventoryMovement[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
   userSessions        UserSession[]
   passwordResetTokens PasswordResetToken[]
   passwordHistory     PasswordHistory[]
   twoFactorCredential TwoFactorCredential?
   backupRecords       BackupRecord[]
 
-  conversationsCreated      Conversation[]            @relation("ConversationCreatedBy")
-  conversationParticipants  ConversationParticipant[]
-  messagesSent              Message[]
-  readReceipts              ReadReceipt[]
-  announcementsCreated      Announcement[]             @relation("AnnouncementCreatedBy")
-  announcementRecipients    AnnouncementRecipient[]
+  conversationsCreated     Conversation[]            @relation("ConversationCreatedBy")
+  conversationParticipants ConversationParticipant[]
+  messagesSent             Message[]
+  readReceipts             ReadReceipt[]
+  announcementsCreated     Announcement[]            @relation("AnnouncementCreatedBy")
+  announcementRecipients   AnnouncementRecipient[]
 
   @@index([storeId])
   @@index([role])
@@ -164,69 +197,257 @@ model User {
 }
 
 model Product {
-  id               String        @id @default(cuid())
-  storeId          String
-  store            Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  sku              String
-  barcode          String?
-  name             String
-  slug             String
-  description      String?
-  categoryId       String?
-  category         Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  type             String?
-  size             String?
-  color            String?
-  fabricationPrice Decimal       @db.Decimal(10, 2)
-  sellingPrice     Decimal       @db.Decimal(10, 2)
-  profitMargin     Decimal       @db.Decimal(6, 2) @default(0)
-  stock            Int           @default(0)
-  minimumStock     Int           @default(5)
-  status           ProductStatus @default(ACTIVE)
-  createdById      String
-  createdBy        User          @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                   String        @id @default(cuid())
+  storeId              String
+  store                Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  sku                  String
+  barcode              String?
+  name                 String
+  slug                 String
+  description          String?
+  categoryId           String?
+  category             Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type                 String?
+  size                 String?
+  color                String?
+  fabricationPrice     Decimal       @db.Decimal(10, 2)
+  sellingPrice         Decimal       @db.Decimal(10, 2)
+  profitMargin         Decimal       @default(0) @db.Decimal(6, 2)
+  /// Decimal(12,3) so unit-priced verticals can hold fractional stock (0.5 kg).
+  /// For piece products this is always a whole number (enforced server-side).
+  stock                Decimal       @default(0) @db.Decimal(12, 3)
+  /// Low-stock threshold. Decimal(12,3) so decimal products can set a
+  /// fractional threshold; whole numbers for piece products (enforced server-side).
+  minimumStock         Decimal       @default(5) @db.Decimal(12, 3)
+  status               ProductStatus @default(ACTIVE)
+  /// Unit of measure label (piece, kg, g, L, pack, ...). Display/label only in
+  /// Phase 1a; decimal quantity handling arrives in Phase 1b. Defaults to piece.
+  unit                 String?       @default("piece")
+  /// When true (and the store has units_enabled) this product may be sold in
+  /// decimal quantities. Enforced in Phase 1b; stored now so the flag is ready.
+  allowDecimalQuantity Boolean       @default(false)
+  /// When true this product sells through ProductVariant rows (variant-enabled
+  /// mode). Simple products leave this false and use the columns above.
+  hasVariants          Boolean       @default(false)
+  /// Phase 4a foundation (DORMANT). Opts a product into batch/lot tracking, where
+  /// ProductBatch rows become the authoritative stock detail and `stock` above is
+  /// kept as a consistent aggregate cache. Defaults false; no action or UI may
+  /// flip it until the coherent operational release (receiving + FEFO sale
+  /// allocation + batch-aware returns/deletion) ships. See
+  /// .ai/phase4-expiry-batch-design.md.
+  trackBatch           Boolean       @default(false)
+  /// Phase 4a foundation (DORMANT). Adds per-batch expiry dates. Implies
+  /// trackBatch (enforced by isBatchTrackingConfigurationValid in
+  /// src/lib/batches.ts). Defaults false; dormant like trackBatch.
+  trackExpiry          Boolean       @default(false)
+  /// Free-form vertical-specific attributes (e.g. material, brand, warranty).
+  metadata             Json?
+  createdById          String
+  createdBy            User          @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   images             ProductImage[]
+  variants           ProductVariant[]
   saleItems          SaleItem[]
   inventoryMovements InventoryMovement[]
+  attributeValues    ProductAttributeValue[]
+  batches            ProductBatch[]
 
   @@unique([storeId, sku])
   @@unique([storeId, barcode])
   @@unique([storeId, slug])
   @@index([storeId, status])
+  @@index([storeId, name])
   @@index([categoryId])
   @@map("products")
 }
 
-model ProductImage {
+/// One sellable variant of a variant-enabled Product. Size/Color are optional
+/// so non-clothing verticals can still use variants keyed on other axes.
+/// Price/cost overrides are null when the parent Product's price/cost applies.
+model ProductVariant {
+  id               String   @id @default(cuid())
+  storeId          String
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sizeId           String?
+  size             Size?    @relation(fields: [sizeId], references: [id], onDelete: SetNull)
+  colorId          String?
+  color            Color?   @relation(fields: [colorId], references: [id], onDelete: SetNull)
+  sku              String
+  barcode          String?
+  /// Overrides Product.sellingPrice when set.
+  sellingPrice     Decimal? @db.Decimal(10, 2)
+  /// Overrides Product.fabricationPrice when set.
+  fabricationPrice Decimal? @db.Decimal(10, 2)
+  stock            Decimal  @default(0) @db.Decimal(12, 3)
+  isActive         Boolean  @default(true)
+  imageUrl         String?
+  /// Custom variant axis values (Phase 3), shaped `{ [axisKey]: "value" }`
+  /// keyed by VariantAxisDefinition.key — e.g. `{ "storage": "256GB" }`.
+  ///
+  /// Deliberately JSON rather than a relational per-axis-value table (unlike
+  /// Phase 2's `ProductAttributeValue`): axis values are simple free-text
+  /// labels used only for variant identification/display, needing no typed
+  /// validation or cross-product querying, so a JSON blob avoids an explosion
+  /// of joins. `sizeId`/`colorId` above stay as the built-in axes.
+  axisValues       Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  images             ProductImage[]
+  saleItems          SaleItem[]
+  inventoryMovements InventoryMovement[]
+  batches            ProductBatch[]
+
+  @@unique([storeId, sku])
+  @@index([productId])
+  @@index([storeId])
+  @@map("product_variants")
+}
+
+/// A store-defined custom variant axis (Phase 3), e.g. "Storage", "Voltage".
+/// Gated by the store's `custom_variant_axes_enabled` flag. Values live on
+/// `ProductVariant.axisValues` keyed by `key`.
+model VariantAxisDefinition {
   id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url       String
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  key       String
+  label     String
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, key])
+  @@index([storeId])
+  @@map("variant_axis_definitions")
+}
+
+/// Store-scoped size vocabulary (S, M, L, 42, ...). Referenced by variants.
+model Size {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  name      String
   position  Int      @default(0)
   createdAt DateTime @default(now())
 
+  variants ProductVariant[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("sizes")
+}
+
+/// Store-scoped color vocabulary. `hex` is optional swatch metadata.
+model Color {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  name      String
+  hex       String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  variants ProductVariant[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("colors")
+}
+
+model ProductImage {
+  id        String          @id @default(cuid())
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Optional: when set, this image belongs to a specific variant rather than
+  /// the product as a whole (variant image override).
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int             @default(0)
+  createdAt DateTime        @default(now())
+
   @@index([productId])
+  @@index([variantId])
   @@map("product_images")
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  storeId     String
-  store       Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  name        String
-  slug        String
-  description String?
-  products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                   String                        @id @default(cuid())
+  storeId              String
+  store                Store                         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  name                 String
+  slug                 String
+  description          String?
+  isActive             Boolean                       @default(true)
+  /// Optional parent for a shallow category tree. Self-referential, store-scoped.
+  parentId             String?
+  parent               Category?                     @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children             Category[]                    @relation("CategoryTree")
+  /// Vertical-specific flags/attributes. `clothing: true` opts a category into
+  /// the variant-management UI.
+  metadata             Json?
+  products             Product[]
+  attributeDefinitions CategoryAttributeDefinition[]
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
 
   @@unique([storeId, name])
   @@unique([storeId, slug])
   @@index([storeId])
+  @@index([parentId])
   @@map("categories")
+}
+
+/// Optional per-category attribute schema (Phase 2), gated by the store's
+/// `category_attributes_enabled` flag. Structured & typed — deliberately NOT
+/// stored in `Category.metadata` (which stays reserved for `isClothing`).
+model CategoryAttributeDefinition {
+  id         String        @id @default(cuid())
+  storeId    String
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  categoryId String
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  key        String
+  label      String
+  type       AttributeType @default(TEXT)
+  /// Allowed values when `type = SELECT`, stored as a JSON string array.
+  options    Json?
+  position   Int           @default(0)
+  required   Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  values ProductAttributeValue[]
+
+  @@unique([categoryId, key])
+  @@index([categoryId])
+  @@index([storeId])
+  @@map("category_attribute_definitions")
+}
+
+/// A product's value for one of its category's attribute definitions. Value is
+/// stored as a string and coerced per the definition's type (see
+/// `src/lib/attributes.ts`).
+model ProductAttributeValue {
+  id           String                      @id @default(cuid())
+  productId    String
+  product      Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  definitionId String
+  definition   CategoryAttributeDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  value        String
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+
+  @@unique([productId, definitionId])
+  @@index([productId])
+  @@index([definitionId])
+  @@map("product_attribute_values")
 }
 
 model Supplier {
@@ -261,15 +482,15 @@ model Sale {
   customerName  String?
   customerPhone String?
   subtotal      Decimal       @db.Decimal(10, 2)
-  discount      Decimal       @db.Decimal(10, 2) @default(0)
-  tax           Decimal       @db.Decimal(10, 2) @default(0)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  tax           Decimal       @default(0) @db.Decimal(10, 2)
   total         Decimal       @db.Decimal(10, 2)
   netProfit     Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(CASH)
   status        SaleStatus    @default(COMPLETED)
   /// Cumulative amount refunded to the customer across all returns on this
   /// sale. Display/reporting only — `total` is already net of it.
-  refundedTotal Decimal       @db.Decimal(10, 2) @default(0)
+  refundedTotal Decimal       @default(0) @db.Decimal(10, 2)
   items         SaleItem[]
   createdAt     DateTime      @default(now())
 
@@ -280,43 +501,131 @@ model Sale {
 }
 
 model SaleItem {
-  id               String  @id @default(cuid())
+  id               String          @id @default(cuid())
   saleId           String
-  sale             Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale             Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
   productId        String
-  product          Product @relation(fields: [productId], references: [id])
+  product          Product         @relation(fields: [productId], references: [id])
+  /// Set when the sold line is a specific variant; null for simple products.
+  variantId        String?
+  variant          ProductVariant? @relation(fields: [variantId], references: [id])
+  /// Human-readable variant snapshot at sale time (e.g. "M / Noir"), so the
+  /// invoice stays correct even if the variant is later renamed or removed.
+  variantLabel     String?
   /// Units originally sold — never reduced by a return, so the invoice can
-  /// still show what the customer actually bought.
-  quantity         Int
+  /// still show what the customer actually bought. Decimal(12,3) for fractional
+  /// units (0.5 kg); whole numbers for piece products (enforced server-side).
+  quantity         Decimal         @db.Decimal(12, 3)
   /// Units given back so far; always <= quantity. Units still kept by the
   /// customer are `quantity - returnedQuantity`.
-  returnedQuantity Int     @default(0)
-  sellingPrice     Decimal @db.Decimal(10, 2)
-  fabricationPrice Decimal @db.Decimal(10, 2)
-  profit           Decimal @db.Decimal(10, 2)
+  returnedQuantity Decimal         @default(0) @db.Decimal(12, 3)
+  sellingPrice     Decimal         @db.Decimal(10, 2)
+  fabricationPrice Decimal         @db.Decimal(10, 2)
+  profit           Decimal         @db.Decimal(10, 2)
+
+  /// Phase 4a foundation (DORMANT). Which batch(es) this line drew from, for
+  /// future FEFO allocation and exact return restoration. No rows are written
+  /// until the operational release.
+  allocations SaleItemBatchAllocation[]
 
   @@index([saleId])
   @@index([productId])
+  @@index([variantId])
   @@map("sale_items")
 }
 
 model InventoryMovement {
-  id          String       @id @default(cuid())
+  id          String          @id @default(cuid())
   storeId     String
-  store       Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  store       Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
   productId   String
-  product     Product      @relation(fields: [productId], references: [id])
+  product     Product         @relation(fields: [productId], references: [id])
+  /// Set when the movement targets a specific variant's stock.
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
   type        MovementType
-  quantity    Int
+  /// Signed quantity (negative for OUT). Decimal(12,3) for fractional units.
+  quantity    Decimal         @db.Decimal(12, 3)
   note        String?
+  /// Phase 4a foundation (DORMANT). Attributes a movement to a specific batch,
+  /// for future batch history reporting. Null for all existing/untracked movements.
+  batchId     String?
+  batch       ProductBatch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdById String
-  createdBy   User         @relation(fields: [createdById], references: [id])
-  createdAt   DateTime     @default(now())
+  createdBy   User            @relation(fields: [createdById], references: [id])
+  createdAt   DateTime        @default(now())
 
   @@index([storeId])
   @@index([productId])
+  @@index([variantId])
+  @@index([batchId])
   @@index([createdAt])
   @@map("inventory_movements")
+}
+
+/// Phase 4a foundation (DORMANT — no rows created until the operational release).
+/// A received lot of a tracked product/variant. When a product opts in
+/// (`trackBatch`), these rows become the authoritative stock detail and the
+/// product/variant `stock` column is kept as a consistent aggregate cache
+/// (invariant: Σ ACTIVE-batch stock == aggregate). Batch code is unique per
+/// (store, product, optional variant) — enforced by two PARTIAL unique indexes
+/// added in the migration SQL (a plain compound @@unique can't be used because
+/// PostgreSQL treats NULL variantId values as distinct). See
+/// .ai/phase4-expiry-batch-design.md.
+model ProductBatch {
+  id         String          @id @default(cuid())
+  storeId    String
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Null for product-level batches; set for variant-level batches.
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  batchCode  String
+  /// Date-only (no time) to avoid time-zone ambiguity; null = batch/lot tracking
+  /// without an expiry date.
+  expiryDate DateTime?       @db.Date
+  receivedAt DateTime        @default(now())
+  stock      Decimal         @default(0) @db.Decimal(12, 3)
+  /// Per-lot cost, reporting/stock-value metadata only. Does NOT feed
+  /// SaleItem cost/profit (those keep their own snapshots).
+  costPrice  Decimal?        @db.Decimal(10, 2)
+  status     BatchStatus     @default(ACTIVE)
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  allocations SaleItemBatchAllocation[]
+  movements   InventoryMovement[]
+
+  @@index([storeId])
+  @@index([productId, variantId, status])
+  @@index([storeId, expiryDate])
+  @@map("product_batches")
+}
+
+/// Phase 4a foundation (DORMANT). Records how many units of a SaleItem were drawn
+/// from a specific batch, so future returns/deletions can restore the exact
+/// original lot. `returnedQuantity` mirrors SaleItem.returnedQuantity semantics.
+/// The batch relation is onDelete: Restrict so a batch referenced by sold history
+/// can never be hard-deleted; the saleItem relation cascades with the sale line.
+model SaleItemBatchAllocation {
+  id               String       @id @default(cuid())
+  saleItemId       String
+  saleItem         SaleItem     @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  batchId          String
+  batch            ProductBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  quantity         Decimal      @db.Decimal(12, 3)
+  returnedQuantity Decimal      @default(0) @db.Decimal(12, 3)
+  /// Phase 5 audit marker: true when this allocation was drawn from an EXPIRED
+  /// batch via a Manager expired-sale override. Append-only; never affects
+  /// quantity/returnedQuantity semantics.
+  fromExpired      Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+
+  @@index([saleItemId])
+  @@index([batchId])
+  @@map("sale_item_batch_allocations")
 }
 
 model Expense {
@@ -368,6 +677,11 @@ model Notification {
   title     String
   message   String
   read      Boolean          @default(false)
+  /// Idempotency key for machine-generated alerts (e.g. expiry sweeps). Null for
+  /// ordinary notifications. A PARTIAL unique index (userId, dedupeKey) WHERE
+  /// dedupeKey IS NOT NULL — added in the migration SQL — lets a repeated/
+  /// concurrent sweep skip duplicates while keeping all null-key rows unique-free.
+  dedupeKey String?
   createdAt DateTime         @default(now())
 
   @@index([userId, read])
@@ -464,12 +778,12 @@ model TwoFactorCredential {
 }
 
 model RecoveryCode {
-  id          String    @id @default(cuid())
+  id          String              @id @default(cuid())
   twoFactorId String
   twoFactor   TwoFactorCredential @relation(fields: [twoFactorId], references: [id], onDelete: Cascade)
   codeHash    String
   usedAt      DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime            @default(now())
 
   @@index([twoFactorId])
   @@map("recovery_codes")

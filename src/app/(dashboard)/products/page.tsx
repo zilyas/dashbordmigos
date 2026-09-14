@@ -48,6 +48,7 @@ export default async function ProductsPage() {
         currency={settings.currency}
         canEdit={canEdit}
         canViewCost={canViewCost}
+        unitsEnabled={settings.features.units_enabled}
       />
     </div>
   );
