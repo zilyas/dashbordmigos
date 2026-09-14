@@ -27,6 +27,8 @@ export default async function NewSalePage() {
         currency={settings.currency}
         storeName={settings.storeName}
         sellerName={session!.user.name ?? "Seller"}
+        unitsEnabled={settings.features.units_enabled}
+        isManager={context!.role === "MANAGER"}
       />
     </div>
   );

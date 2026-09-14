@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, MoreHorizontal, Pencil, Trash2, Undo2, Minus, Plus } from "lucide-react";
 
@@ -31,7 +31,8 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { deleteSale, returnSaleItems, updateSaleDetails } from "@/actions/sales";
+import { deleteSale, returnSaleItems, updateSaleDetails, getReturnBatchOptions, type ReturnBatchOption } from "@/actions/sales";
+import { round3 } from "@/lib/sale-math";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
@@ -122,9 +123,23 @@ function ReturnDialog({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
+  // Manager-only return-batch override options, fetched when the dialog opens.
+  const [batchOptions, setBatchOptions] = useState<Record<string, ReturnBatchOption[]>>({});
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    getReturnBatchOptions(sale.id).then((opts) => {
+      if (active) setBatchOptions(opts);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, sale.id]);
 
   function setQty(itemId: string, next: number, max: number) {
-    setQuantities((prev) => ({ ...prev, [itemId]: Math.max(0, Math.min(next, max)) }));
+    setQuantities((prev) => ({ ...prev, [itemId]: round3(Math.max(0, Math.min(next, max))) }));
   }
 
   const selected = returnable
@@ -149,7 +164,11 @@ function ReturnDialog({
     }
     startTransition(async () => {
       const result = await returnSaleItems(sale.id, {
-        items: selected.map((l) => ({ saleItemId: l.item.id, quantity: l.quantity })),
+        items: selected.map((l) => ({
+          saleItemId: l.item.id,
+          quantity: l.quantity,
+          overrideBatchId: overrides[l.item.id] || "",
+        })),
         reason,
       });
       if (result?.error) {
@@ -179,38 +198,89 @@ function ReturnDialog({
         <div className="flex flex-col gap-3">
           {returnable.map((item) => {
             const qty = quantities[item.id] ?? 0;
+            // Fractional control when the product is decimal-enabled or the sold
+            // line is already fractional — enables partial fractional returns.
+            const isDecimal =
+              item.allowDecimalQuantity ||
+              !Number.isInteger(item.quantity) ||
+              !Number.isInteger(item.remaining);
             return (
-              <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3">
+              <div key={item.id} className="flex flex-col gap-2 rounded-lg border p-3">
+                <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.productName}</p>
+                  <p className="truncate text-sm font-medium">
+                    {item.productName}
+                    {item.variantLabel && (
+                      <span className="ml-1 text-xs text-muted-foreground">· {item.variantLabel}</span>
+                    )}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {formatCurrency(item.sellingPrice, currency)} · {item.remaining} of {item.quantity}{" "}
                     returnable
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`Return one fewer ${item.productName}`}
-                    disabled={qty <= 0}
-                    onClick={() => setQty(item.id, qty - 1, item.remaining)}
-                  >
-                    <Minus className="size-3" />
-                  </Button>
-                  <span className="w-6 text-center text-sm tabular-nums">{qty}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`Return one more ${item.productName}`}
-                    disabled={qty >= item.remaining}
-                    onClick={() => setQty(item.id, qty + 1, item.remaining)}
-                  >
-                    <Plus className="size-3" />
-                  </Button>
+                {isDecimal ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.001"
+                      min={0}
+                      max={item.remaining}
+                      value={qty}
+                      onChange={(e) => setQty(item.id, Number(e.target.value) || 0, item.remaining)}
+                      className="h-8 w-20 text-right tabular-nums"
+                      aria-label={`Return quantity for ${item.productName}`}
+                    />
+                    <span className="w-6 text-xs text-muted-foreground">{item.unit}</span>
+                  </div>
+                ) : (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={`Return one fewer ${item.productName}`}
+                      disabled={qty <= 0}
+                      onClick={() => setQty(item.id, qty - 1, item.remaining)}
+                    >
+                      <Minus className="size-3" />
+                    </Button>
+                    <span className="w-6 text-center text-sm tabular-nums">{qty}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={`Return one more ${item.productName}`}
+                      disabled={qty >= item.remaining}
+                      onClick={() => setQty(item.id, qty + 1, item.remaining)}
+                    >
+                      <Plus className="size-3" />
+                    </Button>
+                  </div>
+                )}
                 </div>
+                {/* Manager-only: restore into a different batch than the original. */}
+                {qty > 0 && batchOptions[item.id] && batchOptions[item.id].length > 0 && (
+                  <div className="mt-2">
+                    <Select
+                      value={overrides[item.id] ?? ""}
+                      onValueChange={(v) => setOverrides((prev) => ({ ...prev, [item.id]: v === "__original__" ? "" : v }))}
+                    >
+                      <SelectTrigger className="h-8 w-full text-xs">
+                        <SelectValue placeholder="Restore to original batch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__original__">Restore to original batch (default)</SelectItem>
+                        {batchOptions[item.id].map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.batchCode}
+                            {b.expiryDate ? ` · exp ${b.expiryDate}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             );
           })}
