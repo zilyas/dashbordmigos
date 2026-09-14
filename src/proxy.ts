@@ -1,16 +1,33 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { isRouteAllowed } from "@/lib/rbac";
+import { prisma } from "@/lib/prisma";
 
 const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth?.user;
   const role = req.auth?.user?.role;
+  const userId = req.auth?.user?.id;
   const isPublicPath = PUBLIC_PATHS.some((p) => nextUrl.pathname.startsWith(p));
+
+  // SECURITY: Check if the user account is still active (not deactivated/terminated).
+  // This ensures deactivated employees lose access immediately, not just at session expiry.
+  if (isLoggedIn && userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+    // If user is not found or not active, redirect to login
+    if (!user || user.status !== "ACTIVE") {
+      const loginUrl = new URL("/login", nextUrl);
+      loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+      return Response.redirect(loginUrl);
+    }
+  }
 
   // Server Action invocations are POSTs to the current page carrying a
   // `next-action` header. Redirecting these from Proxy (a raw HTTP
