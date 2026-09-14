@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -178,7 +178,7 @@ function AttributeForm({
       position: attribute?.position ?? 0,
     },
   });
-  const type = form.watch("type");
+  const type = useWatch({ control: form.control, name: "type" });
 
   function onSubmit(values: AttributeDefinitionInput) {
     startTransition(async () => {
