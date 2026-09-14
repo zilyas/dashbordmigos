@@ -385,3 +385,65 @@ npm run build   # production build (add --webpack on locked-down Windows)
 npm run lint    # eslint
 npm test        # vitest
 ```
+
+## Data Subject Rights (GDPR)
+
+This section tells you how the app handles two legal rights. These rights
+come from GDPR. They are the right to get your data. They are also the
+right to have your data erased.
+
+The code is in `src/actions/user-data.ts`.
+
+### Export your data
+
+Any signed-in user can export their own data. Call `exportUserData()`. Do
+not pass an ID.
+
+A SUPER_ADMIN can export the data of any other user. Call
+`exportUserData(targetUserId)`.
+
+The export has these items:
+
+- The user's own account fields (name, email, role, store, status, dates).
+- Sales made by the user.
+- Activity log entries about the user.
+- Notifications sent to the user.
+- Session metadata (device, IP, timestamps). The raw session token is not
+  included.
+- Two-factor status (on or off only).
+
+The export does NOT have these items:
+
+- The password hash.
+- The two-factor secret.
+- Recovery code hashes.
+- Password history hashes.
+
+These items are login credentials. They are not "your data" under a
+portability request. Exporting them would create a security risk.
+
+Every export writes one activity log entry (`user.data_exported`).
+
+### Delete a user's account
+
+Only a SUPER_ADMIN can start this action. Call
+`requestUserDeletion(targetUserId, confirmText)`. The admin must type
+`DELETE` as `confirmText`, or the action stops with an error.
+
+A SUPER_ADMIN cannot delete their own account this way. This rule stops an
+admin from locking themselves out.
+
+**This action does not remove the database row.** It anonymizes the row in
+place instead. The action changes the name to "Deleted User". It changes
+the email to a tombstone value. It clears the phone number and avatar. It
+sets the account status to `INACTIVE`.
+
+The row stays because other tables point to it. Sales, activity logs, and
+other records point to the user's ID. The database schema blocks a hard
+delete of a user who has this kind of history. Removing the row would
+break that history. Anonymizing the row keeps the history intact and
+removes the person's identifying details.
+
+The database has no `deletedAt` field on the user table. The activity log
+entry this action writes (`user.deletion_requested`) is the permanent
+record of when the deletion happened.
