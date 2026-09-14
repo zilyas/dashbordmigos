@@ -2,6 +2,22 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// R2 serves product images from a public base URL (r2.dev or a custom domain).
+// When configured, its origin must be allowed in both the CSP img-src and
+// next/image remotePatterns, or images silently fail to load.
+const r2PublicBase = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+let r2Origin: string | null = null;
+let r2Hostname: string | null = null;
+if (r2PublicBase) {
+  try {
+    const u = new URL(r2PublicBase);
+    r2Origin = u.origin;
+    r2Hostname = u.hostname;
+  } catch {
+    // Malformed R2_PUBLIC_BASE_URL — ignore and keep local-only image sources.
+  }
+}
+
 // No nonce-based strict CSP (would need per-request wiring through
 // middleware) — 'unsafe-inline' on script-src is the pragmatic tradeoff so
 // Next's own RSC hydration scripts keep working. It still blocks loading
@@ -15,7 +31,7 @@ function buildCsp() {
     // Radix/Framer Motion set inline `style` attributes for positioning and
     // animation — style-src must allow inline or those silently no-op.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    `img-src 'self' data: blob:${r2Origin ? ` ${r2Origin}` : ""}`,
     "font-src 'self' data:",
     `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
     "object-src 'none'",
@@ -58,6 +74,10 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Allow next/image to optimise product images served from the R2 public host.
+    ...(r2Hostname
+      ? { remotePatterns: [{ protocol: "https" as const, hostname: r2Hostname }] }
+      : {}),
   },
   async headers() {
     return [
