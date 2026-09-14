@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
   Bell,
+  CalendarClock,
   KeyRound,
   Megaphone,
   MessageSquare,
@@ -33,6 +34,8 @@ const TYPE_ICON: Record<NotificationType, React.ReactNode> = {
   PASSWORD_CHANGED: <KeyRound className="size-4" />,
   STORE_CREATED: <Store className="size-4" />,
   SYSTEM_ALERT: <ShieldAlert className="size-4" />,
+  EXPIRING_STOCK: <CalendarClock className="size-4" />,
+  EXPIRED_STOCK: <PackageX className="size-4" />,
 };
 
 export type NotificationHistoryItem = {

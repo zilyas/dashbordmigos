@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,22 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { ImageUploader } from "@/components/products/image-uploader";
 import { createStore, updateStore } from "@/actions/stores";
 import { storeSchema, type StoreInput } from "@/lib/validations/store";
+import type { StoreFeaturesInput } from "@/lib/validations/settings";
 import type { StoreListItem } from "@/lib/queries/stores";
+
+const DEFAULT_FEATURES: StoreFeaturesInput = {
+  units_enabled: false,
+  custom_variant_axes_enabled: false,
+  category_attributes_enabled: false,
+  expiry_batch_enabled: false,
+};
+
+const STORE_FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string }[] = [
+  { key: "units_enabled", label: "Units of measure" },
+  { key: "category_attributes_enabled", label: "Category attributes (soon)" },
+  { key: "custom_variant_axes_enabled", label: "Custom variant axes (soon)" },
+  { key: "expiry_batch_enabled", label: "Expiry & batch (soon)" },
+];
 
 export function StoreDialog({
   open,
@@ -48,6 +64,7 @@ export function StoreDialog({
           phone: store.phone ?? "",
           email: store.email ?? "",
           logo: store.logo ?? "",
+          features: store.features,
         }
       : undefined,
     defaultValues: {
@@ -61,6 +78,7 @@ export function StoreDialog({
       phone: "",
       email: "",
       logo: "",
+      features: DEFAULT_FEATURES,
     },
   });
 
@@ -170,6 +188,22 @@ export function StoreDialog({
                   <FieldError>{form.formState.errors.email.message}</FieldError>
                 )}
               </Field>
+            </div>
+
+            <div className="flex flex-col gap-2 rounded-lg border p-3">
+              <p className="text-sm font-medium">Advanced features</p>
+              {STORE_FEATURE_TOGGLES.map((f) => (
+                <div key={f.key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">{f.label}</span>
+                  <Controller
+                    control={form.control}
+                    name={`features.${f.key}` as const}
+                    render={({ field }) => (
+                      <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                    )}
+                  />
+                </div>
+              ))}
             </div>
           </FieldGroup>
           <DialogFooter className="mt-2">

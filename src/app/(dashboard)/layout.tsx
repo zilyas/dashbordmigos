@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getSessionContext } from "@/lib/store-context";
+import { getStoreFeatures } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { getTotalUnreadMessageCount } from "@/lib/queries/messages";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -26,13 +27,14 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const [notificationRows, unreadMessageCount] = await Promise.all([
+  const [notificationRows, unreadMessageCount, features] = await Promise.all([
     prisma.notification.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
       take: 15,
     }),
     getTotalUnreadMessageCount(session.user.id),
+    getStoreFeatures(context.storeId),
   ]);
 
   const notifications = notificationRows.map((n) => ({
@@ -47,7 +49,7 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <CommandPaletteProvider role={session.user.role}>
-        <AppSidebar role={session.user.role} unreadMessageCount={unreadMessageCount} />
+        <AppSidebar role={session.user.role} unreadMessageCount={unreadMessageCount} features={features} />
         <SidebarInset>
           <AppTopbar
             user={{

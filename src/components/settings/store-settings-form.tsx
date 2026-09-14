@@ -11,19 +11,49 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ImageUploader } from "@/components/products/image-uploader";
 import { updateStoreSettings } from "@/actions/settings";
+import { COMMON_TIMEZONES } from "@/lib/timezone";
 import { storeSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
 import type { StoreSettings } from "@/lib/queries/settings";
+import type { StoreFeaturesInput } from "@/lib/validations/settings";
+
+const FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string; description: string }[] = [
+  {
+    key: "units_enabled",
+    label: "Units of measure",
+    description: "Sell by piece, kg, g, L or pack. Adds a unit field on products.",
+  },
+  {
+    key: "category_attributes_enabled",
+    label: "Category attributes",
+    description: "Add structured specs per category (brand, warranty, weight…). Coming in a later update.",
+  },
+  {
+    key: "custom_variant_axes_enabled",
+    label: "Custom variant axes",
+    description: "Define your own variant axes beyond Size/Color (Storage, Voltage…). Coming in a later update.",
+  },
+  {
+    key: "expiry_batch_enabled",
+    label: "Expiry & batch tracking",
+    description: "Track expiry dates and batches for perishable goods. Coming in a later update.",
+  },
+];
 
 export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
   const [isPending, startTransition] = useTransition();
+
+  // Curated list, plus the store's current value if it isn't in the list.
+  const timezoneOptions = Array.from(new Set<string>([...COMMON_TIMEZONES, settings.timezone]));
 
   const form = useForm<StoreSettingsInput>({
     resolver: zodResolver(storeSettingsSchema),
     defaultValues: {
       storeName: settings.storeName,
       currency: settings.currency,
+      timezone: settings.timezone,
       taxRate: settings.taxRate,
       allowSellerViewCost: settings.allowSellerViewCost,
       address: settings.address ?? "",
@@ -32,6 +62,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
       phone: settings.phone ?? "",
       email: settings.email ?? "",
       logo: settings.logo ?? "",
+      features: settings.features,
     },
   });
 
@@ -86,6 +117,28 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
                 )}
               </Field>
             </div>
+
+            <Field data-invalid={!!form.formState.errors.timezone}>
+              <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+              <Controller
+                control={form.control}
+                name="timezone"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="timezone"><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                    <SelectContent>
+                      {timezoneOptions.map((tz) => (
+                        <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>Used for date-based rules like batch expiry.</FieldDescription>
+              {form.formState.errors.timezone && (
+                <FieldError>{form.formState.errors.timezone.message}</FieldError>
+              )}
+            </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.taxRate}>
@@ -151,6 +204,34 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
               />
             </Field>
           </FieldGroup>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Advanced features</p>
+              <p className="text-xs text-muted-foreground">
+                Off by default. Turn on only what your store needs — simple stores can ignore these.
+              </p>
+            </div>
+            {FEATURE_TOGGLES.map((f) => (
+              <Field
+                key={f.key}
+                orientation="responsive"
+                className="justify-between gap-3 border-t pt-3 first:border-t-0 first:pt-0"
+              >
+                <div>
+                  <FieldLabel htmlFor={f.key}>{f.label}</FieldLabel>
+                  <FieldDescription>{f.description}</FieldDescription>
+                </div>
+                <Controller
+                  control={form.control}
+                  name={`features.${f.key}` as const}
+                  render={({ field }) => (
+                    <Switch id={f.key} checked={field.value} onCheckedChange={field.onChange} />
+                  )}
+                />
+              </Field>
+            ))}
+          </div>
 
           <div className="flex justify-end">
             <Button type="submit" disabled={isPending}>

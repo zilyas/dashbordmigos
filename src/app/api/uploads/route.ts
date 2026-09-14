@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { localUploadAdapter } from "@/lib/storage/local";
+import { getUploadAdapter } from "@/lib/storage";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const url = await localUploadAdapter.save(file);
+    const url = await getUploadAdapter().save(file);
     return NextResponse.json({ url });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Upload failed";

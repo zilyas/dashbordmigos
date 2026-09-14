@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, DollarSign, TrendingUp, Receipt, ShoppingCart, BarChart3 } from "lucide-react";
+import { Download, DollarSign, TrendingUp, Receipt, ShoppingCart, BarChart3, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { getReportData, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { getStoreSettings } from "@/lib/queries/settings";
 import { getSessionContext } from "@/lib/store-context";
+import { getStoreFeatures } from "@/lib/features";
 import { DEFAULT_CURRENCY, formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -37,11 +38,13 @@ export default async function ReportsPage({
   const isSuperAdmin = context!.role === "SUPER_ADMIN";
   const storeId = isSuperAdmin ? null : context!.storeId;
 
-  const [data, settings] = await Promise.all([
+  const [data, settings, features] = await Promise.all([
     getReportData(period, storeId),
     storeId ? getStoreSettings(storeId) : Promise.resolve(null),
+    storeId ? getStoreFeatures(storeId) : Promise.resolve(null),
   ]);
   const currency = settings?.currency ?? DEFAULT_CURRENCY;
+  const showExpiryReport = !isSuperAdmin && !!features?.expiry_batch_enabled;
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,12 +56,22 @@ export default async function ReportsPage({
             : "Revenue and profit breakdown for your store."
         }
         actions={
-          <Button asChild variant="outline" className="gap-1.5">
-            <a href={`/api/reports/export?period=${period}`} download>
-              <Download className="size-4" />
-              Export CSV
-            </a>
-          </Button>
+          <div className="flex items-center gap-2">
+            {showExpiryReport && (
+              <Button asChild variant="outline" className="gap-1.5">
+                <Link href="/reports/expiry">
+                  <CalendarClock className="size-4" />
+                  Expiry report
+                </Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" className="gap-1.5">
+              <a href={`/api/reports/export?period=${period}`} download>
+                <Download className="size-4" />
+                Export CSV
+              </a>
+            </Button>
+          </div>
         }
       />
 

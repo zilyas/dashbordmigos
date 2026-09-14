@@ -15,6 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { buildProductColumns } from "@/components/products/product-columns";
 import { bulkUpdateProductStatus, deleteProduct } from "@/actions/products";
+import { PRODUCT_UNITS, PRODUCT_UNIT_LABELS } from "@/lib/validations/product";
 import type { ProductListItem } from "@/lib/queries/products";
 import type { CategoryListItem } from "@/lib/queries/categories";
 
@@ -26,24 +27,32 @@ export function ProductsTable({
   currency,
   canEdit,
   canViewCost,
+  unitsEnabled = false,
 }: {
   products: ProductListItem[];
   categories: CategoryListItem[];
   currency: string;
   canEdit: boolean;
   canViewCost: boolean;
+  /** Store has units_enabled — show the unit filter. */
+  unitsEnabled?: boolean;
 }) {
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
+  const [unitFilter, setUnitFilter] = useState(ALL);
+  const [variantsFilter, setVariantsFilter] = useState(ALL);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (categoryFilter !== ALL && p.categoryId !== categoryFilter) return false;
       if (statusFilter !== ALL && p.status !== statusFilter) return false;
+      if (unitsEnabled && unitFilter !== ALL && p.unit !== unitFilter) return false;
+      if (variantsFilter === "yes" && !p.hasVariants) return false;
+      if (variantsFilter === "no" && p.hasVariants) return false;
       return true;
     });
-  }, [products, categoryFilter, statusFilter]);
+  }, [products, categoryFilter, statusFilter, unitFilter, variantsFilter, unitsEnabled]);
 
   async function handleArchiveToggle(product: ProductListItem) {
     const nextStatus = product.status === "ARCHIVED" ? "ACTIVE" : "ARCHIVED";
@@ -101,6 +110,31 @@ export function ProductsTable({
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="DRAFT">Draft</SelectItem>
                 <SelectItem value="ARCHIVED">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+            {unitsEnabled && (
+              <Select value={unitFilter} onValueChange={setUnitFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All units</SelectItem>
+                  {PRODUCT_UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {PRODUCT_UNIT_LABELS[u]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={variantsFilter} onValueChange={setVariantsFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Variants" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All products</SelectItem>
+                <SelectItem value="yes">Has variants</SelectItem>
+                <SelectItem value="no">No variants</SelectItem>
               </SelectContent>
             </Select>
           </>

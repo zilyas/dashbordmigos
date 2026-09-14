@@ -17,11 +17,20 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { navItemsForRole } from "@/lib/nav-config";
+import type { StoreFeatures } from "@/lib/features";
 import type { Role } from "@/generated/prisma/enums";
 
-export function AppSidebar({ role, unreadMessageCount = 0 }: { role: Role; unreadMessageCount?: number }) {
+export function AppSidebar({
+  role,
+  unreadMessageCount = 0,
+  features,
+}: {
+  role: Role;
+  unreadMessageCount?: number;
+  features?: StoreFeatures;
+}) {
   const pathname = usePathname();
-  const items = navItemsForRole(role);
+  const items = navItemsForRole(role, features);
   const { isMobile, setOpenMobile } = useSidebar();
 
   function closeOnMobile() {
