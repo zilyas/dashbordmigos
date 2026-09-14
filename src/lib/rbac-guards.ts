@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { getSessionContext, requireStoreId } from "@/lib/store-context";
+import { getStorelessSessionContext, getSessionContext, requireStoreId } from "@/lib/store-context";
 import { can, type Permission } from "@/lib/rbac";
 
 /**
@@ -12,11 +11,20 @@ import { can, type Permission } from "@/lib/rbac";
 /** Requires `permission`, returns the raw Auth.js session. */
 export function requirePermission(permission: Permission) {
   return async function requireSession() {
-    const session = await auth();
-    if (!session?.user || !can(session.user.role, permission)) {
+    const context = await getStorelessSessionContext();
+    if (!context || !can(context.role, permission)) {
       throw new Error("Not authorized");
     }
-    return session;
+    // Return a session-shaped object so existing code using session.user.id works
+    return {
+      user: {
+        id: context.userId,
+        role: context.role,
+        status: undefined,
+        storeId: context.storeId,
+      },
+      sid: context.sid,
+    };
   };
 }
 

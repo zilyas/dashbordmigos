@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { RATE_LIMITS, rateLimit } from "@/lib/security/rate-limit";
 import { getUploadAdapter } from "@/lib/storage";
 
 // Cheap first gate on the client-declared MIME type. The adapters are the
@@ -13,6 +14,17 @@ export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "product.create")) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  // Keyed by user, not IP: this is multi-tenant, so one busy store behind a
+  // shared NAT must not throttle another. Checked before formData() so a
+  // flooding client is rejected without buffering the file first.
+  const limit = await rateLimit(`upload:${session.user.id}`, RATE_LIMITS.upload);
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: "Too many uploads. Please wait a moment and try again." },
+      { status: 429 }
+    );
   }
 
   const formData = await request.formData();

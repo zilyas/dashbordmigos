@@ -17,8 +17,8 @@ The following credentials in `.env` must be moved to CI secrets:
 | `R2_ACCESS_KEY_ID` | `.env:4` | R2 bucket access if leaked | Move to CI secrets |
 | `R2_SECRET_ACCESS_KEY` | `.env:5` | R2 bucket access if leaked | Move to CI secrets |
 | `EXPIRY_CRON_SECRET` | `.env:12` | Cron job access if leaked | Move to CI secrets |
-| `UPSTASH_REDIS_REST_URL` | `.env:9` | Redis access if leaked | Move to CI secrets |
-| `UPSTASH_REDIS_REST_TOKEN` | `.env:10` | Redis access if leaked | Move to CI secrets |
+| `RATE_LIMIT_REDIS_REST_URL` | `.env:9` | Redis access if leaked | Move to CI secrets |
+| `RATE_LIMIT_REDIS_REST_TOKEN` | `.env:10` | Redis access if leaked | Move to CI secrets |
 
 **Safe to keep in `.env`:**
 - `NODE_ENV` (set per environment anyway)
@@ -40,8 +40,8 @@ R2_ACCOUNT_ID="local-dev-account-id"
 R2_ACCESS_KEY_ID="local-dev-key-id"
 R2_SECRET_ACCESS_KEY="local-dev-secret-key"
 EXPIRY_CRON_SECRET="local-dev-cron-secret"
-UPSTASH_REDIS_REST_URL="http://localhost:8079"
-UPSTASH_REDIS_REST_TOKEN="local-dev-token"
+RATE_LIMIT_REDIS_REST_URL="http://localhost:8079"
+RATE_LIMIT_REDIS_REST_TOKEN="local-dev-token"
 ```
 
 Ensure `.env.local` is in `.gitignore` (it already is via `.env*` pattern).
@@ -61,8 +61,8 @@ Ensure `.env.local` is in `.gitignore` (it already is via `.env*` pattern).
    - `R2_ACCESS_KEY_ID`
    - `R2_SECRET_ACCESS_KEY`
    - `EXPIRY_CRON_SECRET`
-   - `UPSTASH_REDIS_REST_URL`
-   - `UPSTASH_REDIS_REST_TOKEN`
+   - `RATE_LIMIT_REDIS_REST_URL`
+   - `RATE_LIMIT_REDIS_REST_TOKEN`
 
 #### 2b. Update GitHub Actions Workflow
 
@@ -80,8 +80,8 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       EXPIRY_CRON_SECRET: ${{ secrets.EXPIRY_CRON_SECRET }}
-      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      RATE_LIMIT_REDIS_REST_URL: ${{ secrets.RATE_LIMIT_REDIS_REST_URL }}
+      RATE_LIMIT_REDIS_REST_TOKEN: ${{ secrets.RATE_LIMIT_REDIS_REST_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,47 +107,33 @@ deploy:
     R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
     R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
     EXPIRY_CRON_SECRET: ${{ secrets.EXPIRY_CRON_SECRET }}
-    UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-    UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+    RATE_LIMIT_REDIS_REST_URL: ${{ secrets.RATE_LIMIT_REDIS_REST_URL }}
+    RATE_LIMIT_REDIS_REST_TOKEN: ${{ secrets.RATE_LIMIT_REDIS_REST_TOKEN }}
   steps:
     - uses: actions/checkout@v4
     - run: npm run deploy  # Or your deployment command
 ```
 
-### Step 3: Alternative CI/CD Platforms
+### Step 3: Coolify Deployment
 
-#### GitLab CI
+Coolify reads environment variables from its UI. Add each secret as an environment variable:
 
-```yaml
-variables:
-  DATABASE_URL: $DATABASE_URL
-  DIRECT_URL: $DIRECT_URL
-  AUTH_SECRET: $AUTH_SECRET
-  R2_ACCOUNT_ID: $R2_ACCOUNT_ID
-  R2_ACCESS_KEY_ID: $R2_ACCESS_KEY_ID
-  R2_SECRET_ACCESS_KEY: $R2_SECRET_ACCESS_KEY
-  EXPIRY_CRON_SECRET: $EXPIRY_CRON_SECRET
-  UPSTASH_REDIS_REST_URL: $UPSTASH_REDIS_REST_URL
-  UPSTASH_REDIS_REST_TOKEN: $UPSTASH_REDIS_REST_TOKEN
-```
+1. Open your Coolify **Application** dashboard
+2. Go to **Variables** tab
+3. Add each secret with the exact name (no prefix):
+   - `DATABASE_URL`
+   - `DIRECT_URL`
+   - `AUTH_SECRET`
+   - `R2_ACCOUNT_ID`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - `EXPIRY_CRON_SECRET`
+   - `RATE_LIMIT_REDIS_REST_URL`
+   - `RATE_LIMIT_REDIS_REST_TOKEN`
 
-Then add these variables in **Settings > CI/CD > Variables**.
+4. Click **Save**. Coolify automatically injects them at build and runtime.
 
-#### Vercel
-
-If deploying to Vercel:
-
-1. Go to **Project Settings > Environment Variables**
-2. Add each secret for the desired environments (Preview, Production)
-3. Vercel automatically passes them to the build and runtime
-
-#### Netlify
-
-If deploying to Netlify:
-
-1. Go to **Site settings > Build & deploy > Environment**
-2. Add each secret
-3. Netlify automatically injects them during build
+For per-environment secrets (staging vs. production), use Coolify's **Environment** selector or define separate applications.
 
 ### Step 4: Update the `.env` File
 
@@ -168,8 +154,8 @@ LOG_LEVEL=info
 # R2_ACCESS_KEY_ID (from CI secrets)
 # R2_SECRET_ACCESS_KEY (from CI secrets)
 # EXPIRY_CRON_SECRET (from CI secrets)
-# UPSTASH_REDIS_REST_URL (from CI secrets)
-# UPSTASH_REDIS_REST_TOKEN (from CI secrets)
+# RATE_LIMIT_REDIS_REST_URL (from CI secrets)
+# RATE_LIMIT_REDIS_REST_TOKEN (from CI secrets)
 ```
 
 ### Step 5: Test Locally
@@ -188,7 +174,7 @@ npm run dev
 # Commit the changes and push
 git add .env CREDENTIALS-MIGRATION.md .pre-commit-config.yaml src/middleware.ts src/lib/store-context.ts
 git commit -m "chore: move credentials to CI secrets, add edge middleware, validate user status"
-git push origin main
+git push origin master
 
 # Check CI/CD logs to verify secrets were injected correctly
 # (secrets themselves should be masked in logs)
@@ -219,7 +205,7 @@ production access leaves.
 | `DATABASE_URL` / `DIRECT_URL` password | On demand (on suspicion, on offboarding, on provider advisory) | Neon dashboard → Roles → Reset password | Full outage between rotation and redeploy. Schedule a window. |
 | `AUTH_SECRET` | On suspicion only | `openssl rand -base64 32` | **Invalidates every active session.** All users are logged out and must sign in again. Never rotate during business hours. |
 | `EXPIRY_CRON_SECRET` | Every deploy | `openssl rand -hex 32` | The expiry cron endpoint rejects the old value immediately; update the scheduler's header in the same change. |
-| `UPSTASH_REDIS_REST_TOKEN` | 90 days | Upstash console → Database → REST API | Rate limiting fails open (see `src/lib/security/rate-limit.ts`) until the CI secret is updated — brief window of unthrottled auth attempts. |
+| `RATE_LIMIT_REDIS_REST_TOKEN` | 90 days | Upstash console → Database → REST API | Rate limiting fails open (see `src/lib/security/rate-limit.ts`) until the CI secret is updated — brief window of unthrottled auth attempts. |
 | `SEED_SUPER_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` | Never reused | n/a | Seed-time only. Leave both unset in production; the seed generates a random password and prints it once. |
 
 ### Rotation procedure
@@ -239,6 +225,5 @@ production access leaves.
 ## References
 
 - [GitHub Secrets Documentation](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
-- [GitLab CI/CD Variables](https://docs.gitlab.com/ee/ci/variables/)
-- [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables)
+- [Coolify Documentation](https://coolify.io/docs)
 - [Gitleaks Documentation](https://github.com/gitleaks/gitleaks)

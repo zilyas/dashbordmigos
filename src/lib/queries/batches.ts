@@ -161,17 +161,56 @@ export async function getProductBatchView(
  * never repairs anything. Returns only the discrepant lines plus a count.
  */
 export async function getStoreBatchReconciliation(storeId: string) {
+  // One set-based query instead of a per-product getProductBatchView call:
+  // the store-wide summary only needs stock aggregates, so it skips the
+  // timezone/expiry work that the single-product view does.
   const products = await prisma.product.findMany({
     where: { storeId, trackBatch: true },
-    select: { id: true, name: true },
     orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      hasVariants: true,
+      stock: true,
+      variants: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          sku: true,
+          stock: true,
+          size: { select: { name: true } },
+          color: { select: { name: true } },
+        },
+      },
+      batches: { select: { variantId: true, stock: true } },
+    },
   });
 
   const discrepancies: (ReconciliationLine & { productId: string; productName: string })[] = [];
   for (const p of products) {
-    const view = await getProductBatchView(p.id, storeId);
-    if (!view) continue;
-    for (const line of view.reconciliation.lines) {
+    const batches = p.batches.map((b) => ({ variantId: b.variantId, stock: Number(b.stock) }));
+    const lines: ReconciliationLine[] = p.hasVariants
+      ? p.variants.map((v) => ({
+          scope: "variant" as const,
+          variantId: v.id,
+          label: variantLabelOf(v.size?.name, v.color?.name, v.sku),
+          ...reconcileBatchStock(
+            Number(v.stock),
+            batches.filter((b) => b.variantId === v.id)
+          ),
+        }))
+      : [
+          {
+            scope: "product" as const,
+            variantId: null,
+            label: p.name,
+            ...reconcileBatchStock(
+              Number(p.stock),
+              batches.filter((b) => b.variantId === null)
+            ),
+          },
+        ];
+    for (const line of lines) {
       if (!line.reconciled) {
         discrepancies.push({ ...line, productId: p.id, productName: p.name });
       }

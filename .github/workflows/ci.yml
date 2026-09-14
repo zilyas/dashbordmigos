@@ -94,3 +94,71 @@ jobs:
 
       - name: Production build (webpack)
         run: npm run build -- --webpack
+
+  container-smoke:
+    name: Container Build & Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DATABASE_URL: "postgresql://user:pass@127.0.0.1:5432/nonexistent?sslmode=disable"
+      AUTH_SECRET: "ci-placeholder-secret-not-a-real-secret"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: app:smoke-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
+            AUTH_SECRET=${{ env.AUTH_SECRET }}
+
+      - name: Start container
+        run: |
+          docker run -d \
+            -e DATABASE_URL="${{ env.DATABASE_URL }}" \
+            -e AUTH_SECRET="${{ env.AUTH_SECRET }}" \
+            -e NODE_ENV=production \
+            -p 3000:3000 \
+            --name app-test \
+            app:smoke-test
+
+      - name: Wait for container to be ready
+        run: |
+          for i in {1..30}; do
+            if docker exec app-test wget -q -O- http://localhost:3000/api/health; then
+              echo "Container is healthy"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting for container..."
+            sleep 2
+          done
+          echo "Container failed to become ready"
+          docker logs app-test
+          exit 1
+
+      - name: Smoke test health endpoint
+        run: |
+          response=$(curl -s http://localhost:3000/api/health)
+          status=$(echo "$response" | jq -r '.status // empty')
+          if [ -z "$status" ]; then
+            echo "ERROR: health endpoint did not return a JSON status field"
+            echo "Response: $response"
+            exit 1
+          fi
+          echo "Health endpoint OK: status=$status"
+
+      - name: Cleanup
+        if: always()
+        run: docker kill app-test || true

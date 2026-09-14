@@ -6,6 +6,7 @@ import { checkPasswordHistory, hashPassword, recordPasswordHistory } from "@/lib
 import { getRequestInfo } from "@/lib/security/request-info";
 import { RATE_LIMITS, rateLimit } from "@/lib/security/rate-limit";
 import { logActivity } from "@/lib/audit";
+import { logServerError } from "@/lib/logger";
 import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/password";
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -41,15 +42,17 @@ export async function requestPasswordReset(input: { email: string }) {
     },
   });
 
-  // Dev-mode stub: no email provider is configured, so the link is returned
-  // directly instead of being emailed — same pattern as the local upload
-  // stub. Returning the link makes account existence inferable from the
-  // response and hands the reset token to anyone who can reach this action,
-  // so it is hard-gated to non-production. Swap in real email delivery
-  // before deploying; until then production fails loudly rather than
-  // silently leaking tokens.
+  // Dev-mode stub: no email provider is configured. In dev, the link is
+  // returned directly; in production, the token is created but never
+  // delivered, and both paths return the same generic response to prevent
+  // account enumeration.
   if (process.env.NODE_ENV === "production") {
-    return { error: "Password reset email delivery is not configured. Contact your administrator." };
+    logServerError("app", new Error("Email delivery not configured"), {
+      action: "password_reset_email_delivery_missing",
+      email,
+      userId: user.id,
+    });
+    return { success: true as const, message: GENERIC_MESSAGE };
   }
 
   return {

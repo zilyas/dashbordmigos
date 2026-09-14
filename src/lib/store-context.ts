@@ -10,19 +10,19 @@ export type SessionContext = {
 };
 
 /**
- * Reads the current session once and returns the scoping context every
- * store-owned query/action is keyed on. For MANAGER/SELLER, `storeId` is
- * never sourced from anywhere else (never a form field, never a query
- * param) — this is what makes cross-tenant access impossible even if a
- * request is hand-crafted.
+ * Validates the current session against the revocation ledger and the user's
+ * account status, without caring about store scoping. This is the single
+ * place that query lives — both `getSessionContext()` (store-scoped pages
+ * and actions) and `requirePermission()` (platform-wide SUPER_ADMIN actions
+ * like backup/store/manager management) go through it.
  *
- * Also confirms the session's backing UserSession row is still live.
  * Middleware (edge runtime) only checks the JWT itself, so a just-revoked
- * session — "log out everywhere", "terminate session" — can still pass the
- * edge role-check for at most one more request; this is the check that
- * actually rejects it, on the first real page/action it hits.
+ * session — "log out everywhere", "terminate session" — or a user who was
+ * just deactivated can still pass the edge role-check for at most one more
+ * request; this is the check that actually rejects it, on the first real
+ * page/action it hits.
  */
-export async function getSessionContext(): Promise<SessionContext | null> {
+export async function getStorelessSessionContext(): Promise<SessionContext | null> {
   const session = await auth();
   if (!session?.user || !session.sid) return null;
 
@@ -55,6 +55,16 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     storeId: session.user.storeId,
     sid: session.sid,
   };
+}
+
+/**
+ * The scoping context every store-owned query/action is keyed on. For
+ * MANAGER/SELLER, `storeId` is never sourced from anywhere else (never a
+ * form field, never a query param) — this is what makes cross-tenant access
+ * impossible even if a request is hand-crafted.
+ */
+export async function getSessionContext(): Promise<SessionContext | null> {
+  return getStorelessSessionContext();
 }
 
 /**

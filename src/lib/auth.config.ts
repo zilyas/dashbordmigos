@@ -11,6 +11,10 @@ export const authConfig = {
   },
   session: {
     strategy: "jwt",
+    // POS dashboard: 24 hours. Balances security (limits stale sessions at
+    // shared terminals) with usability (covers typical retail shift length).
+    // Users with Remember Me get 30 days via explicit UserSession (auth.ts).
+    maxAge: 24 * 60 * 60,
   },
   providers: [],
   callbacks: {

@@ -337,28 +337,29 @@ formatting, and the R2 upload pipeline (with the S3 client mocked).
 
 ## 8. Continuous Integration
 
-Every push to `main` and every pull request targeting `main` runs the
+Every push to any branch and every pull request runs the
 `.github/workflows/ci.yml` GitHub Actions workflow. It is a **validation
 gate only** — it never deploys anywhere.
 
 Steps run in this order, and any failure fails the whole workflow (no
 `continue-on-error` anywhere):
 
-1. Checkout
-2. Setup Node 20 (with npm dependency caching)
-3. `npm ci`
-4. `npx prisma validate`
-5. `npx tsc --noEmit`
-6. `npx eslint .`
-7. `npm run test` (vitest)
-8. `npm run build -- --webpack`
+1. Checkout (full history — gitleaks scans the commit range)
+2. Scan for secrets (gitleaks)
+3. Setup Node 24 (with npm dependency caching)
+4. `npm ci`
+5. `npx prisma validate`
+6. `npx tsc --noEmit`
+7. `npx eslint .`
+8. `npm run test` (vitest)
+9. `npm run build -- --webpack`
 
 Notes:
 
 - `prisma generate` is **not** a separate CI step — `npm ci` already runs it
   via the `postinstall` script, and `npm run build` runs it again via
   `prebuild`. A third explicit invocation would be a pure duplicate.
-- **No Postgres service container is used.** None of the 9 vitest suites
+- **No Postgres service container is used.** None of the 10 vitest suites
   under `src/lib/**/*.test.ts` import Prisma or touch a database, and every
   dashboard route calls `auth()` (which reads cookies), so Next treats them
   all as dynamic and never queries the database at build time. This was
@@ -374,7 +375,7 @@ Notes:
 **Manual step required in GitHub:** branch protection with required status
 checks is **not** configured from files and must be enabled manually in the
 repository's Settings → Branches, selecting the `Validate` job as a required
-check for `main`.
+check for `master`.
 
 ## 9. Useful scripts
 

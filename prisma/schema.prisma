@@ -260,6 +260,7 @@ model Product {
   @@index([storeId, status])
   @@index([storeId, name])
   @@index([categoryId])
+  @@index([storeId, trackBatch])
   @@map("products")
 }
 
@@ -686,6 +687,7 @@ model Notification {
 
   @@index([userId, read])
   @@index([storeId])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 

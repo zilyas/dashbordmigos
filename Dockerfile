@@ -38,7 +38,10 @@ ARG AUTH_SECRET="build-time-placeholder"
 ENV AUTH_SECRET=${AUTH_SECRET}
 
 RUN npx prisma generate
-RUN npm run build
+# Next 16 defaults `next build` to Turbopack; this project's validated
+# production path is webpack (see the CI build step), so opt out explicitly.
+# The bare `--` is npm passing the flag through to the `build` script.
+RUN npm run build -- --webpack
 
 # ---- runner ----
 FROM node:24-alpine AS runner
