@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+npx lint-staged
+npx prettier --check
+npx tsc --noEmit
+gitleaks detect --source=. --redact --verbose --exit-code 1

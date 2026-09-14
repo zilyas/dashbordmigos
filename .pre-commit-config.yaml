@@ -16,16 +16,30 @@ repos:
         pass_filenames: false
         always_run: true
 
-  # Optional: Prettier for code formatting (uncomment to enable)
-  # - repo: https://github.com/pre-commit/mirrors-prettier
-  #   rev: v3.1.0
-  #   hooks:
-  #     - id: prettier
-  #       language_version: "18.0.0"
+  # lint-staged: Run linters and formatters on staged files
+  - repo: local
+    hooks:
+      - id: lint-staged
+        name: Lint-staged
+        entry: npx lint-staged
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
 
-  # Optional: ESLint for linting (uncomment to enable)
-  # - repo: https://github.com/pre-commit/mirrors-eslint
-  #   rev: v8.55.0
-  #   hooks:
-  #     - id: eslint
-  #       types: [javascript, jsx, typescript, tsx]
+  # Prettier: Code formatting check
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        language_version: "18.0.0"
+        types: [javascript, jsx, typescript, tsx, json, css, markdown]
+
+  # TypeScript type checking
+  - repo: local
+    hooks:
+      - id: tsc-no-emit
+        name: TypeScript type check
+        entry: npx tsc --noEmit
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false

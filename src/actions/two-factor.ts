@@ -11,6 +11,7 @@ import {
   getTotpQrCodeDataUrl,
   verifyTotpCode,
 } from "@/lib/security/two-factor";
+import { encryptTOTPSecret, decryptTOTPSecret } from "@/lib/security/totp-encryption";
 
 export async function startTwoFactorEnrollment() {
   const context = await getSessionContext();
@@ -23,10 +24,11 @@ export async function startTwoFactorEnrollment() {
   if (!user) return { error: "Not authorized" };
 
   const secret = generateTotpSecret();
+  const encryptedSecret = await encryptTOTPSecret(secret);
   await prisma.twoFactorCredential.upsert({
     where: { userId: context.userId },
-    update: { secret, enabled: false, verifiedAt: null },
-    create: { userId: context.userId, secret, enabled: false },
+    update: { secret: encryptedSecret, enabled: false, verifiedAt: null },
+    create: { userId: context.userId, secret: encryptedSecret, enabled: false },
   });
 
   const qrCodeDataUrl = await getTotpQrCodeDataUrl(secret, user.email);
@@ -49,7 +51,8 @@ export async function confirmTwoFactorEnrollment(code: string) {
   if (!credential) return { error: "Start enrollment first." };
   if (credential.enabled) return { error: "Two-factor authentication is already enabled." };
 
-  const valid = await verifyTotpCode(credential.secret, code.trim());
+  const decryptedSecret = await decryptTOTPSecret(credential.secret);
+  const valid = await verifyTotpCode(decryptedSecret, code.trim());
   if (!valid) return { error: "Invalid code. Check your authenticator app and try again." };
 
   const rawCodes = generateRecoveryCodes();

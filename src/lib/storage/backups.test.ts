@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { randomBytes } from "crypto";
+import { encrypt, getEncryptionKey } from "@/lib/security/encryption";
 
 const { writeFileMock, readFileMock, mkdirMock } = vi.hoisted(() => ({
   writeFileMock: vi.fn(async () => undefined),
-  readFileMock: vi.fn(async () => "{}"),
+  readFileMock: vi.fn(async () => ""),
   mkdirMock: vi.fn(async () => undefined),
 }));
 
@@ -27,8 +29,24 @@ vi.mock("@aws-sdk/client-s3", () => ({
 
 import { readBackupFile, writeBackupFile } from "@/lib/storage/backups";
 
-// The exact shape createBackup() produces in src/actions/backup.ts.
 const VALID = "backup-2026-09-14T10-30-00-000Z-1a2b3c4d.json";
+
+beforeEach(() => {
+  const key = randomBytes(32).toString("base64");
+  process.env.ENCRYPTION_KEY = key;
+  const ek = getEncryptionKey();
+  // Mock reads encrypted data that matches the current key.
+  readFileMock.mockImplementation(async () => encrypt("{}", ek));
+  writeFileMock.mockImplementation(async () => undefined);
+  mkdirMock.mockImplementation(async () => undefined);
+  sendMock.mockReset();
+  sendMock.mockResolvedValue({});
+});
+
+afterEach(() => {
+  delete process.env.ENCRYPTION_KEY;
+  vi.clearAllMocks();
+});
 
 describe("backup filename validation", () => {
   it("accepts a filename this module produced", async () => {
@@ -52,26 +70,19 @@ describe("backup filename validation", () => {
 
 describe("R2 backup sync", () => {
   beforeEach(() => {
-    sendMock.mockReset();
-    sendMock.mockResolvedValue({});
-    readFileMock.mockClear();
-    writeFileMock.mockClear();
-    mkdirMock.mockClear();
     delete process.env.R2_ACCOUNT_ID;
     delete process.env.R2_ACCESS_KEY_ID;
     delete process.env.R2_SECRET_ACCESS_KEY;
     delete process.env.R2_BUCKET;
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("writes to local disk only when R2 is unconfigured", async () => {
     const result = await writeBackupFile(VALID, "test content");
-    expect(result).toBe(12); // "test content" byte length
+    const ek = getEncryptionKey();
+    const encryptedBuffer = Buffer.from(encrypt("test content", ek), "utf-8");
+    expect(result).toBe(encryptedBuffer.byteLength);
     expect(writeFileMock).toHaveBeenCalledOnce();
-    expect(sendMock).not.toHaveBeenCalled(); // No R2 call
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("writes to both local and R2 when R2 is configured", async () => {
@@ -81,9 +92,11 @@ describe("R2 backup sync", () => {
     process.env.R2_BUCKET = "dashboard";
 
     const result = await writeBackupFile(VALID, "test");
-    expect(result).toBe(4); // "test" byte length
-    expect(writeFileMock).toHaveBeenCalledOnce(); // Local write
-    expect(sendMock).toHaveBeenCalledOnce(); // R2 upload
+    const ek = getEncryptionKey();
+    const encryptedBuffer = Buffer.from(encrypt("test", ek), "utf-8");
+    expect(result).toBe(encryptedBuffer.byteLength);
+    expect(writeFileMock).toHaveBeenCalledOnce();
+    expect(sendMock).toHaveBeenCalledOnce();
     const { input } = sendMock.mock.calls[0][0] as { input: Record<string, unknown> };
     expect(input.Key).toBe(`backups/${VALID}`);
     expect(input.Bucket).toBe("dashboard");
@@ -97,27 +110,24 @@ describe("R2 backup sync", () => {
     process.env.R2_BUCKET = "dashboard";
     sendMock.mockRejectedValueOnce(new Error("R2 network error"));
 
-    // Should not throw; local write is what counts.
     const result = await writeBackupFile(VALID, "test");
-    expect(result).toBe(4);
+    const ek = getEncryptionKey();
+    const encryptedBuffer = Buffer.from(encrypt("test", ek), "utf-8");
+    expect(result).toBe(encryptedBuffer.byteLength);
     expect(writeFileMock).toHaveBeenCalledOnce();
-    expect(sendMock).toHaveBeenCalledOnce(); // Attempted
+    expect(sendMock).toHaveBeenCalledOnce();
   });
 });
 
 describe("R2 backup fallback on read", () => {
   beforeEach(() => {
-    sendMock.mockReset();
-    readFileMock.mockReset();
-    readFileMock.mockRejectedValue(new Error("ENOENT"));
     delete process.env.R2_ACCOUNT_ID;
     delete process.env.R2_ACCESS_KEY_ID;
     delete process.env.R2_SECRET_ACCESS_KEY;
     delete process.env.R2_BUCKET;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
+    readFileMock.mockReset();
+    readFileMock.mockRejectedValue(new Error("ENOENT"));
+    sendMock.mockReset();
   });
 
   it("falls back to local when R2 is unconfigured and local is missing", async () => {
@@ -131,16 +141,18 @@ describe("R2 backup fallback on read", () => {
     process.env.R2_SECRET_ACCESS_KEY = "secret123";
     process.env.R2_BUCKET = "dashboard";
 
+    const ek = getEncryptionKey();
+    const encryptedR2Content = encrypt("restored content", ek);
     sendMock.mockResolvedValueOnce({
       Body: {
-        transformToString: async () => "restored content",
+        transformToString: async () => encryptedR2Content,
       },
     });
 
     const result = await readBackupFile(VALID);
     expect(result).toBe("restored content");
-    expect(readFileMock).toHaveBeenCalledOnce(); // Tried local first
-    expect(sendMock).toHaveBeenCalledOnce(); // Then R2
+    expect(readFileMock).toHaveBeenCalledOnce();
+    expect(sendMock).toHaveBeenCalledOnce();
   });
 
   it("fails when both local and R2 are missing", async () => {

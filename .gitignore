@@ -62,3 +62,12 @@ skills-lock.json
 
 # graft's local repository settings — not committed.
 /.graft/
+# test artifacts and audit reports
+CODE_QUALITY_AUDIT.md
+OPERATIONS_AUDIT_REPORT.md
+SECURITY_AUDIT_REPORT.md
+*.audit.md
+*_report.md
+run-tests.js
+test-output.txt
+
