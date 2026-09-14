@@ -1,30 +1,73 @@
 import { prisma } from "@/lib/prisma";
 import type { PaymentMethod, Role } from "@/generated/prisma/enums";
+import { parseAxisValues, axisValueList } from "@/lib/variant-axes";
+import { variantLabelFromParts } from "@/lib/sale-math";
 
 const LIST_CAP = 500;
 
 export async function getPOSProducts(storeId: string) {
-  const products = await prisma.product.findMany({
-    where: { storeId, status: "ACTIVE" },
-    orderBy: { name: "asc" },
-    include: { images: { orderBy: { position: "asc" }, take: 1 } },
-  });
+  const [products, axisDefs] = await Promise.all([
+    prisma.product.findMany({
+      where: { storeId, status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      include: {
+        images: { orderBy: { position: "asc" }, take: 1 },
+        variants: {
+          where: { isActive: true },
+          orderBy: { createdAt: "asc" },
+          include: {
+            size: { select: { name: true } },
+            color: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    prisma.variantAxisDefinition.findMany({
+      where: { storeId, isActive: true },
+      orderBy: [{ position: "asc" }, { label: "asc" }],
+      select: { key: true, label: true },
+    }),
+  ]);
 
-  return products.map((p) => ({
-    id: p.id,
-    sku: p.sku,
-    barcode: p.barcode,
-    name: p.name,
-    size: p.size,
-    color: p.color,
-    sellingPrice: Number(p.sellingPrice),
-    fabricationPrice: Number(p.fabricationPrice),
-    stock: p.stock,
-    image: p.images[0]?.url ?? null,
-  }));
+  return products.map((p) => {
+    const basePrice = Number(p.sellingPrice);
+    const baseCost = Number(p.fabricationPrice);
+    return {
+      id: p.id,
+      sku: p.sku,
+      barcode: p.barcode,
+      name: p.name,
+      size: p.size,
+      color: p.color,
+      unit: p.unit ?? "piece",
+      allowDecimalQuantity: p.allowDecimalQuantity,
+      sellingPrice: basePrice,
+      fabricationPrice: baseCost,
+      // For variant products, base stock is not sold directly; the POS uses the
+      // per-variant stock below. Reported as the sum so the card still shows
+      // availability at a glance.
+      stock: p.hasVariants ? p.variants.reduce((s, v) => s + Number(v.stock), 0) : Number(p.stock),
+      image: p.images[0]?.url ?? null,
+      hasVariants: p.hasVariants,
+      variants: p.variants.map((v) => ({
+        id: v.id,
+        label:
+          variantLabelFromParts([
+            v.size?.name,
+            v.color?.name,
+            ...axisValueList(parseAxisValues(v.axisValues), axisDefs),
+          ]) || v.sku,
+        sku: v.sku,
+        sellingPrice: v.sellingPrice != null ? Number(v.sellingPrice) : basePrice,
+        stock: Number(v.stock),
+        imageUrl: v.imageUrl,
+      })),
+    };
+  });
 }
 
 export type POSProduct = Awaited<ReturnType<typeof getPOSProducts>>[number];
+export type POSVariant = POSProduct["variants"][number];
 
 /**
  * `storeId: null` is only meaningful for SUPER_ADMIN — platform-wide.
@@ -56,7 +99,10 @@ export async function getSales({
           quantity: true,
           returnedQuantity: true,
           sellingPrice: true,
-          product: { select: { id: true, name: true, sku: true } },
+          variantLabel: true,
+          product: {
+            select: { id: true, name: true, sku: true, unit: true, allowDecimalQuantity: true },
+          },
         },
       },
     },
@@ -69,7 +115,7 @@ export async function getSales({
     storeName: s.store.name,
     customerName: s.customerName,
     customerPhone: s.customerPhone,
-    itemCount: s.items.reduce((sum, i) => sum + i.quantity, 0),
+    itemCount: s.items.reduce((sum, i) => sum + Number(i.quantity), 0),
     subtotal: Number(s.subtotal),
     discount: Number(s.discount),
     tax: Number(s.tax),
@@ -84,9 +130,12 @@ export async function getSales({
       productId: i.product.id,
       productName: i.product.name,
       sku: i.product.sku,
-      quantity: i.quantity,
-      returnedQuantity: i.returnedQuantity,
+      variantLabel: i.variantLabel,
+      quantity: Number(i.quantity),
+      returnedQuantity: Number(i.returnedQuantity),
       sellingPrice: Number(i.sellingPrice),
+      unit: i.product.unit ?? "piece",
+      allowDecimalQuantity: i.product.allowDecimalQuantity,
     })),
   }));
 }

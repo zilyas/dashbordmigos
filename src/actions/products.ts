@@ -7,6 +7,10 @@ import { requireStorePermission } from "@/lib/rbac-guards";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
 import { productSchema, type ProductInput } from "@/lib/validations/product";
+import type { ProductAttributeValueInput } from "@/lib/validations/category-attribute";
+import { getStoreFeatures } from "@/lib/features";
+import { validateAttributeValue, parseOptions } from "@/lib/attributes";
+import { round3 } from "@/lib/sale-math";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
@@ -18,6 +22,90 @@ function computeProfitMargin(sellingPrice: number, fabricationPrice: number) {
 }
 
 const requireProductEditor = requireStorePermission("product.create");
+
+/**
+ * Enforces the decimal-quantity policy for a product's stock and low-stock
+ * threshold. Decimals are allowed only when the store has units_enabled AND the
+ * product opts in; otherwise both must be whole numbers (unchanged behavior for
+ * piece stores). Values are rounded to 3 decimals to match the DB columns.
+ */
+function resolveStockValues(
+  unitsEnabled: boolean,
+  allowDecimalQuantity: boolean,
+  rawStock: number,
+  rawMinimumStock: number
+): { stock: number; minimumStock: number } | { error: string } {
+  const allowDecimal = unitsEnabled && allowDecimalQuantity;
+  if (!allowDecimal && (!Number.isInteger(rawStock) || !Number.isInteger(rawMinimumStock))) {
+    return { error: "Stock and minimum stock must be whole numbers for this product." };
+  }
+  return { stock: round3(rawStock), minimumStock: round3(rawMinimumStock) };
+}
+
+/**
+ * Validates the submitted attribute values against the selected category's
+ * definitions (store-scoped). Values for definitions not on this category are
+ * ignored; required definitions must have a value. Returns the normalised
+ * definitionId→value map, or an error.
+ */
+async function resolveAttributeValues(
+  storeId: string,
+  categoryId: string,
+  values: ProductAttributeValueInput[]
+): Promise<{ resolved: Map<string, string> } | { error: string }> {
+  if (!categoryId) return { resolved: new Map() };
+  const defs = await prisma.categoryAttributeDefinition.findMany({
+    where: { categoryId, storeId },
+  });
+  const byId = new Map(defs.map((d) => [d.id, d]));
+  const resolved = new Map<string, string>();
+  for (const { definitionId, value } of values) {
+    const def = byId.get(definitionId);
+    if (!def) continue; // not part of this category — ignore
+    const check = validateAttributeValue(def.type, value, parseOptions(def.options), def.required);
+    if (!check.ok) return { error: `${def.label}: ${check.error}` };
+    resolved.set(definitionId, check.value);
+  }
+  for (const def of defs) {
+    if (def.required && !(resolved.get(def.id) ?? "")) {
+      return { error: `${def.label} is required.` };
+    }
+  }
+  return { resolved };
+}
+
+/** Writes the resolved attribute values, removing stale/emptied ones. */
+async function persistAttributeValues(
+  productId: string,
+  categoryId: string,
+  storeId: string,
+  resolved: Map<string, string>
+) {
+  if (!categoryId) {
+    await prisma.productAttributeValue.deleteMany({ where: { productId } });
+    return;
+  }
+  const defs = await prisma.categoryAttributeDefinition.findMany({
+    where: { categoryId, storeId },
+    select: { id: true },
+  });
+  const catDefIds = defs.map((d) => d.id);
+  // Drop values whose definition no longer belongs to the product's category.
+  await prisma.productAttributeValue.deleteMany({
+    where: { productId, ...(catDefIds.length ? { definitionId: { notIn: catDefIds } } : {}) },
+  });
+  for (const [definitionId, value] of resolved) {
+    if (!value) {
+      await prisma.productAttributeValue.deleteMany({ where: { productId, definitionId } });
+    } else {
+      await prisma.productAttributeValue.upsert({
+        where: { productId_definitionId: { productId, definitionId } },
+        update: { value },
+        create: { productId, definitionId, value },
+      });
+    }
+  }
+}
 
 async function uniqueSlug(storeId: string, base: string, excludeId?: string) {
   const slugBase = slugify(base) || "product";
@@ -40,6 +128,24 @@ export async function createProduct(input: ProductInput) {
   if (!parsed.success) return { error: "Invalid product data" };
   const data = parsed.data;
 
+  const features = await getStoreFeatures(session.storeId);
+  const stockResult = resolveStockValues(
+    features.units_enabled,
+    data.allowDecimalQuantity ?? false,
+    data.stock,
+    data.minimumStock
+  );
+  if ("error" in stockResult) return { error: stockResult.error };
+  const { stock, minimumStock } = stockResult;
+
+  // Validate attribute values up-front (before creating the product).
+  const attributesEnabled = features.category_attributes_enabled;
+  const attrResult =
+    attributesEnabled && data.attributes
+      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes)
+      : { resolved: new Map<string, string>() };
+  if ("error" in attrResult) return { error: attrResult.error };
+
   const slug = await uniqueSlug(session.storeId, `${data.name}-${data.color || ""}-${data.size || ""}`);
 
   try {
@@ -58,25 +164,32 @@ export async function createProduct(input: ProductInput) {
         fabricationPrice: data.fabricationPrice,
         sellingPrice: data.sellingPrice,
         profitMargin: computeProfitMargin(data.sellingPrice, data.fabricationPrice),
-        stock: data.stock,
-        minimumStock: data.minimumStock,
+        stock,
+        minimumStock,
         status: data.status,
+        hasVariants: data.hasVariants ?? false,
+        unit: data.unit ?? "piece",
+        allowDecimalQuantity: data.allowDecimalQuantity ?? false,
         createdById: session.userId,
         images: { create: data.images.map((url, position) => ({ url, position })) },
       },
     });
 
-    if (data.stock > 0) {
+    if (stock > 0) {
       await prisma.inventoryMovement.create({
         data: {
           storeId: session.storeId,
           productId: product.id,
           type: "IN",
-          quantity: data.stock,
+          quantity: stock,
           note: "Initial stock on product creation",
           createdById: session.userId,
         },
       });
+    }
+
+    if (attributesEnabled) {
+      await persistAttributeValues(product.id, data.categoryId || "", session.storeId, attrResult.resolved);
     }
 
     await logActivity({
@@ -108,6 +221,33 @@ export async function updateProduct(id: string, input: ProductInput) {
   const existing = await prisma.product.findFirst({ where: { id, storeId: session.storeId } });
   if (!existing) return { error: "Product not found" };
 
+  const features = await getStoreFeatures(session.storeId);
+  const stockResult = resolveStockValues(
+    features.units_enabled,
+    data.allowDecimalQuantity ?? false,
+    data.stock,
+    data.minimumStock
+  );
+  if ("error" in stockResult) return { error: stockResult.error };
+  const { stock, minimumStock } = stockResult;
+  const existingStock = Number(existing.stock);
+
+  // For batch-tracked products, on-hand stock is owned by the batch ledger and
+  // must not be edited through the product form — only minimumStock etc. stay
+  // editable. Receiving/adjustment actions are the only stock write path.
+  if (existing.trackBatch && round3(stock) !== round3(existingStock)) {
+    return {
+      error: "This product is batch-tracked — change stock through batch receiving or adjustment, not the product form.",
+    };
+  }
+
+  const attributesEnabled = features.category_attributes_enabled;
+  const attrResult =
+    attributesEnabled && data.attributes
+      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes)
+      : { resolved: new Map<string, string>() };
+  if ("error" in attrResult) return { error: attrResult.error };
+
   const slug =
     slugify(existing.name) === slugify(data.name)
       ? existing.slug
@@ -133,19 +273,22 @@ export async function updateProduct(id: string, input: ProductInput) {
           fabricationPrice: data.fabricationPrice,
           sellingPrice: data.sellingPrice,
           profitMargin: computeProfitMargin(data.sellingPrice, data.fabricationPrice),
-          stock: data.stock,
-          minimumStock: data.minimumStock,
+          stock,
+          minimumStock,
           status: data.status,
+          hasVariants: data.hasVariants ?? false,
+          unit: data.unit ?? "piece",
+          allowDecimalQuantity: data.allowDecimalQuantity ?? false,
         },
       });
 
-      if (data.stock !== existing.stock) {
+      if (stock !== existingStock) {
         await tx.inventoryMovement.create({
           data: {
             storeId: session.storeId,
             productId: id,
             type: "ADJUSTMENT",
-            quantity: data.stock - existing.stock,
+            quantity: round3(stock - existingStock),
             note: "Manual stock adjustment via product edit",
             createdById: session.userId,
           },
@@ -182,6 +325,10 @@ export async function updateProduct(id: string, input: ProductInput) {
         tx
       );
     });
+
+    if (attributesEnabled) {
+      await persistAttributeValues(id, data.categoryId || "", session.storeId, attrResult.resolved);
+    }
 
     revalidatePath("/products");
     revalidatePath("/dashboard");
