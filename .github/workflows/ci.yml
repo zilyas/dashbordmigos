@@ -1,0 +1,77 @@
+name: CI
+
+# Validation gate only — this workflow does not deploy anywhere. It exists so
+# no push/PR can silently break typecheck, lint, unit tests, the Prisma
+# schema, or the production build.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Least-privilege GITHUB_TOKEN: this workflow only reads the repo to validate
+# it (typecheck/lint/test/build) — it never comments, releases, or pushes.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Placeholders only — nothing here is a real secret and this pipeline
+      # never talks to a real or shared database.
+      #
+      # DATABASE_URL is the only DB-related value any step actually needs:
+      #   - `prisma validate`/`prisma generate` read it via prisma.config.ts
+      #     but never open a connection for either command.
+      #   - None of the 9 vitest suites under src/lib/**/*.test.ts import
+      #     Prisma or touch a database (verified by inspecting every file).
+      #   - `next build --webpack` never queries the DB at build time either:
+      #     every dashboard route calls `auth()` (which reads cookies), so
+      #     Next marks all of them dynamic ("ƒ") and renders them per-request
+      #     rather than at build time. This was confirmed locally by pointing
+      #     DATABASE_URL at an unreachable host/port and re-running the exact
+      #     same build command with an identical result.
+      #   - DIRECT_URL is documented in .env.example but not referenced by
+      #     prisma.config.ts or any application code, so it is intentionally
+      #     omitted here.
+      # Because of this, no Postgres service container is used in this
+      # workflow — see the CI section of README.md for the full rationale.
+      DATABASE_URL: "postgresql://user:pass@127.0.0.1:5432/nonexistent?sslmode=disable"
+      # NextAuth v5 reads AUTH_SECRET at module load time; it must merely be
+      # present and non-empty for `tsc`, `next build`, etc. to succeed.
+      AUTH_SECRET: "ci-placeholder-secret-not-a-real-secret"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm ci` runs the `postinstall` script (`prisma generate`), and
+      # `npm run build` runs it again via `prebuild`. Adding a third explicit
+      # `prisma generate` step here would be a genuine no-op duplicate, so it
+      # is intentionally omitted — only schema *validation* is run as its own
+      # step below.
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build (webpack)
+        run: npm run build -- --webpack

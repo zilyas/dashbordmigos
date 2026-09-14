@@ -6,9 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate",
+    "predev": "prisma generate",
+    "prebuild": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
     "@hookform/resolvers": "^5.4.0",
     "@node-rs/argon2": "^2.0.2",
     "@prisma/adapter-pg": "^7.9.0",
@@ -55,7 +61,9 @@
     "shadcn": "^4.14.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
   },
   "allowScripts": {
     "@prisma/engines@7.9.1": true,
