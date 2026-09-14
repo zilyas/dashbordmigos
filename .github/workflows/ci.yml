@@ -5,9 +5,9 @@ name: CI
 # schema, or the production build.
 on:
   push:
-    branches: [master]
+    branches: ["**"]
   pull_request:
-    branches: [master]
+    branches: ["**"]
 
 # Least-privilege GITHUB_TOKEN: this workflow only reads the repo to validate
 # it (typecheck/lint/test/build) — it never comments, releases, or pushes.
@@ -46,6 +46,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # gitleaks scans the commit range, so it needs history, not just the
+          # tip commit actions/checkout gives by default.
+          fetch-depth: 0
+
+      # Runs before anything is installed or built: a leaked credential should
+      # fail the run in seconds, not after a 10-minute build.
+      #
+      # The gitleaks CLI (MIT) is used directly rather than
+      # gitleaks/gitleaks-action@v2, which requires a paid GITLEAKS_LICENSE
+      # for organization-owned repositories and a read+write GITHUB_TOKEN to
+      # post PR comments. `detect` scans the full history, matching what the
+      # local .pre-commit-config.yaml hook enforces on staged changes.
+      - name: Scan for secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --redact --verbose --exit-code 1
 
       - name: Setup Node
         uses: actions/setup-node@v4

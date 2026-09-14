@@ -206,14 +206,35 @@ git push origin main
 - [ ] Pre-commit gitleaks hook installed: `pip install pre-commit && pre-commit install`
 - [ ] Test: Try committing a fake secret to verify gitleaks blocks it
 
-## Long-Term: Rotating Secrets
+## Long-Term: Secret Rotation Schedule
 
-Now that credentials are in CI secrets, rotation is safer:
+Now that credentials live in CI secrets, rotation is a config change rather
+than a code change. Each secret below has a fixed maximum age; rotate sooner
+than that on any suspicion of exposure, and always after an employee with
+production access leaves.
 
-1. **Database**: Rotate password in database provider, update CI secret
-2. **R2**: Regenerate access key in Cloudflare dashboard, update CI secret
-3. **AUTH_SECRET**: Generate new 32-byte base64 string, update CI secret (invalidates all sessions)
-4. **Redis**: Rotate token in Upstash dashboard, update CI secret
+| Secret | Interval | Where to rotate | Blast radius when rotated |
+| --- | --- | --- | --- |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | 90 days | Cloudflare dashboard → R2 → API Tokens | Uploads fail until the CI secret is updated. Old product images keep serving (public base URL is unaffected). |
+| `DATABASE_URL` / `DIRECT_URL` password | On demand (on suspicion, on offboarding, on provider advisory) | Neon dashboard → Roles → Reset password | Full outage between rotation and redeploy. Schedule a window. |
+| `AUTH_SECRET` | On suspicion only | `openssl rand -base64 32` | **Invalidates every active session.** All users are logged out and must sign in again. Never rotate during business hours. |
+| `EXPIRY_CRON_SECRET` | Every deploy | `openssl rand -hex 32` | The expiry cron endpoint rejects the old value immediately; update the scheduler's header in the same change. |
+| `UPSTASH_REDIS_REST_TOKEN` | 90 days | Upstash console → Database → REST API | Rate limiting fails open (see `src/lib/security/rate-limit.ts`) until the CI secret is updated — brief window of unthrottled auth attempts. |
+| `SEED_SUPER_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` | Never reused | n/a | Seed-time only. Leave both unset in production; the seed generates a random password and prints it once. |
+
+### Rotation procedure
+
+1. Generate the new value at the provider (or locally for `AUTH_SECRET` / `EXPIRY_CRON_SECRET`).
+2. Update the CI secret **before** revoking the old credential, where the provider supports two live keys (R2 does; Neon does not).
+3. Trigger a deploy so the running app picks up the new environment.
+4. Revoke the old credential at the provider.
+5. Record the rotation date. The next due date is step 4's date plus the interval above.
+
+### Why these intervals
+
+- 90 days for object storage and Redis: these are long-lived bearer credentials with no per-request signing, so age is the only control on an undetected leak.
+- On-demand for the database: rotation is a hard outage with Neon's single-password role model, so a calendar-driven rotation trades real availability for little marginal security. Detection (gitleaks in CI and pre-commit) carries the weight instead.
+- `AUTH_SECRET` is deliberately not on a calendar: rotating it logs out every user, and the session revocation ledger (`UserSession`) already provides targeted revocation without a global reset.
 
 ## References
 
