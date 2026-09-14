@@ -23,6 +23,7 @@ export async function updateStoreSettings(input: StoreSettingsInput) {
     data: {
       name: data.storeName,
       currency: data.currency.toUpperCase(),
+      timezone: data.timezone,
       taxRate: data.taxRate,
       allowSellerViewCost: data.allowSellerViewCost,
       address: data.address || null,
@@ -31,6 +32,7 @@ export async function updateStoreSettings(input: StoreSettingsInput) {
       phone: data.phone || null,
       email: data.email || null,
       logo: data.logo || null,
+      features: data.features,
     },
   });
 

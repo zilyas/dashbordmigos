@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { storeFeaturesSchema } from "@/lib/validations/settings";
 
 export const storeSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -15,6 +16,7 @@ export const storeSchema = z.object({
   phone: z.string().max(30).optional().or(z.literal("")),
   email: z.email("Enter a valid email address").optional().or(z.literal("")),
   logo: z.string().optional().or(z.literal("")),
+  features: storeFeaturesSchema.optional(),
 });
 
 export type StoreInput = z.infer<typeof storeSchema>;
