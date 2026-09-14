@@ -43,8 +43,15 @@ export async function requestPasswordReset(input: { email: string }) {
 
   // Dev-mode stub: no email provider is configured, so the link is returned
   // directly instead of being emailed — same pattern as the local upload
-  // stub. Swap this for real email delivery before production; returning
-  // the link here means account existence is inferable from the response.
+  // stub. Returning the link makes account existence inferable from the
+  // response and hands the reset token to anyone who can reach this action,
+  // so it is hard-gated to non-production. Swap in real email delivery
+  // before deploying; until then production fails loudly rather than
+  // silently leaking tokens.
+  if (process.env.NODE_ENV === "production") {
+    return { error: "Password reset email delivery is not configured. Contact your administrator." };
+  }
+
   return {
     success: true as const,
     message: GENERIC_MESSAGE,

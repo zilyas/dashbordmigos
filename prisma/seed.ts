@@ -15,13 +15,18 @@ const SUPER_ADMIN_EMAIL = process.env.SEED_SUPER_ADMIN_EMAIL ?? "superadmin@stor
 const SUPER_ADMIN_NAME = process.env.SEED_SUPER_ADMIN_NAME ?? "Platform Owner";
 
 const SEED_DEMO = process.env.SEED_DEMO !== "false";
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo!2026Pass";
 
 /** Guaranteed to satisfy the app's own password policy (length, upper, lower, digit, symbol). */
 function generateSecurePassword(): string {
   const random = randomBytes(12).toString("base64").replace(/[+/=]/g, "").slice(0, 16);
   return `${random}!A1`;
 }
+
+// No hardcoded fallback: a literal here ships a known-good credential for
+// every demo account in every environment that forgets to set the env var.
+// Unset means "generate a fresh one and print it once" — same policy the
+// Super Admin seed already uses.
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? generateSecurePassword();
 
 async function seedSuperAdmin() {
   const existing = await prisma.user.findUnique({ where: { email: SUPER_ADMIN_EMAIL } });
@@ -311,6 +316,15 @@ async function seedDemo() {
 
   console.log("=".repeat(64));
   console.log("Demo data ready (store code DEMO):");
+  if (!process.env.SEED_DEMO_PASSWORD) {
+    console.log(
+      "  (SEED_DEMO_PASSWORD unset — a fresh password was generated and is shown"
+    );
+    console.log(
+      "   once below. It only applies to accounts created by THIS run; the upserts"
+    );
+    console.log("   leave an existing demo user's password untouched.)");
+  }
   console.log(`  Manager: manager@demo.store / ${DEMO_PASSWORD}`);
   console.log(`  Seller:  seller@demo.store / ${DEMO_PASSWORD}`);
   console.log("  Sizes: S, M, L, XL · Colors: Noir, Blanc, Rouge, Bleu");
