@@ -7,6 +7,7 @@ export type Permission =
   | "product.delete"
   | "category.manage"
   | "inventory.adjust"
+  | "inventory.manage"
   | "sale.create"
   | "sale.viewOwn"
   | "sale.viewAll"
@@ -50,6 +51,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "product.delete",
     "category.manage",
     "inventory.adjust",
+    // Batch/lot inventory management (Phase 4): enable tracking, receive, adjust,
+    // reconcile. Manager-only; Sellers never touch batches (allocation is automatic).
+    "inventory.manage",
     "sale.create",
     "sale.viewOwn",
     "sale.viewAll",
@@ -86,8 +90,12 @@ export const ROUTE_ROLE_RULES: { test: (pathname: string) => boolean; roles: Rol
   { test: (p) => p.startsWith("/security"), roles: ["SUPER_ADMIN"] },
   { test: (p) => p.startsWith("/settings"), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/activity"), roles: ["SUPER_ADMIN", "MANAGER"] },
+  { test: (p) => p.startsWith("/reports/expiry"), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/reports"), roles: ["SUPER_ADMIN", "MANAGER"] },
   { test: (p) => p.startsWith("/categories"), roles: ["MANAGER"] },
+  { test: (p) => p.startsWith("/sizes"), roles: ["MANAGER"] },
+  { test: (p) => p.startsWith("/colors"), roles: ["MANAGER"] },
+  { test: (p) => p.startsWith("/variant-axes"), roles: ["MANAGER"] },
   { test: (p) => p === "/products/new", roles: ["MANAGER"] },
   { test: (p) => /^\/products\/[^/]+\/edit$/.test(p), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/products"), roles: ["MANAGER", "SELLER"] },
