@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -35,6 +35,8 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "", code: "", rememberMe: false },
   });
+  const code = useWatch({ control: form.control, name: "code" });
+  const rememberMe = useWatch({ control: form.control, name: "rememberMe" });
 
   function onSubmit(values: LoginInput) {
     setServerError(null);
@@ -132,7 +134,7 @@ export function LoginForm() {
                 <InputOTP
                   maxLength={6}
                   autoFocus
-                  value={form.watch("code") ?? ""}
+                  value={code ?? ""}
                   onChange={(value) => form.setValue("code", value)}
                 >
                   <InputOTPGroup>
@@ -165,7 +167,7 @@ export function LoginForm() {
             <div className="flex items-center gap-2">
               <Checkbox
                 id="rememberMe"
-                checked={form.watch("rememberMe")}
+                checked={rememberMe}
                 onCheckedChange={(checked) => form.setValue("rememberMe", checked === true)}
               />
               <label
