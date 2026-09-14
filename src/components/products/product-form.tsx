@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Boxes, ChevronDown, Loader2, Package, Scale } from "lucide-react";
 import { toast } from "sonner";
@@ -83,13 +83,13 @@ export function ProductForm({
     },
   });
 
-  const hasVariants = form.watch("hasVariants");
-  const allowDecimalQuantity = form.watch("allowDecimalQuantity");
-  const selectedUnit = form.watch("unit") ?? "piece";
-  const categoryId = form.watch("categoryId");
+  const hasVariants = useWatch({ control: form.control, name: "hasVariants" });
+  const allowDecimalQuantity = useWatch({ control: form.control, name: "allowDecimalQuantity" });
+  const selectedUnit = useWatch({ control: form.control, name: "unit" }) ?? "piece";
+  const categoryId = useWatch({ control: form.control, name: "categoryId" });
 
-  const fabricationPrice = form.watch("fabricationPrice");
-  const sellingPrice = form.watch("sellingPrice");
+  const fabricationPrice = useWatch({ control: form.control, name: "fabricationPrice" });
+  const sellingPrice = useWatch({ control: form.control, name: "sellingPrice" });
   const margin =
     sellingPrice > 0 ? ((sellingPrice - fabricationPrice) / sellingPrice) * 100 : 0;
 
