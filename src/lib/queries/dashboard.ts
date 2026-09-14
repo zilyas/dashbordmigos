@@ -84,8 +84,8 @@ export async function getManagerDashboardData(storeId: string) {
       })
     : null;
 
-  const unitsInStock = activeProducts.reduce((sum, p) => sum + p.stock, 0);
-  const lowStockCount = activeProducts.filter((p) => p.stock <= p.minimumStock).length;
+  const unitsInStock = activeProducts.reduce((sum, p) => sum + Number(p.stock), 0);
+  const lowStockCount = activeProducts.filter((p) => Number(p.stock) <= Number(p.minimumStock)).length;
 
   const bestSellingProducts = await prisma.product.findMany({
     where: { id: { in: bestSellingGroups.map((g) => g.productId) } },
@@ -111,7 +111,7 @@ export async function getManagerDashboardData(storeId: string) {
   const categoryTotals = new Map<string, number>();
   for (const item of categoryItems) {
     const name = item.product.category?.name ?? "Uncategorized";
-    const revenue = toNumber(item.sellingPrice) * item.quantity;
+    const revenue = toNumber(item.sellingPrice) * Number(item.quantity);
     categoryTotals.set(name, (categoryTotals.get(name) ?? 0) + revenue);
   }
   const salesByCategory = Array.from(categoryTotals.entries())
@@ -120,7 +120,7 @@ export async function getManagerDashboardData(storeId: string) {
 
   const bestSellers = bestSellingGroups.map((g) => ({
     name: bestSellingProducts.find((p) => p.id === g.productId)?.name ?? "Unknown",
-    quantity: g._sum.quantity ?? 0,
+    quantity: Number(g._sum.quantity ?? 0),
   }));
 
   const monthlyRevenue = toNumber(monthAgg._sum.total);
@@ -201,7 +201,7 @@ export async function getSellerDashboardData(userId: string, storeId: string) {
     }),
   ]);
 
-  const lowStockCount = activeProducts.filter((p) => p.stock <= p.minimumStock).length;
+  const lowStockCount = activeProducts.filter((p) => Number(p.stock) <= Number(p.minimumStock)).length;
 
   return {
     today: {

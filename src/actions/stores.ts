@@ -36,6 +36,7 @@ export async function createStore(input: StoreInput) {
         phone: data.phone || null,
         email: data.email || null,
         logo: data.logo || null,
+        ...(data.features ? { features: data.features } : {}),
       },
     });
 
@@ -94,6 +95,7 @@ export async function updateStore(id: string, input: StoreInput) {
         phone: data.phone || null,
         email: data.email || null,
         logo: data.logo || null,
+        ...(data.features ? { features: data.features } : {}),
       },
     });
 

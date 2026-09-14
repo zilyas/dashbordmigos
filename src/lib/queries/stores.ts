@@ -1,5 +1,6 @@
 import { startOfDay, startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { parseFeatures } from "@/lib/features";
 
 function toNumber(value: unknown): number {
   return value === null || value === undefined ? 0 : Number(value);
@@ -27,6 +28,7 @@ export async function getStores() {
     email: s.email,
     logo: s.logo,
     status: s.status,
+    features: parseFeatures(s.features),
     managerName: s.users[0]?.name ?? null,
     managerEmail: s.users[0]?.email ?? null,
     productCount: s._count.products,
@@ -94,7 +96,7 @@ export async function getStoreStats(storeId: string) {
   ]);
 
   const inventoryValue = inventoryAgg.reduce(
-    (sum, p) => sum + p.stock * Number(p.sellingPrice),
+    (sum, p) => sum + Number(p.stock) * Number(p.sellingPrice),
     0
   );
 
