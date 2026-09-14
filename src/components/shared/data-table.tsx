@@ -88,6 +88,7 @@ export function DataTable<TData>({
     return [selectColumn, ...columns];
   }, [columns, enableRowSelection]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table v8's useReactTable() has interior mutability (stable table object, changing internals) that React Compiler cannot safely memoize; no compiler-friendly API exists until v9 (TanStack/table#6137). Behavior is unaffected — this only forgoes a memoization optimization.
   const table = useReactTable({
     data,
     columns: finalColumns,
