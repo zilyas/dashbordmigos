@@ -18,10 +18,34 @@ export function scopedLogger(scope: LogScope) {
   return logger.child({ scope });
 }
 
-/** Shared helper for Server Action / Route Handler catch blocks. */
-export function logServerError(scope: LogScope, error: unknown, context?: Record<string, unknown>) {
+/**
+ * Correlation ID for the in-flight request, stamped onto the headers by
+ * `src/proxy.ts`. Returns null outside a request scope (module init, tests,
+ * background jobs) — `next/headers` throws there, and a missing ID must never
+ * be the reason an error goes unlogged.
+ *
+ * Imported dynamically so `next/headers` stays out of the static import graph:
+ * this module is pulled in by plain-Node code paths (vitest, scripts) that
+ * have no Next request context at all.
+ */
+export async function getRequestId(): Promise<string | null> {
+  try {
+    const { headers } = await import("next/headers");
+    return (await headers()).get("x-request-id");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shared helper for Server Action / Route Handler catch blocks. Async because
+ * it resolves the request correlation ID — await it so every line of one
+ * request's logs can be grouped by `requestId`.
+ */
+export async function logServerError(scope: LogScope, error: unknown, context?: Record<string, unknown>) {
+  const requestId = await getRequestId();
   scopedLogger(scope).error(
-    { err: error, ...context },
+    { err: error, ...(requestId ? { requestId } : {}), ...context },
     error instanceof Error ? error.message : "Unexpected error"
   );
 }

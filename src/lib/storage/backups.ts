@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { scopedLogger } from "@/lib/logger";
 import { decrypt, encrypt, getEncryptionKey } from "@/lib/security/encryption";
 
@@ -108,6 +108,31 @@ export async function writeBackupFile(filename: string, content: string): Promis
   }
 
   return buffer.byteLength;
+}
+
+/**
+ * Delete a backup from local disk and, when configured, from R2. Missing files
+ * are not an error (`rm` with `force`) — retention pruning must stay idempotent
+ * so a partially-completed previous run can simply be repeated. An R2 delete
+ * failure is logged, not thrown, for the same reason: the local copy (the
+ * source of truth for the record) is already gone.
+ */
+export async function deleteBackupFile(filename: string): Promise<void> {
+  const target = resolveBackupPath(filename);
+  await rm(target, { force: true });
+
+  if (isR2Configured()) {
+    try {
+      await getClient().send(
+        new DeleteObjectCommand({
+          Bucket: process.env.R2_BUCKET as string,
+          Key: `${R2_BACKUPS_PREFIX}/${filename}`,
+        })
+      );
+    } catch (error) {
+      systemLogger.error({ err: error, filename }, "R2 backup delete failed: object may be orphaned");
+    }
+  }
 }
 
 /**

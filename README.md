@@ -280,6 +280,28 @@ An already batch-tracked product can additionally track **use-by dates**.
   vs the store-local today, so an un-run scheduler never sells expired stock. Both
   Managers and Sellers remain blocked from selling expired stock.
 
+### Database backups
+
+- **Contents:** a full application-level JSON dump of every table (schema version
+  **2**; v1 files still restore, with their 15 missing tables read as empty). Login
+  attempts are excluded — pure rate-limit telemetry. The file is **AES-256-GCM
+  encrypted at rest** with `ENCRYPTION_KEY` before it touches disk or R2, because it
+  contains password hashes, TOTP seeds and recovery-code hashes.
+- **Manual:** Super Admin only, from **/backups** (`backup.manage`). Restore requires
+  typing `RESTORE` and replaces **every** table in one transaction.
+- **Scheduled (optional):** set `BACKUP_CRON_SECRET` and have your deployment
+  scheduler `POST /api/cron/backup` with `Authorization: Bearer <secret>` — e.g.
+  `curl -X POST -H "Authorization: Bearer $BACKUP_CRON_SECRET" https://<host>/api/cron/backup`.
+  With the variable unset the route returns **503**; a wrong secret returns **401**.
+  The run is attributed to the oldest active `SUPER_ADMIN` (a cron call has no
+  session); if none exists it returns **503**. Failures are recorded as `FAILED`
+  backup rows so a silently broken job is visible in the history, not just absent.
+- **Retention:** after each *successful* scheduled run, `COMPLETED` backups older
+  than `BACKUP_RETENTION_DAYS` (default 30) are deleted — file first, then record.
+  Pruning never runs after a failure, so a run of failures cannot erode the window.
+  When R2 is configured, **also set a bucket lifecycle rule** on the `backups/`
+  prefix: this app deletes R2 objects best-effort only.
+
 ### Advanced batch workflows (Phase 5 — Manager-only)
 
 - **Archive a batch:** the batch table's **Archive** action terminally retires a

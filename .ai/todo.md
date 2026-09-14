@@ -397,3 +397,48 @@ remain on the expiry/batch roadmap.
       here — only local step-by-step equivalence and YAML structure were confirmed.
 - No application code was changed — no genuine CI-blocking bug was found (all steps already passed
   cleanly against the existing code).
+
+## Phase 3 — P1 hardening (backup durability, correlation IDs)
+
+- [x] **Restore integrity (production-breaking bug).** `restoreBackupPayload` handled only 19 of the
+      34 backed-up models. `Size`/`Color`/`VariantAxisDefinition` hold `onDelete: Restrict` FKs to
+      `Store`, so `tx.store.deleteMany()` would have **thrown** mid-restore, and 15 tables were
+      silently dropped from every restore. Rewrote `src/lib/backup.ts`: schema `BACKUP_VERSION = 2`
+      (v1 files still restore — the new tables are optional keys), all 34 models dumped, deleted
+      children-before-parents and re-inserted parents-before-children.
+- [x] **`users.updatedAt` mutated by restore.** The self-referential `createdById` second pass used
+      `tx.user.update`, and `@updatedAt` stamped restore time onto every user that has a creator.
+      Switched to a raw `UPDATE "users" SET "createdById" = ...` so restored rows are byte-identical.
+      Found only by the live roundtrip below — the source-level guard test cannot see this.
+- [x] **Guard test** `src/lib/backup.test.ts` (5 tests, no DB): parses `prisma/schema.prisma` + the
+      backup source as text and asserts every model is dumped/deleted/re-inserted and that both
+      orders respect the FK graph. Mutation-tested (moved one `deleteMany` to the end → test failed
+      with the right message) to prove it is not vacuous. `LoginAttempt` is deliberately excluded.
+- [x] **Live roundtrip verification** against a disposable Neon database (`restore_scratch`, created
+      + `prisma migrate deploy` + dropped afterward): seeded one row in all 34 tables, dumped,
+      restored, re-dumped → `count mismatches: NONE`, `content mismatches: NONE`, `ROUNDTRIP PASS`.
+      Harness was throwaway (`scripts/_*.ts`, deleted) and hard-refused to run unless
+      `DATABASE_URL` contained `restore_scratch`.
+- [x] **Scheduled backups.** `src/lib/backup-run.ts` (`runBackup` shared by the Super Admin action
+      and cron; writes a FAILED record on error so a broken nightly job is visible — `pruneBackups`)
+      and `POST /api/cron/backup`, bearer-gated on `BACKUP_CRON_SECRET` via `timingSafeEqual`
+      (unset → 503, wrong → 401), attributed to the oldest ACTIVE `SUPER_ADMIN`. Pruning runs only
+      after a *successful* backup, so a run of failures cannot erode the retention window.
+      `deleteBackupFile` added to `src/lib/storage/backups.ts` (local `rm --force` + best-effort R2
+      delete, idempotent). R2 bucket lifecycle rule documented as the durable off-site answer.
+- [x] **Request correlation IDs.** `src/proxy.ts` set `x-request-id` and its comment claimed
+      `logServerError` read it back — it never did. Added `getRequestId()` in `src/lib/logger.ts`
+      (dynamic `next/headers` import so vitest/scripts are unaffected) and threaded it through
+      `logServerError` / `reportClientError`; all call sites now `await`.
+- [x] `.env.example` + `README.md`: `BACKUP_CRON_SECRET`, `BACKUP_RETENTION_DAYS` (default 30),
+      R2 lifecycle requirement, and a "Database backups" section (v2 schema, v1 compatibility,
+      encryption at rest, cron usage, retention semantics).
+- [x] **Correction to the Phase 2 recap:** the "missing" DB indexes already existed —
+      `Notification @@index([userId, createdAt])` and `Product @@index([storeId, trackBatch])`.
+      No schema change was needed; no migration was written.
+- [x] **Validation (local, real runs):** `prisma validate` ✅ · `tsc --noEmit` 0 errors ✅ ·
+      `eslint .` 0 errors / 6 warnings (4 pre-existing e2e + 2 new typed-mock params) ✅ ·
+      `vitest` **209/209** (was 201) ✅ · `next build --webpack` ✅ with `/api/cron/backup` present ·
+      live restore roundtrip **PASS** on scratch Postgres.
+- [ ] **Remaining P1:** Sentry / OpenTelemetry error tracking — not started. No `@sentry/*` or
+      `@opentelemetry/*` dependency is installed yet; `logServerError` is the intended hook point.

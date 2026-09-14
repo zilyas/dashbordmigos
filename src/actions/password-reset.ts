@@ -47,7 +47,7 @@ export async function requestPasswordReset(input: { email: string }) {
   // delivered, and both paths return the same generic response to prevent
   // account enumeration.
   if (process.env.NODE_ENV === "production") {
-    logServerError("app", new Error("Email delivery not configured"), {
+    await logServerError("app", new Error("Email delivery not configured"), {
       action: "password_reset_email_delivery_missing",
       email,
       userId: user.id,

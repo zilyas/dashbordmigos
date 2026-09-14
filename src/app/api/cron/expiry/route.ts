@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const summary = await runExpirySweep();
     return NextResponse.json({ ok: true, summary });
   } catch (error) {
-    logServerError("system", error, { route: "/api/cron/expiry" });
+    await logServerError("system", error, { route: "/api/cron/expiry" });
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
   }
 }

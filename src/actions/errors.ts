@@ -1,6 +1,6 @@
 "use server";
 
-import { scopedLogger } from "@/lib/logger";
+import { getRequestId, scopedLogger } from "@/lib/logger";
 
 const errorLogger = scopedLogger("error");
 
@@ -10,5 +10,6 @@ const errorLogger = scopedLogger("error");
  * reaches the browser console, which nothing on the server ever sees.
  */
 export async function reportClientError(message: string, digest?: string, pathname?: string) {
-  errorLogger.error({ digest, pathname, source: "client" }, message);
+  const requestId = await getRequestId();
+  errorLogger.error({ digest, pathname, source: "client", ...(requestId ? { requestId } : {}) }, message);
 }

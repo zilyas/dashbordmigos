@@ -20,8 +20,9 @@ export default auth(async (req) => {
   // `logServerError` (src/lib/logger.ts) can read it back via next/headers()
   // in Server Actions / Server Components and group one request's log lines.
   // Proxy is Node runtime here (see AGENTS.md), so `crypto.randomUUID` is safe.
-  // Route Handlers under /api never reach Proxy (matcher excludes "api") —
-  // they generate their own ID instead (see src/app/api/cron/backup/route.ts).
+  // Route Handlers under /api never reach Proxy (the matcher excludes "api"),
+  // so their logs simply carry no `requestId` — `getRequestId()` returns null
+  // rather than failing.
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-request-id", randomUUID());
   const next = () => NextResponse.next({ request: { headers: requestHeaders } });
