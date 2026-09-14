@@ -5,11 +5,7 @@ import { logActivity } from "@/lib/audit";
 import { getReportData, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { getStoreSettings } from "@/lib/queries/settings";
 import { DEFAULT_CURRENCY } from "@/lib/format";
-
-function csvEscape(value: string | number) {
-  const str = String(value);
-  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-}
+import { csvEscape } from "@/lib/csv";
 
 export async function GET(request: Request) {
   const session = await auth();

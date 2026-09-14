@@ -81,7 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const info = extractRequestInfo(request.headers);
 
         const limitKey = `login:${info.ipAddress ?? "unknown"}:${email}`;
-        const limit = rateLimit(limitKey, RATE_LIMITS.login);
+        const limit = await rateLimit(limitKey, RATE_LIMITS.login);
         if (!limit.success) {
           await logAttempt(email, false, info, "rate_limited");
           authLogger.warn({ email, ipAddress: info.ipAddress }, "login rate limited");
@@ -147,7 +147,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
 
-        resetRateLimit(limitKey);
+        await resetRateLimit(limitKey);
         await logAttempt(email, true, info);
         authLogger.info({ email, userId: user.id, ipAddress: info.ipAddress }, "user signed in");
         await logActivity({

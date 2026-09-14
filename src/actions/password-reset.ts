@@ -22,7 +22,7 @@ export async function requestPasswordReset(input: { email: string }) {
   const email = parsed.data.email.toLowerCase();
 
   const info = await getRequestInfo();
-  const limit = rateLimit(`password-reset:${info.ipAddress ?? "unknown"}:${email}`, RATE_LIMITS.passwordReset);
+  const limit = await rateLimit(`password-reset:${info.ipAddress ?? "unknown"}:${email}`, RATE_LIMITS.passwordReset);
   if (!limit.success) {
     return { error: "Too many reset requests. Please wait a while and try again." };
   }
