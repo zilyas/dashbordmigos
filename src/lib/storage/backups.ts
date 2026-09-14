@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { scopedLogger } from "@/lib/logger";
+import { decrypt, encrypt, getEncryptionKey } from "@/lib/security/encryption";
 
 const systemLogger = scopedLogger("system");
 
@@ -67,6 +68,10 @@ function getClient(): S3Client {
  * option) will be reported as failed.
  * Returns the byte count of what was written locally (the source of truth
  * for the backup record).
+ *
+ * Content is AES-256-GCM encrypted before it touches disk or R2 — a backup
+ * is a full DB dump (password hashes, TOTP secrets, recovery code hashes),
+ * so it must never sit anywhere as plain JSON.
  */
 export async function writeBackupFile(filename: string, content: string): Promise<number> {
   if (!BACKUP_FILENAME.test(filename)) {
@@ -75,7 +80,7 @@ export async function writeBackupFile(filename: string, content: string): Promis
 
   const target = resolveBackupPath(filename);
   await mkdir(BACKUPS_DIR, { recursive: true });
-  const buffer = Buffer.from(content, "utf-8");
+  const buffer = Buffer.from(encrypt(content, getEncryptionKey()), "utf-8");
   await writeFile(target, buffer);
 
   // Sync to R2 if configured. Log failures but do not fail the entire backup.
@@ -109,6 +114,9 @@ export async function writeBackupFile(filename: string, content: string): Promis
  * Read backup from local disk, falling back to R2 if the local file is missing.
  * This enables restore on a fresh host (or after storage wipe) when R2 is
  * configured. If both local and R2 are missing (or R2 is unconfigured), error.
+ *
+ * Content is decrypted after reading — mirrors the encrypt-on-write in
+ * writeBackupFile(), same ENCRYPTION_KEY.
  */
 export async function readBackupFile(filename: string): Promise<string> {
   if (!BACKUP_FILENAME.test(filename)) {
@@ -116,10 +124,11 @@ export async function readBackupFile(filename: string): Promise<string> {
   }
 
   const localPath = resolveBackupPath(filename);
+  const key = getEncryptionKey();
 
   // Try local first.
   try {
-    return await readFile(localPath, "utf-8");
+    return decrypt(await readFile(localPath, "utf-8"), key);
   } catch (localError) {
     // Local file missing. If R2 is configured, try there.
     if (!isR2Configured()) {
@@ -139,7 +148,7 @@ export async function readBackupFile(filename: string): Promise<string> {
         throw new Error("R2 object has no body");
       }
 
-      const buffer = await response.Body.transformToString("utf-8");
+      const buffer = decrypt(await response.Body.transformToString("utf-8"), key);
       systemLogger.info({ filename }, "backup restored from R2 (local copy missing)");
       return buffer;
     } catch (r2Error) {

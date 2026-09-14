@@ -1,4 +1,6 @@
+import { randomUUID } from "crypto";
 import NextAuth from "next-auth";
+import { NextResponse } from "next/server";
 import { authConfig } from "@/lib/auth.config";
 import { isRouteAllowed } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +15,16 @@ export default auth(async (req) => {
   const role = req.auth?.user?.role;
   const userId = req.auth?.user?.id;
   const isPublicPath = PUBLIC_PATHS.some((p) => nextUrl.pathname.startsWith(p));
+
+  // Stamp every request that reaches app code with a correlation ID, so
+  // `logServerError` (src/lib/logger.ts) can read it back via next/headers()
+  // in Server Actions / Server Components and group one request's log lines.
+  // Proxy is Node runtime here (see AGENTS.md), so `crypto.randomUUID` is safe.
+  // Route Handlers under /api never reach Proxy (matcher excludes "api") —
+  // they generate their own ID instead (see src/app/api/cron/backup/route.ts).
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-request-id", randomUUID());
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
 
   // SECURITY: Check if the user account is still active (not deactivated/terminated).
   // This ensures deactivated employees lose access immediately, not just at session expiry.
@@ -37,14 +49,14 @@ export default auth(async (req) => {
   // `getSessionContext()`/`can()` and returns a normal `{ error }` result
   // (or a session-less redirect from `auth()`) instead of crashing.
   if (req.headers.get("next-action")) {
-    return;
+    return next();
   }
 
   if (isPublicPath) {
     if (isLoggedIn) {
       return Response.redirect(new URL("/dashboard", nextUrl));
     }
-    return;
+    return next();
   }
 
   if (!isLoggedIn) {
@@ -56,6 +68,8 @@ export default auth(async (req) => {
   if (role && !isRouteAllowed(nextUrl.pathname, role)) {
     return Response.redirect(new URL("/dashboard", nextUrl));
   }
+
+  return next();
 });
 
 export const config = {
