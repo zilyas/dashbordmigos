@@ -9,10 +9,23 @@ import { Prisma } from "@/generated/prisma/client";
 
 const requireCategoryManager = requireStorePermission("category.manage");
 
+/** Validates an optional parent id belongs to the store and isn't self. */
+async function resolveParent(storeId: string, parentId?: string, selfId?: string) {
+  const clean = parentId || null;
+  if (!clean) return { parentId: null as string | null };
+  if (clean === selfId) return { error: "A category cannot be its own parent" as const };
+  const parent = await prisma.category.findFirst({ where: { id: clean, storeId }, select: { id: true } });
+  if (!parent) return { error: "Parent category not found" as const };
+  return { parentId: clean };
+}
+
 export async function createCategory(input: CategoryInput) {
   const session = await requireCategoryManager();
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid category data" };
+
+  const parent = await resolveParent(session.storeId, parsed.data.parentId || undefined);
+  if ("error" in parent) return { error: parent.error };
 
   try {
     await prisma.category.create({
@@ -21,6 +34,9 @@ export async function createCategory(input: CategoryInput) {
         name: parsed.data.name,
         slug: slugify(parsed.data.name),
         description: parsed.data.description || null,
+        isActive: parsed.data.isActive ?? true,
+        parentId: parent.parentId,
+        metadata: parsed.data.isClothing ? { clothing: true } : Prisma.JsonNull,
       },
     });
     revalidatePath("/categories");
@@ -42,6 +58,9 @@ export async function updateCategory(id: string, input: CategoryInput) {
   const existing = await prisma.category.findFirst({ where: { id, storeId: session.storeId } });
   if (!existing) return { error: "Category not found" };
 
+  const parent = await resolveParent(session.storeId, parsed.data.parentId || undefined, id);
+  if ("error" in parent) return { error: parent.error };
+
   try {
     await prisma.category.update({
       where: { id },
@@ -49,6 +68,9 @@ export async function updateCategory(id: string, input: CategoryInput) {
         name: parsed.data.name,
         slug: slugify(parsed.data.name),
         description: parsed.data.description || null,
+        isActive: parsed.data.isActive ?? existing.isActive,
+        parentId: parent.parentId,
+        metadata: parsed.data.isClothing ? { clothing: true } : Prisma.JsonNull,
       },
     });
     revalidatePath("/categories");
