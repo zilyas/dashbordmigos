@@ -158,17 +158,11 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  #receipt-print-area,
-  #receipt-print-area * {
-    visibility: visible;
-  }
-  #receipt-print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+  /* The receipt is printed as a PNG from a detached window (see
+     src/components/sales/receipt-actions.tsx), not by printing this page.
+     Undoing the dialog's fixed/translated/clipped layout from here was
+     fought by `html { overflow-x: clip }` and the flex body and never landed. */
+  body {
+    background: #fff;
   }
 }

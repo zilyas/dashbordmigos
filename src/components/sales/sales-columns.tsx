@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SaleActions } from "@/components/sales/sale-actions";
+import { SaleReceiptButton } from "@/components/sales/sale-receipt-button";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
@@ -106,14 +107,19 @@ export function buildSalesColumns({
     });
   }
 
-  if (canManage) {
-    columns.push({
-      id: "actions",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) => <SaleActions sale={row.original} currency={currency} />,
-    });
-  }
+  // Everyone can reprint a receipt for a sale they can see; only managers get
+  // the return/edit/delete menu, which already contains its own receipt item.
+  columns.push({
+    id: "actions",
+    header: "",
+    enableSorting: false,
+    cell: ({ row }) =>
+      canManage ? (
+        <SaleActions sale={row.original} currency={currency} />
+      ) : (
+        <SaleReceiptButton sale={row.original} currency={currency} />
+      ),
+  });
 
   return columns;
 }

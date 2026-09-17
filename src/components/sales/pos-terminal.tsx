@@ -10,7 +10,6 @@ import {
   Minus,
   Trash2,
   ShoppingCart,
-  Printer,
   ImageOff,
   ScanLine,
   Layers,
@@ -37,6 +36,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Receipt } from "@/components/sales/receipt";
+import { ReceiptActions } from "@/components/sales/receipt-actions";
 import { createSale } from "@/actions/sales";
 import { round3 } from "@/lib/sale-math";
 import { matchesAny } from "@/lib/text";
@@ -545,11 +545,12 @@ export function POSTerminal({
           <DialogHeader>
             <DialogTitle>Sale complete</DialogTitle>
           </DialogHeader>
-          {receipt && <Receipt receipt={receipt} />}
-          <Button className="mt-2 gap-1.5 print:hidden" onClick={() => window.print()}>
-            <Printer className="size-4" />
-            Print receipt
-          </Button>
+          {receipt && (
+            <>
+              <Receipt receipt={receipt} />
+              <ReceiptActions receipt={receipt} />
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, MoreHorizontal, Pencil, Trash2, Undo2, Minus, Plus } from "lucide-react";
+import { Loader2, MoreHorizontal, Pencil, Trash2, Undo2, Minus, Plus, ReceiptText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ReceiptDialog } from "@/components/sales/receipt-dialog";
 import { deleteSale, returnSaleItems, updateSaleDetails, getReturnBatchOptions, type ReturnBatchOption } from "@/actions/sales";
 import { round3 } from "@/lib/sale-math";
 import { formatCurrency } from "@/lib/format";
@@ -39,6 +40,7 @@ import type { SaleListItem } from "@/lib/queries/sales";
 import type { PaymentMethod } from "@/generated/prisma/enums";
 
 export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: string }) {
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -54,6 +56,11 @@ export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: 
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setReceiptOpen(true)}>
+            <ReceiptText />
+            View receipt
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!hasReturnableUnits} onClick={() => setReturnOpen(true)}>
             <Undo2 />
             Return items
@@ -69,6 +76,15 @@ export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: 
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {receiptOpen && (
+        <ReceiptDialog
+          sale={sale}
+          currency={currency}
+          open={receiptOpen}
+          onOpenChange={setReceiptOpen}
+        />
+      )}
 
       {returnOpen && (
         <ReturnDialog
