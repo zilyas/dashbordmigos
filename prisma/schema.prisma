@@ -23,6 +23,11 @@ enum UserStatus {
   INACTIVE
 }
 
+enum ApiClientStatus {
+  ACTIVE
+  REVOKED
+}
+
 enum StoreStatus {
   ACTIVE
   INACTIVE
@@ -148,6 +153,7 @@ model Store {
   activityLogs                 ActivityLog[]
   conversations                Conversation[]
   announcements                Announcement[]
+  apiClients                   ApiClient[]
 
   @@index([status])
   @@map("stores")
@@ -190,6 +196,7 @@ model User {
   readReceipts             ReadReceipt[]
   announcementsCreated     Announcement[]            @relation("AnnouncementCreatedBy")
   announcementRecipients   AnnouncementRecipient[]
+  apiClientsActedFor       ApiClient[]              @relation("ApiClientActor")
 
   @@index([storeId])
   @@index([role])
@@ -261,6 +268,8 @@ model Product {
   @@index([storeId, name])
   @@index([categoryId])
   @@index([storeId, trackBatch])
+  /// Cursor index for the public delta-sync endpoint (GET /api/v1/stock?updatedSince=).
+  @@index([storeId, updatedAt])
   @@map("products")
 }
 
@@ -306,6 +315,8 @@ model ProductVariant {
   @@unique([storeId, sku])
   @@index([productId])
   @@index([storeId])
+  /// Cursor index for the public delta-sync endpoint (GET /api/v1/stock?updatedSince=).
+  @@index([storeId, updatedAt])
   @@map("product_variants")
 }
 
@@ -492,10 +503,21 @@ model Sale {
   /// Cumulative amount refunded to the customer across all returns on this
   /// sale. Display/reporting only — `total` is already net of it.
   refundedTotal Decimal       @default(0) @db.Decimal(10, 2)
+  /// Set when this sale came in through the public API (POST /api/v1/orders)
+  /// instead of the POS. Null for in-store sales.
+  apiClientId   String?
+  apiClient     ApiClient?    @relation(fields: [apiClientId], references: [id], onDelete: SetNull)
+  /// Caller-supplied de-duplication token for API orders. `@@unique([storeId,
+  /// idempotencyKey])` is safe here because Postgres treats NULLs as distinct,
+  /// so the thousands of POS sales that have no key never collide with each
+  /// other. A retried webhook replays the same key and gets the original sale
+  /// back instead of decrementing stock a second time.
+  idempotencyKey String?
   items         SaleItem[]
   createdAt     DateTime      @default(now())
 
   @@unique([storeId, invoiceNumber])
+  @@unique([storeId, idempotencyKey])
   @@index([storeId, createdAt])
   @@index([sellerId])
   @@map("sales")
@@ -925,4 +947,46 @@ model AnnouncementRecipient {
   @@unique([announcementId, userId])
   @@index([userId, readAt])
   @@map("announcement_recipients")
+}
+
+/// A machine credential for one store, used by external e-commerce storefronts
+/// to read the catalog and post orders through `/api/v1/**`.
+///
+/// Why this is not a `User` with a `Role`: the RBAC roles carry destructive
+/// permissions (`sale.delete`, `product.delete`, `seller.manage`). A leaked
+/// storefront key must never be able to express those, so scopes live in their
+/// own vocabulary and are checked by `requireScope()` in `src/lib/api/auth.ts`.
+///
+/// The secret half of the key is never stored — only `keyHash` (SHA-256 of the
+/// full key). `keyPrefix` is the public, indexed lookup handle.
+model ApiClient {
+  id          String          @id @default(cuid())
+  storeId     String
+  store       Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  /// Public, non-secret lookup handle, e.g. "sk_live_3f9a1c22". Unique so the
+  /// row is found by index rather than by scanning every hash.
+  keyPrefix   String          @unique
+  /// SHA-256 hex of the full key. A 256-bit random key needs no memory-hard KDF;
+  /// Argon2 here would make every API request pay ~19 MiB of hashing.
+  keyHash     String
+  /// Least-privilege scopes, e.g. ["products:read", "orders:create"].
+  scopes      String[]
+  status      ApiClientStatus @default(ACTIVE)
+  /// The real user every API-created Sale, InventoryMovement and ActivityLog is
+  /// attributed to. Those relations are non-nullable and a machine caller has no
+  /// session, so the key carries its own actor (chosen at mint time).
+  actorUserId String
+  actor       User            @relation("ApiClientActor", fields: [actorUserId], references: [id])
+  /// Hard stop. Non-null forces rotation to actually happen.
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  sales Sale[]
+
+  @@index([storeId, status])
+  @@map("api_clients")
 }

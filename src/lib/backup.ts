@@ -4,10 +4,11 @@ import type { Prisma } from "@/generated/prisma/client";
 /**
  * v2 added the 15 tables v1 silently dropped (variants, axes, sizes, colors,
  * category attributes, batches, batch allocations, messaging, announcements).
- * v1 files still restore — their missing tables simply read as empty.
+ * v3 added api_clients (storefront API credentials).
+ * v1 and v2 files still restore — their missing tables simply read as empty.
  */
-export const BACKUP_VERSION = 2;
-const SUPPORTED_VERSIONS = [1, 2];
+export const BACKUP_VERSION = 3;
+const SUPPORTED_VERSIONS = [1, 2, 3];
 
 type Rows = unknown[];
 
@@ -50,6 +51,8 @@ export type BackupPayload = {
     readReceipts?: Rows;
     announcements?: Rows;
     announcementRecipients?: Rows;
+    // v3 additions.
+    apiClients?: Rows;
   };
 };
 
@@ -98,6 +101,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     twoFactorCredentials,
     recoveryCodes,
     backupRecords,
+    apiClients,
   ] = await Promise.all([
     prisma.store.findMany(),
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -133,6 +137,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     prisma.twoFactorCredential.findMany(),
     prisma.recoveryCode.findMany(),
     prisma.backupRecord.findMany(),
+    prisma.apiClient.findMany(),
   ]);
 
   return {
@@ -173,6 +178,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
       twoFactorCredentials,
       recoveryCodes,
       backupRecords,
+      apiClients,
     },
   };
 }
@@ -221,6 +227,7 @@ export async function restoreBackupPayload(payload: BackupPayload): Promise<void
       await tx.userSession.deleteMany();
       await tx.saleItem.deleteMany();
       await tx.sale.deleteMany();
+      await tx.apiClient.deleteMany();
       await tx.inventoryMovement.deleteMany();
       await tx.productBatch.deleteMany();
       await tx.productAttributeValue.deleteMany();
@@ -296,6 +303,10 @@ export async function restoreBackupPayload(payload: BackupPayload): Promise<void
       );
       await insert(rows<Prisma.ProductBatchCreateManyInput>(t.productBatches), (d) =>
         tx.productBatch.createMany({ data: d })
+      );
+      // Before sales: Sale.apiClientId points here. After users: actorUserId does.
+      await insert(rows<Prisma.ApiClientCreateManyInput>(t.apiClients), (d) =>
+        tx.apiClient.createMany({ data: d })
       );
       await insert(rows<Prisma.SaleCreateManyInput>(t.sales), (d) => tx.sale.createMany({ data: d }));
       await insert(rows<Prisma.SaleItemCreateManyInput>(t.saleItems), (d) =>
