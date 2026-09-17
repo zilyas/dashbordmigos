@@ -16,9 +16,17 @@ import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 import type { ProductStatus } from "@/generated/prisma/enums";
 
+/**
+ * Margin as a percentage, clamped to what `Product.profitMargin` can hold
+ * (`Decimal(6,2)`, so +/-9999.99). A cost above ~101x the price overflows that
+ * column — e.g. selling 1.00 at a cost of 200.00 is -19900 — and Postgres
+ * raises a numeric-overflow that is not P2002, so it escapes the catch below
+ * and takes the whole form down. A typo should not do that.
+ */
 function computeProfitMargin(sellingPrice: number, fabricationPrice: number) {
   if (sellingPrice <= 0) return 0;
-  return ((sellingPrice - fabricationPrice) / sellingPrice) * 100;
+  const margin = ((sellingPrice - fabricationPrice) / sellingPrice) * 100;
+  return Math.max(-9999.99, Math.min(9999.99, margin));
 }
 
 const requireProductEditor = requireStorePermission("product.create");
@@ -136,7 +144,13 @@ export async function createProduct(input: ProductInput) {
     data.minimumStock
   );
   if ("error" in stockResult) return { error: stockResult.error };
-  const { stock, minimumStock } = stockResult;
+  const { minimumStock } = stockResult;
+  // A variant product sells only through its variants, so parent stock is
+  // meaningless. The form hides the field when the switch is on but react-hook-
+  // form keeps whatever was typed before the toggle, so a number can still
+  // arrive here — and it would inflate the dashboard's "units in stock" and
+  // leave a phantom IN movement in the ledger.
+  const stock = data.hasVariants ? 0 : stockResult.stock;
 
   // Validate attribute values up-front (before creating the product).
   const attributesEnabled = features.category_attributes_enabled;
@@ -145,6 +159,18 @@ export async function createProduct(input: ProductInput) {
       ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes)
       : { resolved: new Map<string, string>() };
   if ("error" in attrResult) return { error: attrResult.error };
+
+  // A categoryId from another store (or a bogus one) would otherwise be written
+  // straight through: resolveAttributeValues scopes by storeId and simply finds
+  // no definitions, so it reports no error, and an unknown id surfaces as an
+  // uncaught P2003. Every sibling action scopes this the same way.
+  if (data.categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: data.categoryId, storeId: session.storeId },
+      select: { id: true },
+    });
+    if (!category) return { error: "Category not found" };
+  }
 
   const slug = await uniqueSlug(session.storeId, `${data.name}-${data.color || ""}-${data.size || ""}`);
 
@@ -229,17 +255,15 @@ export async function updateProduct(id: string, input: ProductInput) {
     data.minimumStock
   );
   if ("error" in stockResult) return { error: stockResult.error };
-  const { stock, minimumStock } = stockResult;
+  const { minimumStock } = stockResult;
   const existingStock = Number(existing.stock);
 
-  // For batch-tracked products, on-hand stock is owned by the batch ledger and
-  // must not be edited through the product form — only minimumStock etc. stay
-  // editable. Receiving/adjustment actions are the only stock write path.
-  if (existing.trackBatch && round3(stock) !== round3(existingStock)) {
-    return {
-      error: "This product is batch-tracked — change stock through batch receiving or adjustment, not the product form.",
-    };
-  }
+  // For batch-tracked products the batch ledger owns on-hand stock, so the
+  // form's number is ignored rather than rejected. It is a snapshot taken when
+  // the page rendered, and any receive, adjustment or sale since then makes it
+  // stale — which used to fail the save with a stock error even though the user
+  // had only renamed the product. Receiving/adjustment stay the only write path.
+  const stock = existing.trackBatch ? existingStock : stockResult.stock;
 
   const attributesEnabled = features.category_attributes_enabled;
   const attrResult =

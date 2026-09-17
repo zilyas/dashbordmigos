@@ -106,10 +106,12 @@ function EnableCard({ productId, hasVariants }: { productId: string; hasVariants
 function AdjustDialog({
   batch,
   unit,
+  allowDecimalQuantity,
   onDone,
 }: {
   batch: BatchRow;
   unit: string;
+  allowDecimalQuantity: boolean;
   onDone: () => void;
 }) {
   const [isPending, start] = useTransition();
@@ -148,7 +150,14 @@ function AdjustDialog({
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel htmlFor="adj-stock">Counted stock ({unit})</FieldLabel>
-              <Input id="adj-stock" type="number" min={0} step="0.001" value={newStock} onChange={(e) => setNewStock(e.target.value)} />
+              <Input
+                id="adj-stock"
+                type="number"
+                min={0}
+                step={allowDecimalQuantity ? "0.001" : "1"}
+                value={newStock}
+                onChange={(e) => setNewStock(e.target.value)}
+              />
             </Field>
             <Field>
               <FieldLabel htmlFor="adj-reason">Reason</FieldLabel>
@@ -203,6 +212,21 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
     });
   }
 
+  // Every batch on a variant product must name a variant, so with none created
+  // the form can only ever end in "Choose a variant." from an empty dropdown.
+  if (view.hasVariants && view.variants.length === 0) {
+    return (
+      <div className="rounded-lg border border-border p-3">
+        <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <PackagePlus className="size-4" /> Receive stock
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Add at least one variant above before receiving stock — every batch belongs to a variant.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border p-3">
       <p className="mb-2 flex items-center gap-2 text-sm font-medium">
@@ -228,7 +252,14 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
         </Field>
         <Field>
           <FieldLabel htmlFor="rc-qty">Quantity ({view.unit})</FieldLabel>
-          <Input id="rc-qty" type="number" min={0} step="0.001" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          <Input
+            id="rc-qty"
+            type="number"
+            min={0}
+            step={view.allowDecimalQuantity ? "0.001" : "1"}
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor="rc-cost">Cost price (optional)</FieldLabel>
@@ -565,7 +596,12 @@ export function BatchManager({ view }: { view: ProductBatchView }) {
                       {view.trackExpiry && b.status !== "ARCHIVED" && (
                         <ExpiryEditDialog batch={b} storeToday={view.storeToday} onDone={refresh} />
                       )}
-                      <AdjustDialog batch={b} unit={view.unit} onDone={refresh} />
+                      <AdjustDialog
+                        batch={b}
+                        unit={view.unit}
+                        allowDecimalQuantity={view.allowDecimalQuantity}
+                        onDone={refresh}
+                      />
                       <ArchiveDialog batch={b} onDone={refresh} />
                     </td>
                   </tr>

@@ -107,17 +107,25 @@ export function ProductForm({
     }));
     const payload: ProductInput = { ...values, attributes };
     startTransition(async () => {
-      const result = productId
-        ? await updateProduct(productId, payload)
-        : await createProduct(payload);
+      // Server actions can throw as well as return { error } — an authorization
+      // failure or a DB constraint rejects the promise, and without this catch
+      // the rejection escapes the transition to the app error boundary and the
+      // user loses everything they typed.
+      try {
+        const result = productId
+          ? await updateProduct(productId, payload)
+          : await createProduct(payload);
 
-      if (result?.error) {
-        toast.error(result.error);
-        return;
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success(productId ? "Product updated" : "Product created");
+        router.push("/products");
+        router.refresh();
+      } catch {
+        toast.error("Could not save the product. Please try again.");
       }
-      toast.success(productId ? "Product updated" : "Product created");
-      router.push("/products");
-      router.refresh();
     });
   }
 
@@ -179,7 +187,7 @@ export function ProductForm({
                 {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
               </Field>
               <Field>
-                <FieldLabel>Category</FieldLabel>
+                <FieldLabel htmlFor="categoryId">Category</FieldLabel>
                 <Controller
                   control={form.control}
                   name="categoryId"
@@ -188,7 +196,7 @@ export function ProductForm({
                       value={field.value || NO_CATEGORY}
                       onValueChange={(value) => field.onChange(value === NO_CATEGORY ? "" : value)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="categoryId" className="w-full">
                         <SelectValue placeholder="No category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -260,13 +268,13 @@ export function ProductForm({
           {unitsEnabled && (
             <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel>Unit of measure</FieldLabel>
+                <FieldLabel htmlFor="unit">Unit of measure</FieldLabel>
                 <Controller
                   control={form.control}
                   name="unit"
                   render={({ field }) => (
                     <Select value={field.value ?? "piece"} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="unit" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -393,8 +401,15 @@ export function ProductForm({
               </Field>
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+            {/* A cost above the selling price is a loss — showing it in the
+                success colour read as if it were fine. */}
+            <div
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                margin < 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
+              }`}
+            >
               Estimated profit margin: <span className="font-semibold">{formatPercent(margin)}</span>
+              {margin < 0 && <span>— the cost price is above the selling price.</span>}
             </div>
 
             <div className={`grid grid-cols-1 gap-4 ${hasVariants ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
@@ -427,13 +442,13 @@ export function ProductForm({
                 </>
               )}
               <Field>
-                <FieldLabel>Status</FieldLabel>
+                <FieldLabel htmlFor="status">Status</FieldLabel>
                 <Controller
                   control={form.control}
                   name="status"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="status" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

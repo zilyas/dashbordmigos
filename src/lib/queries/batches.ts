@@ -116,7 +116,7 @@ export async function getProductBatchView(
 
   // Reconciliation: per-variant for variant products, single line otherwise.
   const lines: ReconciliationLine[] = [];
-  if (product.hasVariants) {
+  if (product.hasVariants && product.variants.length > 0) {
     for (const v of product.variants) {
       const vBatches = batches.filter((b) => b.variantId === v.id);
       lines.push({
@@ -127,6 +127,9 @@ export async function getProductBatchView(
       });
     }
   } else {
+    // A variant product with no variants yet falls through to here on purpose:
+    // an empty `lines` makes `lines.every(...)` vacuously true, so the banner
+    // would claim the stock reconciles while checking nothing at all.
     const pBatches = batches.filter((b) => b.variantId === null);
     lines.push({
       scope: "product",

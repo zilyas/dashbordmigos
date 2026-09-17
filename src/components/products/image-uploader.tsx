@@ -40,6 +40,11 @@ export function ImageUploader({
       if (uploaded.length > 0) {
         onChange([...value, ...uploaded]);
       }
+    } catch {
+      // A dropped connection rejects the fetch, and a proxy returning HTML for
+      // a 413/502 makes res.json() throw before the !res.ok branch is reached.
+      // Without this the upload just stops with no sign anything went wrong.
+      toast.error("Upload failed. Check your connection and try again.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -54,9 +59,10 @@ export function ImageUploader({
     <div className="flex flex-wrap gap-3">
       {value.map((url, i) => (
         <div key={url} className="group relative size-24 overflow-hidden rounded-lg border bg-muted">
-          <Image src={url} alt="" fill className="object-cover" sizes="96px" />
+          <Image src={url} alt={`Product image ${i + 1}`} fill className="object-cover" sizes="96px" />
           <button
             type="button"
+            aria-label={`Remove image ${i + 1}`}
             onClick={() => removeAt(i)}
             className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
           >
