@@ -19,12 +19,25 @@ COPY prisma/schema.prisma ./prisma/schema.prisma
 # when the step fails, so each retry resumes where the last left off instead
 # of starting from zero — consecutive attempts get further until one completes.
 # Do NOT `docker builder prune` between retries; that wipes this cache.
-# The flags reduce concurrency and ride out slow responses.
+#
+# npm's own --fetch-retries only covers a request that fails outright; a socket
+# reset part-way through a tarball read still aborts the whole install (deploy
+# 2026-09-18 13:14 died on ECONNRESET after 318s). So the install is wrapped in
+# its own retry loop: each pass re-uses everything the previous one got into
+# the cache mount, so attempts get progressively further instead of restarting
+# from zero. --prefer-offline keeps it from re-validating what it already has.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund --maxsockets=8 \
-      --fetch-timeout=600000 \
-      --fetch-retries=8 --fetch-retry-factor=2 \
-      --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=180000
+    for attempt in 1 2 3 4 5; do \
+      npm ci --no-audit --no-fund --prefer-offline --maxsockets=8 \
+        --fetch-timeout=600000 \
+        --fetch-retries=8 --fetch-retry-factor=2 \
+        --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=180000 \
+      && exit 0; \
+      echo "npm ci attempt $attempt failed; the cache is warmer, retrying in 15s"; \
+      sleep 15; \
+    done; \
+    echo "npm ci failed 5 times --- the registry connection is down, not slow"; \
+    exit 1
 
 # ---- builder ----
 FROM node:24-alpine AS builder
