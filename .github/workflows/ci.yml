@@ -162,3 +162,46 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker kill app-test || true
+
+  deploy:
+    name: Deploy (Coolify)
+    # Only master, only a real push, and only once both gates above are green —
+    # this is the whole point of triggering the deploy from Actions instead of
+    # letting Coolify's own git webhook fire on every push. Coolify would
+    # otherwise start building before typecheck, tests, or the container smoke
+    # test have said anything.
+    needs: [validate, container-smoke]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Serialise deploys: a second push while one is in flight waits rather than
+    # racing it. Not cancel-in-progress — killing a half-finished deploy is
+    # worse than letting it land and superseding it.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      # COOLIFY_WEBHOOK is the full deploy URL from the app's Webhooks tab
+      # (https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>&force=false) and
+      # COOLIFY_TOKEN is an API token with deploy permission. GET, not POST —
+      # that is what Coolify's endpoint expects.
+      #
+      # --fail makes a 4xx/5xx a failed step; without it curl exits 0 on an
+      # HTTP error and a rejected deploy shows up as a green checkmark.
+      - name: Trigger Coolify deployment
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          # Before those secrets exist this job would fail on every master
+          # push and turn CI permanently red for a deploy nobody has set up
+          # yet. Skipping is loud (a run annotation), not silent.
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::notice::COOLIFY_WEBHOOK/COOLIFY_TOKEN not set - skipping deploy. Add them under Settings > Secrets and variables > Actions to enable auto-deploy."
+            exit 0
+          fi
+          curl --fail --silent --show-error --location \
+            --request GET "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN"

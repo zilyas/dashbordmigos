@@ -179,7 +179,52 @@ Locally, logs print straight to your terminal since `npm run dev` runs in
 the foreground. In the Docker smoke test (`docker logs app-test`, see
 `.github/workflows/ci.yml`) they show up the same way, as JSON lines.
 
-## 8. Troubleshooting
+## 8. Deployment (Coolify)
+
+Pushing to `master` deploys to production automatically. The trigger is the
+`deploy` job in `.github/workflows/ci.yml`, not Coolify's own git webhook:
+Coolify's webhook fires the moment a commit lands, which would start a build
+before typecheck, tests, or the container smoke test have said anything. The
+Actions job runs only after both gates pass, so a red build never reaches
+production.
+
+Coolify builds the image itself from `Dockerfile` — nothing is pushed to a
+registry.
+
+### One-time setup
+
+1. In Coolify, open the application, go to **Webhooks**, and copy the deploy
+   URL. It looks like
+   `https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>&force=false`.
+2. In Coolify, go to **Keys & Tokens > API tokens** and create a token with
+   deploy permission.
+3. In GitHub, go to **Settings > Secrets and variables > Actions** and add
+   two repository secrets:
+   - `COOLIFY_WEBHOOK` — the URL from step 1
+   - `COOLIFY_TOKEN` — the token from step 2
+4. In Coolify, **disable the application's automatic git deployment** so a
+   push does not build twice, once from each trigger.
+
+Until both secrets exist, the `deploy` job still runs but skips with a notice
+on the run summary instead of failing — so CI does not go permanently red for
+a deploy that has not been configured yet.
+
+### Migrations are not automatic
+
+The deploy webhook rebuilds and restarts the container; it does not run
+`prisma migrate deploy`. A release containing a migration needs it applied
+against the production database before or as part of the rollout — otherwise
+the new code starts against an old schema. Either add it as a pre-deploy
+command in Coolify, or run it manually.
+
+### Verifying a deploy
+
+- GitHub **Actions** tab — the `Deploy (Coolify)` job is green.
+- Coolify's **Deployments** tab shows the new build, keyed to the commit SHA.
+- `curl https://<your-domain>/api/health` returns a JSON `status`. This is the
+  same endpoint Coolify's health check should target.
+
+## 9. Troubleshooting
 
 - **"Cannot find module '../generated/prisma/client'" or a stale Prisma
   client after a schema change.** The Prisma client is generated to a
