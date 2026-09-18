@@ -209,6 +209,17 @@ Until both secrets exist, the `deploy` job still runs but skips with a notice
 on the run summary instead of failing — so CI does not go permanently red for
 a deploy that has not been configured yet.
 
+### Which vars are build-time
+
+Only `DATABASE_URL` and `AUTH_SECRET` need Coolify's **Build Variable** box
+ticked; the Dockerfile declares them as `ARG` so `next build` can run.
+
+Leave it **unticked** for everything else, the `R2_*` group especially. A
+build ARG is baked into the image history and printed in clear text into the
+deploy log — a log you might paste somewhere. R2 credentials are read lazily
+at request time (`src/lib/storage/r2.ts`), so they only ever need to be
+runtime env.
+
 ### Migrations are not automatic
 
 The deploy webhook rebuilds and restarts the container; it does not run
