@@ -224,6 +224,43 @@ command in Coolify, or run it manually.
 - `curl https://<your-domain>/api/health` returns a JSON `status`. This is the
   same endpoint Coolify's health check should target.
 
+### If a deploy takes an hour
+
+The build server's IPv6 route to Docker Hub's CDN is unreliable: layer
+downloads crawl and then die with `read: connection reset by peer` on an IPv6
+socket pair. A deploy on 2026-09-18 spent 34 minutes on a single 14MB layer
+before failing, never reaching `npm ci`.
+
+The Dockerfile no longer puts Docker Hub on the critical path of every build
+(the `# syntax=` directive is gone), but `FROM node:24-alpine` still pulls
+over the same route on a cold cache. Two host-side settings make that stop
+hurting. Both are applied on the Coolify server, not in this repo.
+
+Prefer IPv4 for name resolution — append to `/etc/gai.conf`, then
+`systemctl restart docker`:
+
+```
+precedence ::ffff:0:0/96  100
+```
+
+Keep the BuildKit cache between deploys — `/etc/docker/daemon.json`:
+
+```json
+{
+  "builder": {
+    "gc": {
+      "enabled": true,
+      "policy": [{ "keepStorage": "20GB", "filter": ["unused-for=720h"] }]
+    }
+  },
+  "max-concurrent-downloads": 3
+}
+```
+
+Coolify's own "Force Docker Cleanup" prunes build data on a nightly cron and
+will undo this — raise its disk threshold or turn it off. Without a warm
+cache, every deploy re-downloads ~1000 npm tarballs over the bad link.
+
 ## 9. Troubleshooting
 
 - **"Cannot find module '../generated/prisma/client'" or a stale Prisma
