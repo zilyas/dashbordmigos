@@ -5,6 +5,12 @@ FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
+# `npm ci` runs the `postinstall` script, which is `prisma generate` --- so the
+# schema and prisma.config.ts have to be in the image before the install, not
+# just before the build. Without them the install dies with "Could not find
+# Prisma Schema" and takes the whole container build with it.
+COPY prisma.config.ts ./
+COPY prisma ./prisma
 # This build server's registry connection keeps dropping partway through the
 # ~900-package install (ECONNRESET/ETIMEDOUT), even though raw throughput to
 # the registry measures fine (33MB @ 10.9MB/s). The BuildKit cache mount is
