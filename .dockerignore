@@ -28,3 +28,15 @@ npm-debug.log*
 !README.md
 
 coverage
+
+# regenerated at build time (prebuild -> prisma generate); copying a dev
+# machine's copy in would only shadow it with a stale one
+/src/generated
+
+# generated artefacts that are large and churn constantly — they bloat the
+# context and bust the `COPY . .` layer on every local rebuild
+/graft
+/.ai
+/e2e
+/playwright-report
+/test-results

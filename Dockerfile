@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # ---- deps: full install (typecheck/lint/Tailwind need devDependencies) ----
 FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
@@ -9,8 +7,11 @@ COPY package.json package-lock.json ./
 # schema and prisma.config.ts have to be in the image before the install, not
 # just before the build. Without them the install dies with "Could not find
 # Prisma Schema" and takes the whole container build with it.
+# Only the schema, not the whole prisma/ directory: `generate` never reads
+# migrations or seed.ts, and copying them here would bust this ~1000-package
+# install layer on every migration commit.
 COPY prisma.config.ts ./
-COPY prisma ./prisma
+COPY prisma/schema.prisma ./prisma/schema.prisma
 # This build server's registry connection keeps dropping partway through the
 # ~900-package install (ECONNRESET/ETIMEDOUT), even though raw throughput to
 # the registry measures fine (33MB @ 10.9MB/s). The BuildKit cache mount is
@@ -20,7 +21,7 @@ COPY prisma ./prisma
 # Do NOT `docker builder prune` between retries; that wipes this cache.
 # The flags reduce concurrency and ride out slow responses.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund --maxsockets=3 \
+    npm ci --no-audit --no-fund --maxsockets=8 \
       --fetch-timeout=600000 \
       --fetch-retries=8 --fetch-retry-factor=2 \
       --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=180000
@@ -47,7 +48,7 @@ RUN npx prisma generate
 # Next 16 defaults `next build` to Turbopack; this project's validated
 # production path is webpack (see the CI build step), so opt out explicitly.
 # The bare `--` is npm passing the flag through to the `build` script.
-RUN npm run build -- --webpack
+RUN --mount=type=cache,target=/app/.next/cache npm run build -- --webpack
 
 # ---- runner ----
 FROM node:24-alpine AS runner
