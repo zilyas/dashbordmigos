@@ -134,11 +134,19 @@ jobs:
             --name app-test \
             app:smoke-test
 
+      # 127.0.0.1, not localhost: the container sets HOSTNAME=0.0.0.0 so Next
+      # listens on IPv4 only, while Alpine resolves localhost to ::1 first and
+      # busybox wget stops at the refused connection.
+      #
+      # This waits for the server to *answer*, not to be healthy. DATABASE_URL
+      # points at nothing here, so /api/health correctly returns 503 - which is
+      # a successful HTTP exchange and proves the process booted and is
+      # serving. Whether the body is ok or error is the next step's business.
       - name: Wait for container to be ready
         run: |
           for i in {1..30}; do
-            if docker exec app-test wget -q -O- http://localhost:3000/api/health; then
-              echo "Container is healthy"
+            if docker exec app-test node -e "fetch('http://127.0.0.1:3000/api/health').then(() => process.exit(0)).catch(() => process.exit(1))"; then
+              echo "Container is serving"
               exit 0
             fi
             echo "Attempt $i/30: waiting for container..."
@@ -148,9 +156,12 @@ jobs:
           docker logs app-test
           exit 1
 
+      # --fail is deliberately absent: 503 is the expected answer with no
+      # database, and it still proves the route rendered. The assertion is
+      # that the endpoint returns JSON with a status field at all.
       - name: Smoke test health endpoint
         run: |
-          response=$(curl -s http://localhost:3000/api/health)
+          response=$(curl -s http://127.0.0.1:3000/api/health)
           status=$(echo "$response" | jq -r '.status // empty')
           if [ -z "$status" ]; then
             echo "ERROR: health endpoint did not return a JSON status field"

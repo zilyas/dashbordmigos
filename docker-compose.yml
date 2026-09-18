@@ -23,8 +23,10 @@ services:
     volumes:
       - uploads:/app/public/uploads
       - backups:/app/storage/backups
+    # 127.0.0.1, not localhost: the image sets HOSTNAME=0.0.0.0 so Next listens
+    # on IPv4 only, and Alpine resolves localhost to ::1 first.
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
