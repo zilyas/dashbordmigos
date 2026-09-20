@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { markAllNotificationsRead, markNotificationRead } from "@/actions/notifications";
+import { notificationHref } from "@/lib/notification-links";
 import { cn } from "@/lib/utils";
 import type { NotificationType } from "@/generated/prisma/enums";
 
@@ -60,7 +60,11 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
     });
   }
 
+  // Navigation is the <Link>'s job; this only clears the unread flag. An
+  // already-read item still closes the popover and navigates — returning early
+  // here (the old behaviour) made read items look broken.
   function handleItemClick(notification: NotificationItem) {
+    setOpen(false);
     if (notification.read) return;
     startTransition(async () => {
       await markNotificationRead(notification.id);
@@ -95,7 +99,7 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        <div className="max-h-80 overflow-y-auto overscroll-contain">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
               <PackageX className="size-6 text-muted-foreground" />
@@ -104,12 +108,14 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
           ) : (
             <div className="flex flex-col">
               {notifications.map((n) => (
-                <div
+                <Link
                   key={n.id}
+                  href={notificationHref(n.type)}
                   onClick={() => handleItemClick(n)}
                   className={cn(
-                    "flex items-start gap-2.5 border-b px-3 py-2.5 last:border-b-0",
-                    !n.read && "cursor-pointer bg-primary/5 hover:bg-primary/10"
+                    "flex items-start gap-2.5 border-b px-3 py-2.5 text-left last:border-b-0",
+                    "hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none",
+                    !n.read && "bg-primary/5 hover:bg-primary/10 focus-visible:bg-primary/10"
                   )}
                 >
                   <span
@@ -130,11 +136,11 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
                       {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                     </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
         <div className="border-t p-2">
           <Button asChild variant="ghost" size="sm" className="w-full text-xs" onClick={() => setOpen(false)}>
             <Link href="/notifications">View all notifications</Link>
