@@ -103,8 +103,25 @@ RUN rm -rf ./public/uploads ./storage \
 USER nextjs
 EXPOSE 3000
 
-# Coolify's health check should target /api/health (see
-# src/app/api/health/route.ts). `node server.js` runs as PID 1 here, so it
-# receives SIGTERM directly and Next drains in-flight requests on its own —
-# no extra init/signal-forwarding wrapper needed.
+# Coolify's health check command must be, exactly:
+#
+#   wget -q -O /dev/null http://127.0.0.1:3000/api/health
+#
+# 127.0.0.1, not localhost. HOSTNAME=0.0.0.0 above makes Next listen on IPv4
+# only, while Alpine resolves localhost to ::1 first; busybox wget tries the
+# IPv6 address, gets ECONNREFUSED and gives up without falling back. That is
+# what the 2026-09-18 14:42 deploy hit — "wget: can't connect to remote host:
+# Connection refused" on a container whose own log said "Ready in 0ms". The CI
+# smoke test hit the identical trap (see .github/workflows/ci.yml).
+#
+# /api/health, not / — see src/app/api/health/route.ts. `/` redirects to the
+# login page via the Proxy matcher in src/proxy.ts. Note /api/health returns
+# 503 while Postgres is unreachable, which is correct but will fail the rolling
+# update; point the check at /login if the database is not wired up yet.
+#
+# No HEALTHCHECK instruction here on purpose: Coolify writes its own into the
+# generated compose file, and one in the image would be silently overridden.
+#
+# `node server.js` runs as PID 1, so it receives SIGTERM directly and Next
+# drains in-flight requests on its own — no init/signal-forwarding wrapper.
 CMD ["node", "server.js"]
