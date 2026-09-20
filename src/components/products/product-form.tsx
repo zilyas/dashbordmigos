@@ -33,12 +33,14 @@ import { formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CategoryListItem } from "@/lib/queries/categories";
 import type { ColorListItem } from "@/lib/queries/colors";
+import type { SizeListItem } from "@/lib/queries/sizes";
 
 const NO_CATEGORY = "none";
 
 export function ProductForm({
   categories,
   colors = [],
+  sizes = [],
   productId,
   defaultValues,
   unitsEnabled = false,
@@ -47,6 +49,8 @@ export function ProductForm({
   categories: CategoryListItem[];
   /** The store's color vocabulary (/colors). Only used while creating. */
   colors?: ColorListItem[];
+  /** The store's size vocabulary (/sizes). Only used while creating. */
+  sizes?: SizeListItem[];
   productId?: string;
   defaultValues?: Partial<ProductInput>;
   /** Store has units_enabled — show unit-based selling options. */
@@ -61,6 +65,8 @@ export function ProductForm({
   // into the payload on submit.
   // Off by default: a variant product does not have to vary by color.
   const [colorsOn, setColorsOn] = useState(false);
+  // Same idea for sizes: a variant product does not have to vary by size.
+  const [sizesOn, setSizesOn] = useState(false);
 
   const [attrValues, setAttrValues] = useState<Record<string, string>>(() =>
     Object.fromEntries((defaultValues?.attributes ?? []).map((a) => [a.definitionId, a.value]))
@@ -89,6 +95,7 @@ export function ProductForm({
       unit: "piece",
       allowDecimalQuantity: false,
       colorIds: [],
+      sizeIds: [],
       ...defaultValues,
     },
   });
@@ -99,6 +106,11 @@ export function ProductForm({
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
 
   const colorIds = useWatch({ control: form.control, name: "colorIds" }) ?? [];
+  const sizeIds = useWatch({ control: form.control, name: "sizeIds" }) ?? [];
+
+  // Sizes and colors are combined as a cross product on the server, so this is
+  // exactly how many variants the save will create.
+  const variantCount = Math.max(1, sizeIds.length) * Math.max(1, colorIds.length);
 
   // The three tiles are the real mode switch; the fields below only reflect
   // whichever one is active. "Measured" is a non-piece unit, which is what
@@ -112,9 +124,12 @@ export function ProductForm({
   function chooseSetup(mode: "simple" | "measured" | "variants") {
     form.setValue("hasVariants", mode === "variants");
     if (mode === "variants") return;
-    // Colors only exist as variants, so leaving the variant mode drops them.
+    // Colors and sizes only exist as variants, so leaving the variant mode
+    // drops them.
     form.setValue("colorIds", []);
+    form.setValue("sizeIds", []);
     setColorsOn(false);
+    setSizesOn(false);
     form.setValue("unit", mode === "measured" ? (selectedUnit === "piece" ? "kg" : selectedUnit) : "piece");
     form.setValue("allowDecimalQuantity", mode === "measured");
   }
@@ -122,6 +137,11 @@ export function ProductForm({
   function toggleColor(id: string) {
     const next = colorIds.includes(id) ? colorIds.filter((c) => c !== id) : [...colorIds, id];
     form.setValue("colorIds", next);
+  }
+
+  function toggleSize(id: string) {
+    const next = sizeIds.includes(id) ? sizeIds.filter((x) => x !== id) : [...sizeIds, id];
+    form.setValue("sizeIds", next);
   }
 
   const fabricationPrice = useWatch({ control: form.control, name: "fabricationPrice" });
@@ -299,10 +319,12 @@ export function ProductForm({
                   onCheckedChange={(on) => {
                     field.onChange(on);
                     // Keep this switch and the tiles above telling the same
-                    // story — turning variants off drops the picked colors.
+                    // story — turning variants off drops the picked options.
                     if (!on) {
                       form.setValue("colorIds", []);
+                      form.setValue("sizeIds", []);
                       setColorsOn(false);
+                      setSizesOn(false);
                     }
                   }}
                 />
@@ -351,6 +373,80 @@ export function ProductForm({
           )}
         </CardContent>
       </Card>
+
+      {/* Sizes come from the store's /sizes vocabulary, and work exactly like
+          colors below: stored on the variant, so they only appear for a
+          variant product being created. */}
+      {!productId && hasVariants && (
+        <Card>
+          <CardHeader className="border-b pb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Sizes</CardTitle>
+                <CardDescription>
+                  Pick every size you sell. Combined with the colors below, one variant is created per
+                  combination.
+                </CardDescription>
+              </div>
+              <Switch
+                aria-label="This product comes in sizes"
+                checked={sizesOn}
+                onCheckedChange={(on) => {
+                  setSizesOn(on);
+                  if (!on) form.setValue("sizeIds", []);
+                }}
+              />
+            </div>
+          </CardHeader>
+          {sizesOn && (
+            <CardContent className="pt-4">
+              {sizes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No sizes yet.{" "}
+                  <Link href="/sizes" className="font-medium text-primary underline-offset-4 hover:underline">
+                    Add them in Sizes
+                  </Link>{" "}
+                  first, then come back.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map((size) => {
+                      const selected = sizeIds.includes(size.id);
+                      return (
+                        <button
+                          key={size.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleSize(size.id)}
+                          className={cn(
+                            "inline-flex h-9 min-w-11 items-center justify-center gap-1.5 rounded-md border px-3 text-sm transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            selected
+                              ? "border-primary bg-primary/5 font-medium text-primary"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          {selected && <Check className="size-3.5" />}
+                          {size.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {sizeIds.length === 0
+                      ? "Pick one or more, or leave this off if the product has no sizes."
+                      : `${sizeIds.length} size${sizeIds.length === 1 ? "" : "s"} selected.`}{" "}
+                    <Link href="/sizes" className="text-primary underline-offset-4 hover:underline">
+                      Manage sizes
+                    </Link>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Colors come from the store's /colors vocabulary. They only appear for
           a variant product being created: a color is stored on the variant, so
@@ -421,7 +517,7 @@ export function ProductForm({
                   <p className="text-xs text-muted-foreground">
                     {colorIds.length === 0
                       ? "Pick one or more. The first is the primary color."
-                      : `${colorIds.length} color${colorIds.length === 1 ? "" : "s"} selected — ${colorIds.length} variant${colorIds.length === 1 ? "" : "s"} will be created with zero stock.`}{" "}
+                      : `${colorIds.length} color${colorIds.length === 1 ? "" : "s"} selected.`}{" "}
                     <Link href="/colors" className="text-primary underline-offset-4 hover:underline">
                       Manage colors
                     </Link>
@@ -431,6 +527,19 @@ export function ProductForm({
             </CardContent>
           )}
         </Card>
+      )}
+
+      {/* One line for the real outcome: the server multiplies the two axes, so
+          3 colors x 4 sizes is 12 rows, not 7. */}
+      {!productId && hasVariants && (sizeIds.length > 0 || colorIds.length > 0) && (
+        <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+          <span className="font-medium">{variantCount}</span> variant{variantCount === 1 ? "" : "s"} will be
+          created with zero stock
+          {sizeIds.length > 0 && colorIds.length > 0
+            ? ` (${sizeIds.length} size${sizeIds.length === 1 ? "" : "s"} × ${colorIds.length} color${colorIds.length === 1 ? "" : "s"})`
+            : ""}
+          . Set their stock and prices from the product&apos;s edit page.
+        </p>
       )}
 
       {showSpecs && (

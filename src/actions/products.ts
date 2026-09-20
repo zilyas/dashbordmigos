@@ -11,7 +11,7 @@ import type { ProductAttributeValueInput } from "@/lib/validations/category-attr
 import { getStoreFeatures } from "@/lib/features";
 import { validateAttributeValue, parseOptions } from "@/lib/attributes";
 import { round3 } from "@/lib/sale-math";
-import { colorVariantSku } from "@/lib/color-variants";
+import { variantSku } from "@/lib/variant-skus";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
@@ -146,22 +146,48 @@ async function uniqueSlug(storeId: string, base: string, excludeId?: string) {
  * time from the product's variant section. Extend to a full axis matrix when
  * users ask to pick sizes during creation too.
  */
-async function createColorVariants(
+/**
+ * Materialise the sizes and colors picked on the create form as variants.
+ *
+ * Both are picked as vocabularies, so the result is their cross product: 3
+ * colors x 4 sizes = 12 variants, one per combination, each with its own SKU
+ * and its own stock. Picking only one axis gives one variant per value.
+ * Pick order is preserved (first color = primary), which is the only thing
+ * that records rank — nothing on ProductVariant stores it.
+ */
+async function createPickedVariants(
   storeId: string,
   productId: string,
   baseSku: string,
+  sizeIds: string[],
   colorIds: string[]
 ) {
-  // Preserve the order the user picked in (first = primary color) and drop
-  // duplicates, which a double-click on the same swatch would otherwise send.
-  const wanted = [...new Set(colorIds)];
-  if (wanted.length === 0) return;
+  // Drop duplicates, which a double-click on the same chip would otherwise send.
+  const wantedSizes = [...new Set(sizeIds)];
+  const wantedColors = [...new Set(colorIds)];
+  if (wantedSizes.length === 0 && wantedColors.length === 0) return;
 
-  const colors = await prisma.color.findMany({
-    where: { id: { in: wanted }, storeId },
-    select: { id: true, name: true },
-  });
-  const byId = new Map(colors.map((c) => [c.id, c]));
+  const [sizes, colors] = await Promise.all([
+    wantedSizes.length
+      ? prisma.size.findMany({ where: { id: { in: wantedSizes }, storeId }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    wantedColors.length
+      ? prisma.color.findMany({ where: { id: { in: wantedColors }, storeId }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ]);
+  const sizeById = new Map(sizes.map((x) => [x.id, x]));
+  const colorById = new Map(colors.map((x) => [x.id, x]));
+
+  // An id from another store is skipped rather than failing the whole save:
+  // the product itself is already created at this point.
+  const sizeAxis = wantedSizes.map((id) => sizeById.get(id)).filter((x) => x != null);
+  const colorAxis = wantedColors.map((id) => colorById.get(id)).filter((x) => x != null);
+
+  // A missing axis contributes a single null row, so the cross product below
+  // degrades to "one variant per value of whichever axis was picked".
+  const sizeRows = sizeAxis.length ? sizeAxis : [null];
+  const colorRows = colorAxis.length ? colorAxis : [null];
+  if (sizeRows[0] === null && colorRows[0] === null) return;
 
   // Store-wide, because @@unique([storeId, sku]) is store-wide.
   const existing = await prisma.productVariant.findMany({
@@ -170,21 +196,16 @@ async function createColorVariants(
   });
   const taken = new Set(existing.map((v) => v.sku));
 
-  const rows = wanted.flatMap((id) => {
-    const color = byId.get(id);
-    // An id from another store is skipped rather than failing the whole save:
-    // the product itself is already created at this point.
-    if (!color) return [];
-    return [
-      {
-        storeId,
-        productId,
-        colorId: color.id,
-        sku: colorVariantSku(baseSku, color.name, taken),
-        stock: 0,
-      },
-    ];
-  });
+  const rows = sizeRows.flatMap((size) =>
+    colorRows.map((color) => ({
+      storeId,
+      productId,
+      sizeId: size?.id ?? null,
+      colorId: color?.id ?? null,
+      sku: variantSku(baseSku, [size?.name ?? "", color?.name ?? ""], taken),
+      stock: 0,
+    }))
+  );
 
   if (rows.length > 0) await prisma.productVariant.createMany({ data: rows });
 }
@@ -279,8 +300,14 @@ export async function createProduct(input: ProductInput) {
 
     // Colors are only meaningful on a variant product — on a simple one the
     // switch is off and the form sends none.
-    if (data.hasVariants && data.colorIds?.length) {
-      await createColorVariants(session.storeId, product.id, data.sku, data.colorIds);
+    if (data.hasVariants && (data.sizeIds?.length || data.colorIds?.length)) {
+      await createPickedVariants(
+        session.storeId,
+        product.id,
+        data.sku,
+        data.sizeIds ?? [],
+        data.colorIds ?? []
+      );
     }
 
     await logActivity({

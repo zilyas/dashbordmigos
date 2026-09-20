@@ -53,6 +53,11 @@ export const productSchema = z.object({
    * update: variants are managed from the product's own variant section.
    */
   colorIds: z.array(z.string()).max(20, "Up to 20 colors").optional(),
+  /**
+   * Sizes picked during creation. Combined with `colorIds` as a cross product
+   * on the server: 3 colors x 4 sizes = 12 variants. Ignored on update.
+   */
+  sizeIds: z.array(z.string()).max(20, "Up to 20 sizes").optional(),
 });
 
 export type ProductInput = z.infer<typeof productSchema>;

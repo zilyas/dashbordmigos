@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ProductForm } from "@/components/products/product-form";
 import { getCategories } from "@/lib/queries/categories";
 import { getColors } from "@/lib/queries/colors";
+import { getSizes } from "@/lib/queries/sizes";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
 
@@ -11,9 +12,10 @@ export const metadata: Metadata = { title: "New Product" };
 export default async function NewProductPage() {
   const context = await getSessionContext();
   const storeId = requireStoreId(context!);
-  const [categories, colors, features] = await Promise.all([
+  const [categories, colors, sizes, features] = await Promise.all([
     getCategories(storeId),
     getColors(storeId),
+    getSizes(storeId),
     getStoreFeatures(storeId),
   ]);
 
@@ -26,6 +28,7 @@ export default async function NewProductPage() {
       <ProductForm
         categories={categories}
         colors={colors}
+        sizes={sizes}
         unitsEnabled={features.units_enabled}
         attributesEnabled={features.category_attributes_enabled}
       />
