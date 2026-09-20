@@ -10,6 +10,9 @@ services:
       args:
         DATABASE_URL: ${DATABASE_URL}
         AUTH_SECRET: ${AUTH_SECRET}
+        # Must be a build arg, not just an env var: next/image remotePatterns
+        # and the CSP img-src are baked into the standalone build.
+        R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
     restart: unless-stopped
     ports:
       - "3000:3000"

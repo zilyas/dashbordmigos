@@ -56,6 +56,17 @@ ARG DATABASE_URL="postgresql://user:pass@localhost:5432/db"
 ENV DATABASE_URL=${DATABASE_URL}
 ARG AUTH_SECRET="build-time-placeholder"
 ENV AUTH_SECRET=${AUTH_SECRET}
+# next.config.ts reads this at config-resolution time to build BOTH the CSP
+# img-src origin and images.remotePatterns, and standalone bakes the resolved
+# config into .next/standalone/server.js — it is never re-read at runtime (see
+# __NEXT_PRIVATE_STANDALONE_CONFIG in next/dist/server/config.js). Setting it
+# only as a Coolify runtime var therefore ships an image whose optimizer
+# rejects every R2 URL with 400 "url parameter is not allowed", while the CSP
+# blocks the unoptimised fallback. It must ALSO stay set at runtime, where
+# src/lib/storage/r2.ts uses it to build each object's public URL.
+# Not a secret: this is the public bucket base URL, not a credential.
+ARG R2_PUBLIC_BASE_URL=""
+ENV R2_PUBLIC_BASE_URL=${R2_PUBLIC_BASE_URL}
 
 RUN npx prisma generate
 # Next 16 defaults `next build` to Turbopack; this project's validated

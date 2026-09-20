@@ -67,6 +67,15 @@ in R2 instead, set all `R2_*` variables — the app switches automatically.
 4. Fill `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`,
    `R2_PUBLIC_BASE_URL` in `.env`.
 
+> **Deploying with Docker / Coolify:** `R2_PUBLIC_BASE_URL` must be marked
+> **buildtime-available**, not only a runtime variable. `next.config.ts` reads it
+> when the config is resolved, to build both `images.remotePatterns` and the CSP
+> `img-src` origin, and a standalone build bakes the resolved config into the
+> image. If it is missing at build time, every product image 400s with
+> `"url" parameter is not allowed` from `/_next/image` even though the variable
+> is set correctly on the running container. It must stay set at runtime too —
+> `src/lib/storage/r2.ts` uses it to build each object's public URL.
+
 Uploads are always processed server-side: validated, decoded and re-encoded with
 `sharp` to a **500×500 WebP** (`fit: cover`, metadata stripped), given a random
 UUID key, and served from `R2_PUBLIC_BASE_URL`. Only the resulting URL is stored
