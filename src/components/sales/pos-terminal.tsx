@@ -514,7 +514,16 @@ export function POSTerminal({
                 }}
                 className="flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 disabled:pointer-events-none disabled:opacity-50"
               >
-                <div className="min-w-0">
+                {/* The variant's own photo — a shade or color is far easier to
+                    pick from a picture than from a label. */}
+                <div className="relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted">
+                  {variant.imageUrl ? (
+                    <Image src={variant.imageUrl} alt={variant.label} fill className="object-cover" sizes="40px" />
+                  ) : (
+                    <Layers className="absolute inset-0 m-auto size-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{variant.label}</p>
                   <p className="text-xs text-muted-foreground">
                     SKU {variant.sku} · {variant.stock > 0 ? `${variant.stock} in stock` : "out of stock"}

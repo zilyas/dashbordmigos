@@ -12,6 +12,15 @@ export async function getProducts(storeId: string) {
     include: {
       category: { select: { id: true, name: true } },
       images: { orderBy: { position: "asc" }, take: 1 },
+      // A variant product often carries no cover of its own — the photos live
+      // on the variants. Without this the row shows a placeholder even though
+      // the product has images.
+      variants: {
+        where: { imageUrl: { not: null } },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { imageUrl: true },
+      },
       _count: { select: { variants: true } },
     },
   });
@@ -35,7 +44,7 @@ export async function getProducts(storeId: string) {
     stock: Number(p.stock),
     minimumStock: Number(p.minimumStock),
     status: p.status,
-    image: p.images[0]?.url ?? null,
+    image: p.images[0]?.url ?? p.variants[0]?.imageUrl ?? null,
     createdAt: p.createdAt.toISOString(),
   }));
 }

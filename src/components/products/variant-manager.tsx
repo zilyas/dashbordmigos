@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Layers, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -94,7 +95,16 @@ export function VariantManager({
           <div className="flex flex-col divide-y">
             {variants.map((v) => (
               <div key={v.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
+                {/* The image was already stored per variant but never rendered,
+                    so a photo you uploaded looked like it had been lost. */}
+                <div className="relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted">
+                  {v.imageUrl ? (
+                    <Image src={v.imageUrl} alt={v.sku} fill className="object-cover" sizes="40px" />
+                  ) : (
+                    <Layers className="absolute inset-0 m-auto size-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {[v.sizeName, v.colorName, ...axes.map((a) => v.axisValues[a.key]).filter(Boolean)]
                       .filter(Boolean)

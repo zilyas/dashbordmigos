@@ -47,7 +47,9 @@ export async function getPOSProducts(storeId: string) {
       // per-variant stock below. Reported as the sum so the card still shows
       // availability at a glance.
       stock: p.hasVariants ? p.variants.reduce((s, v) => s + Number(v.stock), 0) : Number(p.stock),
-      image: p.images[0]?.url ?? null,
+      // A variant product usually has no cover of its own; fall back to the
+      // first variant photo so the POS tile is not an empty placeholder.
+      image: p.images[0]?.url ?? p.variants.find((v) => v.imageUrl)?.imageUrl ?? null,
       hasVariants: p.hasVariants,
       variants: p.variants.map((v) => ({
         id: v.id,
