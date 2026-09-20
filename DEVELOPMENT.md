@@ -196,8 +196,12 @@ registry.
 1. In Coolify, open the application, go to **Webhooks**, and copy the deploy
    URL. It looks like
    `https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>&force=false`.
-2. In Coolify, go to **Keys & Tokens > API tokens** and create a token with
-   deploy permission.
+2. In Coolify, go to **Keys & Tokens > API tokens** and create a token.
+   Pick the **root** ability if you want the Actions job to wait for the
+   build and go red when it breaks. A `deploy`-only token also triggers the
+   deploy, but Coolify's token UI makes `deploy` mutually exclusive with
+   `read`, so the job cannot then poll the result — it warns and finishes
+   green the moment Coolify accepts the request.
 3. In GitHub, go to **Settings > Secrets and variables > Actions** and add
    two repository secrets:
    - `COOLIFY_WEBHOOK` — the URL from step 1
@@ -209,16 +213,68 @@ Until both secrets exist, the `deploy` job still runs but skips with a notice
 on the run summary instead of failing — so CI does not go permanently red for
 a deploy that has not been configured yet.
 
+### The deploy call is a POST
+
+Coolify v4.2.0 made every state-changing API endpoint POST-only. A `GET` to
+`/api/v1/deploy` now answers `405` with
+`{"message":"This endpoint has changed to a POST request."}` and queues
+nothing. The workflow sends `POST`. If you copy the curl out of Coolify's own
+older docs, check the verb.
+
+### Waiting for the result
+
+Triggering a deploy only says Coolify accepted the request. The workflow then
+polls `GET /api/v1/deployments/<deployment_uuid>` — the uuid comes back in the
+trigger response — until `status` leaves `queued`/`in_progress`. `finished`
+passes; `failed` and `cancelled-by-user` fail the job and print the last 50
+log lines. After 15 minutes it warns rather than failing, because a slow build
+is not the same as a broken one.
+
+`bash scripts/test-deploy-wait.sh` replays that polling logic against canned
+responses (including a failed build, a read-denied token, and the brief 404 a
+just-queued deployment can return). It reads the step straight out of
+`ci.yml`, so it cannot drift from what actually runs.
+
+### Checking for a Coolify upgrade
+
+```bash
+COOLIFY_URL=https://<coolify-host> COOLIFY_TOKEN=<read-or-root-token> \
+  bash scripts/coolify-version.sh
+```
+
+It prints the running version against the latest published one and exits `1`
+when an upgrade is available. There is no unauthenticated version endpoint —
+`/api/health` answers a bare `OK` — so the token is required.
+
+The script prints the upgrade command instead of running it. Upgrading is a
+root shell action on the host that restarts the whole control plane, and
+Coolify's installer passes `SKIP_BACKUP=true`, so it does **not** back
+anything up for you. Take the backup from **Settings > Configuration > Backup**
+first.
+
+Coolify can also update itself: **Settings > Configuration > Updates** has an
+*Auto Update* toggle. Leave it off if you would rather choose when the control
+plane restarts.
+
 ### Which vars are build-time
 
-Only `DATABASE_URL` and `AUTH_SECRET` need Coolify's **Build Variable** box
-ticked; the Dockerfile declares them as `ARG` so `next build` can run.
+Three need Coolify's **Build Variable** box ticked: `DATABASE_URL`,
+`AUTH_SECRET`, and `R2_PUBLIC_BASE_URL`. The Dockerfile declares all three as
+`ARG` so `next build` can run and so `next.config.ts` can resolve them.
 
-Leave it **unticked** for everything else, the `R2_*` group especially. A
-build ARG is baked into the image history and printed in clear text into the
-deploy log — a log you might paste somewhere. R2 credentials are read lazily
-at request time (`src/lib/storage/r2.ts`), so they only ever need to be
-runtime env.
+`R2_PUBLIC_BASE_URL` is the one that surprises people. `next.config.ts` reads
+it at config-resolution time to build both the CSP `img-src` origin and
+`images.remotePatterns`, and `output: "standalone"` bakes the resolved config
+into the image — it is never re-read at runtime. Set it only as a runtime
+variable and the deployed optimizer rejects every R2 URL with
+`400 "url" parameter is not allowed`. It must stay a runtime variable **as
+well**, because `src/lib/storage/r2.ts` uses it to build each object's public
+URL. It is not a secret: it is the public bucket base URL, not a credential.
+
+Leave the box **unticked** for everything else, the rest of the `R2_*` group
+especially. A build ARG is baked into the image history and printed in clear
+text into the deploy log — a log you might paste somewhere. The R2 keys are
+read lazily at request time, so they only ever need to be runtime env.
 
 ### Migrations are not automatic
 

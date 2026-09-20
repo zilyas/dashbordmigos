@@ -184,7 +184,7 @@ jobs:
     needs: [validate, container-smoke]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     # Serialise deploys: a second push while one is in flight waits rather than
     # racing it. Not cancel-in-progress — killing a half-finished deploy is
     # worse than letting it land and superseding it.
@@ -196,23 +196,108 @@ jobs:
     steps:
       # COOLIFY_WEBHOOK is the full deploy URL from the app's Webhooks tab
       # (https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>&force=false) and
-      # COOLIFY_TOKEN is an API token with deploy permission. GET, not POST —
-      # that is what Coolify's endpoint expects.
+      # COOLIFY_TOKEN is an API token created under Keys & Tokens > API tokens.
       #
-      # --fail makes a 4xx/5xx a failed step; without it curl exits 0 on an
-      # HTTP error and a rejected deploy shows up as a green checkmark.
+      # POST, not GET. Coolify v4.2.0 made every state-changing endpoint
+      # POST-only; a GET to /api/v1/deploy now answers 405 with
+      # {"message":"This endpoint has changed to a POST request."} and no
+      # deployment is queued.
+      # https://github.com/coollabsio/coolify/releases/tag/v4.2.0
+      #
+      # --fail-with-body makes a 4xx/5xx a failed step while still printing
+      # Coolify's error message; plain --fail swallows the body, and no flag at
+      # all makes curl exit 0 on an HTTP error so a rejected deploy shows up as
+      # a green checkmark.
       - name: Trigger Coolify deployment
+        id: trigger
         env:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
+          set -euo pipefail
           # Before those secrets exist this job would fail on every master
           # push and turn CI permanently red for a deploy nobody has set up
           # yet. Skipping is loud (a run annotation), not silent.
           if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
             echo "::notice::COOLIFY_WEBHOOK/COOLIFY_TOKEN not set - skipping deploy. Add them under Settings > Secrets and variables > Actions to enable auto-deploy."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          curl --fail --silent --show-error --location \
-            --request GET "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN"
+          response=$(curl --fail-with-body --silent --show-error --location \
+            --request POST "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN")
+          echo "Coolify accepted the deploy: $response"
+          # Coolify answers {"deployments":[{"deployment_uuid":"...",...}]} —
+          # one entry per resource behind the webhook. Only the first is
+          # polled below; this webhook points at a single application.
+          uuid=$(echo "$response" | jq -r '.deployments[0].deployment_uuid // empty')
+          if [ -z "$uuid" ]; then
+            echo "::warning::Deploy queued but Coolify returned no deployment_uuid - cannot wait for the result."
+          fi
+          echo "deployment_uuid=$uuid" >> "$GITHUB_OUTPUT"
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+      # Without this the job goes green the instant Coolify accepts the
+      # request, which says nothing about whether the build succeeded. The
+      # status enum is App\Enums\ApplicationDeploymentStatus: queued and
+      # in_progress mean keep waiting; finished is the only success; failed
+      # and cancelled-by-user are failures.
+      #
+      # Reading a deployment needs the `read` ability, and Coolify's token UI
+      # makes `deploy` mutually exclusive with every other ability — so a
+      # deploy-only token gets 403 here. That is not a deploy failure, so it
+      # warns and stops instead of failing the job. Use a `root` token if you
+      # want the job to actually wait.
+      - name: Wait for the deployment to finish
+        if: steps.trigger.outputs.skipped == 'false' && steps.trigger.outputs.deployment_uuid != ''
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          DEPLOYMENT_UUID: ${{ steps.trigger.outputs.deployment_uuid }}
+        run: |
+          set -uo pipefail
+          # The webhook secret is the only place the instance URL is stored,
+          # so the API base is derived from it rather than kept as a third
+          # secret that could drift out of sync with the first two.
+          base="${COOLIFY_WEBHOOK%%/api/v1/deploy*}"
+          url="$base/api/v1/deployments/$DEPLOYMENT_UUID"
+          # Coolify has a race where a just-queued deployment 404s for a
+          # moment (coollabsio/coolify#8925), so an early 404 is retried
+          # rather than treated as a lost deploy.
+          for i in $(seq 1 90); do
+            body=$(curl --silent --show-error --location \
+              --write-out '\n%{http_code}' \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" "$url")
+            code=$(echo "$body" | tail -n1)
+            payload=$(echo "$body" | sed '$d')
+            case "$code" in
+              200) ;;
+              401|403)
+                echo "::warning::Token cannot read deployment status (HTTP $code). Deploy was queued; not waiting for it. Use a root-ability token to enable waiting."
+                exit 0 ;;
+              404)
+                if [ "$i" -le 5 ]; then sleep 10; continue; fi
+                echo "::warning::Deployment $DEPLOYMENT_UUID not found after 5 attempts. Deploy was queued; check Coolify."
+                exit 0 ;;
+              *)
+                echo "::warning::Unexpected HTTP $code reading deployment status: $payload"
+                sleep 10; continue ;;
+            esac
+            status=$(echo "$payload" | jq -r '.status // empty')
+            case "$status" in
+              finished)
+                echo "Deployment finished successfully."
+                exit 0 ;;
+              failed|cancelled-by-user)
+                echo "Deployment ended with status: $status"
+                echo "$payload" | jq -r '.logs // empty' | tail -n 50
+                exit 1 ;;
+              queued|in_progress)
+                echo "Attempt $i/90: deployment is $status..."
+                sleep 10 ;;
+              *)
+                echo "::warning::Unrecognised deployment status '$status' - treating as pending."
+                sleep 10 ;;
+            esac
+          done
+          echo "::warning::Deployment still running after 15 minutes. Not failing the job - check Coolify's Deployments tab."
