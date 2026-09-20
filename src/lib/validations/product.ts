@@ -46,6 +46,13 @@ export const productSchema = z.object({
   allowDecimalQuantity: z.boolean().optional(),
   /** Category attribute values (Phase 2); validated against definitions server-side. */
   attributes: productAttributeValuesSchema.optional(),
+  /**
+   * Colors picked during creation, in the order they were picked — the first
+   * is the primary color. The server turns each one into a variant, because
+   * `Color` relates to `ProductVariant`, never to `Product`. Ignored on
+   * update: variants are managed from the product's own variant section.
+   */
+  colorIds: z.array(z.string()).max(20, "Up to 20 colors").optional(),
 });
 
 export type ProductInput = z.infer<typeof productSchema>;

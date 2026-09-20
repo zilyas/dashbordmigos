@@ -11,6 +11,7 @@ import type { ProductAttributeValueInput } from "@/lib/validations/category-attr
 import { getStoreFeatures } from "@/lib/features";
 import { validateAttributeValue, parseOptions } from "@/lib/attributes";
 import { round3 } from "@/lib/sale-math";
+import { colorVariantSku } from "@/lib/color-variants";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
@@ -130,6 +131,64 @@ async function uniqueSlug(storeId: string, base: string, excludeId?: string) {
   return slug;
 }
 
+/**
+ * Turns the colors picked on the creation form into one variant per color.
+ * `Color` has no relation to `Product` — only to `ProductVariant` — so a
+ * picked color has nowhere else to live, and generating the variants here is
+ * what makes "pick 3 colors" produce a sellable product instead of a record
+ * the user then has to open and fill in three more times.
+ *
+ * Every variant starts with zero stock: stock enters through the variant
+ * section or a batch, never through the parent product's opening-stock field,
+ * which is already zeroed for variant products.
+ *
+ * ponytail: colors only — size and any custom axis are still added one at a
+ * time from the product's variant section. Extend to a full axis matrix when
+ * users ask to pick sizes during creation too.
+ */
+async function createColorVariants(
+  storeId: string,
+  productId: string,
+  baseSku: string,
+  colorIds: string[]
+) {
+  // Preserve the order the user picked in (first = primary color) and drop
+  // duplicates, which a double-click on the same swatch would otherwise send.
+  const wanted = [...new Set(colorIds)];
+  if (wanted.length === 0) return;
+
+  const colors = await prisma.color.findMany({
+    where: { id: { in: wanted }, storeId },
+    select: { id: true, name: true },
+  });
+  const byId = new Map(colors.map((c) => [c.id, c]));
+
+  // Store-wide, because @@unique([storeId, sku]) is store-wide.
+  const existing = await prisma.productVariant.findMany({
+    where: { storeId },
+    select: { sku: true },
+  });
+  const taken = new Set(existing.map((v) => v.sku));
+
+  const rows = wanted.flatMap((id) => {
+    const color = byId.get(id);
+    // An id from another store is skipped rather than failing the whole save:
+    // the product itself is already created at this point.
+    if (!color) return [];
+    return [
+      {
+        storeId,
+        productId,
+        colorId: color.id,
+        sku: colorVariantSku(baseSku, color.name, taken),
+        stock: 0,
+      },
+    ];
+  });
+
+  if (rows.length > 0) await prisma.productVariant.createMany({ data: rows });
+}
+
 export async function createProduct(input: ProductInput) {
   const session = await requireProductEditor();
   const parsed = productSchema.safeParse(input);
@@ -216,6 +275,12 @@ export async function createProduct(input: ProductInput) {
 
     if (attributesEnabled) {
       await persistAttributeValues(product.id, data.categoryId || "", session.storeId, attrResult.resolved);
+    }
+
+    // Colors are only meaningful on a variant product — on a simple one the
+    // switch is off and the form sends none.
+    if (data.hasVariants && data.colorIds?.length) {
+      await createColorVariants(session.storeId, product.id, data.sku, data.colorIds);
     }
 
     await logActivity({

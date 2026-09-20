@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Boxes, ChevronDown, Loader2, Package, Scale } from "lucide-react";
+import { Boxes, Check, ChevronDown, Loader2, Package, Scale } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -29,18 +30,23 @@ import {
   PRODUCT_UNIT_LABELS,
 } from "@/lib/validations/product";
 import { formatPercent } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CategoryListItem } from "@/lib/queries/categories";
+import type { ColorListItem } from "@/lib/queries/colors";
 
 const NO_CATEGORY = "none";
 
 export function ProductForm({
   categories,
+  colors = [],
   productId,
   defaultValues,
   unitsEnabled = false,
   attributesEnabled = false,
 }: {
   categories: CategoryListItem[];
+  /** The store's color vocabulary (/colors). Only used while creating. */
+  colors?: ColorListItem[];
   productId?: string;
   defaultValues?: Partial<ProductInput>;
   /** Store has units_enabled — show unit-based selling options. */
@@ -53,6 +59,9 @@ export function ProductForm({
 
   // Attribute values live outside RHF (keyed by definition id) and are merged
   // into the payload on submit.
+  // Off by default: a variant product does not have to vary by color.
+  const [colorsOn, setColorsOn] = useState(false);
+
   const [attrValues, setAttrValues] = useState<Record<string, string>>(() =>
     Object.fromEntries((defaultValues?.attributes ?? []).map((a) => [a.definitionId, a.value]))
   );
@@ -79,6 +88,7 @@ export function ProductForm({
       hasVariants: false,
       unit: "piece",
       allowDecimalQuantity: false,
+      colorIds: [],
       ...defaultValues,
     },
   });
@@ -87,6 +97,32 @@ export function ProductForm({
   const allowDecimalQuantity = useWatch({ control: form.control, name: "allowDecimalQuantity" });
   const selectedUnit = useWatch({ control: form.control, name: "unit" }) ?? "piece";
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
+
+  const colorIds = useWatch({ control: form.control, name: "colorIds" }) ?? [];
+
+  // The three tiles are the real mode switch; the fields below only reflect
+  // whichever one is active. "Measured" is a non-piece unit, which is what
+  // makes the quantity fields accept 0.5 kg.
+  const setupMode: "simple" | "measured" | "variants" = hasVariants
+    ? "variants"
+    : unitsEnabled && selectedUnit !== "piece"
+      ? "measured"
+      : "simple";
+
+  function chooseSetup(mode: "simple" | "measured" | "variants") {
+    form.setValue("hasVariants", mode === "variants");
+    if (mode === "variants") return;
+    // Colors only exist as variants, so leaving the variant mode drops them.
+    form.setValue("colorIds", []);
+    setColorsOn(false);
+    form.setValue("unit", mode === "measured" ? (selectedUnit === "piece" ? "kg" : selectedUnit) : "piece");
+    form.setValue("allowDecimalQuantity", mode === "measured");
+  }
+
+  function toggleColor(id: string) {
+    const next = colorIds.includes(id) ? colorIds.filter((c) => c !== id) : [...colorIds, id];
+    form.setValue("colorIds", next);
+  }
 
   const fabricationPrice = useWatch({ control: form.control, name: "fabricationPrice" });
   const sellingPrice = useWatch({ control: form.control, name: "sellingPrice" });
@@ -136,39 +172,36 @@ export function ProductForm({
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Choose the simplest setup that fits</CardTitle>
             <CardDescription>
-              Every store uses the same product record. Turn on advanced options only when the item needs them.
+              Pick one. It sets the options below for you — you can still change them by hand.
             </CardDescription>
           </CardHeader>
+          {/* These tiles used to be plain <div>s that described the modes but
+              set nothing, while the real control was the variants switch far
+              below. Users read them as a choice and got no result. */}
           <CardContent className="grid gap-3 md:grid-cols-3">
-            <div className="flex gap-3 rounded-lg border bg-background p-3">
-              <Package className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div>
-                <p className="text-sm font-medium">Simple item</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Charger, shampoo, canned food, or any item sold as one SKU.
-                </p>
-              </div>
-            </div>
+            <SetupTile
+              icon={<Package className="mt-0.5 size-5 shrink-0" />}
+              title="Simple item"
+              description="Charger, shampoo, canned food, or any item sold as one SKU."
+              selected={setupMode === "simple"}
+              onSelect={() => chooseSetup("simple")}
+            />
             {unitsEnabled && (
-              <div className="flex gap-3 rounded-lg border bg-background p-3">
-                <Scale className="mt-0.5 size-5 shrink-0 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Measured item</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Rice by kilogram, fabric by meter, or oil by liter.
-                  </p>
-                </div>
-              </div>
+              <SetupTile
+                icon={<Scale className="mt-0.5 size-5 shrink-0" />}
+                title="Measured item"
+                description="Rice by kilogram, fabric by meter, or oil by liter."
+                selected={setupMode === "measured"}
+                onSelect={() => chooseSetup("measured")}
+              />
             )}
-            <div className="flex gap-3 rounded-lg border bg-background p-3">
-              <Boxes className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div>
-                <p className="text-sm font-medium">Item with variants</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Clothing sizes, phone storage, cosmetic shades, or flavors.
-                </p>
-              </div>
-            </div>
+            <SetupTile
+              icon={<Boxes className="mt-0.5 size-5 shrink-0" />}
+              title="Item with variants"
+              description="Clothing sizes, phone storage, cosmetic shades, or flavors."
+              selected={setupMode === "variants"}
+              onSelect={() => chooseSetup("variants")}
+            />
           </CardContent>
         </Card>
       )}
@@ -260,7 +293,19 @@ export function ProductForm({
                     </p>
                   )}
                 </div>
-                <Switch aria-label="Product has variants" checked={!!field.value} onCheckedChange={field.onChange} />
+                <Switch
+                  aria-label="Product has variants"
+                  checked={!!field.value}
+                  onCheckedChange={(on) => {
+                    field.onChange(on);
+                    // Keep this switch and the tiles above telling the same
+                    // story — turning variants off drops the picked colors.
+                    if (!on) {
+                      form.setValue("colorIds", []);
+                      setColorsOn(false);
+                    }
+                  }}
+                />
               </div>
             )}
           />
@@ -306,6 +351,87 @@ export function ProductForm({
           )}
         </CardContent>
       </Card>
+
+      {/* Colors come from the store's /colors vocabulary. They only appear for
+          a variant product being created: a color is stored on the variant, so
+          on a simple product it has nowhere to go, and on an existing product
+          the variant section below is already the place to manage them. */}
+      {!productId && hasVariants && (
+        <Card>
+          <CardHeader className="border-b pb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Colors</CardTitle>
+                <CardDescription>
+                  Pick every color you sell. Each one becomes a variant with its own SKU and stock.
+                </CardDescription>
+              </div>
+              <Switch
+                aria-label="This product comes in colors"
+                checked={colorsOn}
+                onCheckedChange={(on) => {
+                  setColorsOn(on);
+                  if (!on) form.setValue("colorIds", []);
+                }}
+              />
+            </div>
+          </CardHeader>
+          {colorsOn && (
+            <CardContent className="pt-4">
+              {colors.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No colors yet.{" "}
+                  <Link href="/colors" className="font-medium text-primary underline-offset-4 hover:underline">
+                    Add them in Colors
+                  </Link>{" "}
+                  first, then come back.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {colors.map((color) => {
+                      const rank = colorIds.indexOf(color.id);
+                      const selected = rank >= 0;
+                      return (
+                        <button
+                          key={color.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleColor(color.id)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-full border py-1.5 pr-3 pl-1.5 text-sm transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <span
+                            className="size-5 shrink-0 rounded-full border"
+                            style={{ backgroundColor: color.hex ?? "transparent" }}
+                          />
+                          {color.name}
+                          {/* The order of picking is what makes one color primary
+                              and the next secondary — nothing else records it. */}
+                          {rank === 0 && <span className="text-xs font-medium text-primary">Primary</span>}
+                          {rank === 1 && <span className="text-xs font-medium text-muted-foreground">Secondary</span>}
+                          {selected && <Check className="size-3.5 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {colorIds.length === 0
+                      ? "Pick one or more. The first is the primary color."
+                      : `${colorIds.length} color${colorIds.length === 1 ? "" : "s"} selected — ${colorIds.length} variant${colorIds.length === 1 ? "" : "s"} will be created with zero stock.`}{" "}
+                    <Link href="/colors" className="text-primary underline-offset-4 hover:underline">
+                      Manage colors
+                    </Link>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {showSpecs && (
         <Card>
@@ -515,5 +641,43 @@ export function ProductForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** One mode tile in the "choose the simplest setup" card. A real button, so it
+ *  is keyboard-reachable and announces its state to a screen reader. */
+function SetupTile({
+  icon,
+  title,
+  description,
+  selected,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        "flex gap-3 rounded-lg border bg-background p-3 text-left transition-colors",
+        "hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selected ? "border-primary ring-1 ring-primary" : "border-border"
+      )}
+    >
+      <span className={selected ? "text-primary" : "text-muted-foreground"}>{icon}</span>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 text-sm font-medium">
+          {title}
+          {selected && <Check className="size-3.5 text-primary" />}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+    </button>
   );
 }
