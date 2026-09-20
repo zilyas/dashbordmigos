@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Ruler, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Ruler, Pencil, Trash2, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,23 @@ import { createSize, deleteSize, updateSize } from "@/actions/sizes";
 import { sizeSchema, type SizeInput } from "@/lib/validations/size";
 import { matchesAny } from "@/lib/text";
 import type { SizeListItem } from "@/lib/queries/sizes";
+import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+
+/**
+ * Standard size scales, offered as a grid so nobody has to type (or misspell)
+ * a size name. `position` keeps the scale in its natural order, which is what
+ * the sort field is for — S before M before L, 36 before 38.
+ * ponytail: fixed list — add a store-level scale only if a store asks for one.
+ */
+const SIZE_SCALES = [
+  { label: "Letter", names: ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL"] },
+  { label: "Numeric (EU)", names: ["34", "36", "38", "40", "42", "44", "46", "48", "50"] },
+  { label: "Waist (in)", names: ["28", "29", "30", "31", "32", "33", "34", "36", "38"] },
+  { label: "Shoes (EU)", names: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"] },
+  { label: "Kids (years)", names: ["2Y", "3Y", "4Y", "5Y", "6Y", "8Y", "10Y", "12Y", "14Y"] },
+  { label: "One size", names: ["One Size"] },
+] as const;
 
 export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -98,7 +114,7 @@ export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
         </div>
       )}
 
-      <SizeDialog open={dialogOpen} onOpenChange={setDialogOpen} size={editing} />
+      <SizeDialog open={dialogOpen} onOpenChange={setDialogOpen} size={editing} sizes={sizes} />
 
       {deleteTarget && (
         <ConfirmDialog
@@ -127,16 +143,35 @@ function SizeDialog({
   open,
   onOpenChange,
   size,
+  sizes,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   size: SizeListItem | null;
+  sizes: SizeListItem[];
 }) {
   const [isPending, startTransition] = useTransition();
   const form = useForm<SizeInput>({
     resolver: zodResolver(sizeSchema),
     values: { name: size?.name ?? "", position: size?.position ?? 0 },
   });
+
+  const name = useWatch({ control: form.control, name: "name" }) ?? "";
+
+  // A name already in the store cannot be created again, so show it as taken
+  // instead of letting the server reject the submit. The size being edited
+  // keeps its own name selectable.
+  const taken = useMemo(
+    () => new Set(sizes.filter((s) => s.id !== size?.id).map((s) => s.name.toLowerCase())),
+    [sizes, size?.id]
+  );
+
+  // The index in the scale becomes the sort order, so a picked scale lists in
+  // its natural order without anyone counting by hand.
+  function pickPreset(preset: string, index: number) {
+    form.setValue("name", preset, { shouldValidate: true });
+    form.setValue("position", index, { shouldValidate: true });
+  }
 
   function onSubmit(values: SizeInput) {
     startTransition(async () => {
@@ -160,6 +195,41 @@ function SizeDialog({
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
+            <Field data-invalid={!!form.formState.errors.name}>
+              <FieldLabel>Pick a size</FieldLabel>
+              <div className="flex flex-col gap-3">
+                {SIZE_SCALES.map((scale) => (
+                  <div key={scale.label} className="flex flex-col gap-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{scale.label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {scale.names.map((preset, index) => {
+                        const isTaken = taken.has(preset.toLowerCase());
+                        const selected = name.toLowerCase() === preset.toLowerCase();
+                        return (
+                          <button
+                            key={`${scale.label}-${preset}`}
+                            type="button"
+                            disabled={isTaken}
+                            title={isTaken ? `${preset} already exists` : preset}
+                            aria-pressed={selected}
+                            onClick={() => pickPreset(preset, index)}
+                            className={cn(
+                              "inline-flex h-8 min-w-10 items-center justify-center gap-1 rounded-md border px-2.5 text-sm transition-colors",
+                              "hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              selected && "border-primary bg-primary/10 font-medium text-primary",
+                              isTaken && "cursor-not-allowed opacity-40 hover:border-border"
+                            )}
+                          >
+                            {selected && <Check className="size-3" />}
+                            {preset}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Field>
             <Field data-invalid={!!form.formState.errors.name}>
               <FieldLabel htmlFor="size-name">Name</FieldLabel>
               <Input id="size-name" placeholder="e.g. M" {...form.register("name")} />
