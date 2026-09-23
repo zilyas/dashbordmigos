@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   MessageSquare,
   Megaphone,
+  Plug,
 } from "lucide-react";
 import type { Role } from "@/generated/prisma/enums";
 import type { StoreFeatures } from "@/lib/features";
@@ -50,6 +51,13 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Reports", href: "/reports", icon: BarChart3, roles: ["SUPER_ADMIN", "MANAGER"] },
   { title: "Sellers", href: "/users", icon: Users, roles: ["MANAGER"] },
   { title: "Activity", href: "/activity", icon: History, roles: ["SUPER_ADMIN", "MANAGER"] },
+  {
+    title: "Storefront API",
+    href: "/integrations",
+    icon: Plug,
+    roles: ["MANAGER"],
+    feature: "storefront_api_enabled",
+  },
   { title: "Settings", href: "/settings", icon: Settings, roles: ["MANAGER"] },
   { title: "Backups", href: "/backups", icon: DatabaseBackup, roles: ["SUPER_ADMIN"] },
   { title: "Security", href: "/security", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },

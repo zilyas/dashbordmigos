@@ -18,9 +18,13 @@ const apiLogger = scopedLogger("system");
  * Scope vocabulary, deliberately disjoint from `Permission` in
  * `src/lib/rbac.ts`. A storefront key must not be able to express
  * `sale.delete` / `product.delete` even by accident.
+ *
+ * Defined in `@/lib/api/scopes` and re-exported here: Client Components need
+ * the list for the create-key form, and importing this module would pull
+ * Prisma into the browser bundle.
  */
-export const API_SCOPES = ["products:read", "stock:read", "orders:create"] as const;
-export type ApiScope = (typeof API_SCOPES)[number];
+export { API_SCOPES, type ApiScope } from "@/lib/api/scopes";
+import type { ApiScope } from "@/lib/api/scopes";
 
 export type ApiClientContext = {
   clientId: string;

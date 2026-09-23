@@ -26,7 +26,10 @@ export type Permission =
   | "backup.manage"
   | "security.view"
   | "announcement.manage"
-  | "store.reset";
+  | "store.reset"
+  /// Mint and revoke storefront API keys. MANAGER only: a key must be
+  /// attributed to a real user inside the store, and SUPER_ADMIN has no store.
+  | "apiClient.manage";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: [
@@ -69,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "settings.manage",
     "activity.view",
     "announcement.manage",
+    "apiClient.manage",
   ],
   SELLER: ["product.view", "sale.create", "sale.viewOwn"],
 };
@@ -96,6 +100,9 @@ export const ROUTE_ROLE_RULES: { test: (pathname: string) => boolean; roles: Rol
   { test: (p) => p.startsWith("/sizes"), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/colors"), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/variant-axes"), roles: ["MANAGER"] },
+  // Without a rule here isRouteAllowed falls through to allow, and a SELLER in
+  // an activated shop could open the page and read the store's key list.
+  { test: (p) => p.startsWith("/integrations"), roles: ["MANAGER"] },
   { test: (p) => p === "/products/new", roles: ["MANAGER"] },
   { test: (p) => /^\/products\/[^/]+\/edit$/.test(p), roles: ["MANAGER"] },
   { test: (p) => p.startsWith("/products"), roles: ["MANAGER", "SELLER"] },
