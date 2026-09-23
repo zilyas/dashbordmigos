@@ -59,6 +59,13 @@ function toSummary(sale: { id: string; invoiceNumber: string; total: Prisma.Deci
  */
 export async function createApiOrder(context: ApiClientContext, input: ApiOrderInput): Promise<OrderResult> {
   const { storeId, actorUserId, clientId } = context;
+  // A key holding only `orders:create` must not learn catalogue names or exact
+  // stock levels from error messages: probing a 409 with quantity 999999 writes
+  // nothing, so it is a free, repeatable read of the products:read / stock:read
+  // surface. Fall back to the caller's own input when the scope is absent.
+  const showNames = context.scopes.includes("products:read");
+  const showStock = context.scopes.includes("stock:read");
+  const label = (id: string, name: string) => (showNames ? `"${name}"` : `product ${id}`);
 
   const existing = await prisma.sale.findUnique({
     where: { storeId_idempotencyKey: { storeId, idempotencyKey: input.idempotencyKey } },
@@ -113,7 +120,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
         ok: false,
         status: 422,
         code: "product_not_api_sellable",
-        message: `"${product.name}" is batch-tracked and cannot be sold through the API yet.`,
+        message: `${label(product.id, product.name)} is batch-tracked and cannot be sold through the API yet.`,
       };
     }
 
@@ -123,7 +130,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
         ok: false,
         status: 422,
         code: "invalid_quantity",
-        message: `Quantity for "${product.name}" must be a whole number.`,
+        message: `Quantity for ${label(product.id, product.name)} must be a whole number.`,
       };
     }
     const quantity = round3(item.quantity);
@@ -134,7 +141,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           ok: false,
           status: 422,
           code: "variant_required",
-          message: `"${product.name}" requires a variantId.`,
+          message: `${label(product.id, product.name)} requires a variantId.`,
         };
       }
       const variant = product.variants.find((v) => v.id === item.variantId);
@@ -143,7 +150,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           ok: false,
           status: 404,
           code: "variant_unavailable",
-          message: `That variant of "${product.name}" is unavailable.`,
+          message: `That variant of ${label(product.id, product.name)} is unavailable.`,
         };
       }
       // Price always comes from the database row, never from the request body —
@@ -171,7 +178,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           ok: false,
           status: 422,
           code: "variant_not_applicable",
-          message: `"${product.name}" has no variants.`,
+          message: `${label(product.id, product.name)} has no variants.`,
         };
       }
       lines.push({
@@ -194,7 +201,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
         ok: false,
         status: 409,
         code: "insufficient_stock",
-        message: `Not enough stock for "${line.productName}" (${line.availableStock} available).`,
+        message: `Not enough stock for ${label(line.productId, line.productName)}${showStock ? ` (${line.availableStock} available)` : ""}.`,
       };
     }
   }

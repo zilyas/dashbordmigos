@@ -1,8 +1,8 @@
 /**
- * Operator CLI for public-API credentials. There is deliberately no web UI yet:
- * minting a key that can decrement real inventory is a rare, high-consequence
- * action, and a shell command leaves the secret in one place (this terminal)
- * rather than in a browser, a screenshot, and a server log.
+ * Operator CLI for public-API credentials. The store Manager mints keys in the
+ * browser at /integrations; this stays for the cases that screen cannot cover:
+ * minting on a store whose owner has not switched the feature on, and revoking
+ * a leaked key without a working session.
  *
  *   npx tsx scripts/api-key.ts list   <storeCode>
  *   npx tsx scripts/api-key.ts mint   <storeCode> <name> [--days 365] [--scopes a,b]
