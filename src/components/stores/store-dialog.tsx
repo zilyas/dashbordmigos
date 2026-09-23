@@ -29,6 +29,7 @@ const DEFAULT_FEATURES: StoreFeaturesInput = {
   custom_variant_axes_enabled: false,
   category_attributes_enabled: false,
   expiry_batch_enabled: false,
+  storefront_api_enabled: false,
 };
 
 const STORE_FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string }[] = [
@@ -36,6 +37,7 @@ const STORE_FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string }[] 
   { key: "category_attributes_enabled", label: "Category attributes (soon)" },
   { key: "custom_variant_axes_enabled", label: "Custom variant axes (soon)" },
   { key: "expiry_batch_enabled", label: "Expiry & batch (soon)" },
+  { key: "storefront_api_enabled", label: "Storefront API" },
 ];
 
 export function StoreDialog({

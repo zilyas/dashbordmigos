@@ -7,6 +7,17 @@ on their next poll.
 
 Base URL: `https://<your-host>/api/v1`
 
+## The store must be activated first
+
+The API answers for a store only after the platform owner switches it on:
+**Stores > Edit > Advanced features > Storefront API**. The switch is off for
+every store until the owner ticks it.
+
+A key for a store that is not activated is authenticated correctly and then
+refused with `403 api_not_enabled`. Switching the flag off stops the very next
+request — the decision is re-read from the database on every call and is never
+cached. A store manager cannot grant this to their own store.
+
 ## Authentication
 
 Every request carries a machine key:
@@ -178,7 +189,7 @@ Every failure has the same shape. Branch on `code`, show `message`.
 | Code | Status |
 |---|---|
 | `unauthorized` | 401 |
-| `insufficient_scope`, `credential_inactive` | 403 |
+| `insufficient_scope`, `credential_inactive`, `api_not_enabled` | 403 |
 | `product_unavailable`, `variant_unavailable` | 404 |
 | `rate_limited` | 429 |
 | `invalid_parameter`, `invalid_json` | 400 |

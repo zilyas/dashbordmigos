@@ -77,3 +77,6 @@ test-output.txt
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Agent task notes, never tracked
+.ai/

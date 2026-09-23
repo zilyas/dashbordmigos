@@ -13,6 +13,7 @@ export type StoreFeatures = {
   custom_variant_axes_enabled: boolean;
   category_attributes_enabled: boolean;
   expiry_batch_enabled: boolean;
+  storefront_api_enabled: boolean;
 };
 
 export const FEATURE_KEYS = [
@@ -20,6 +21,7 @@ export const FEATURE_KEYS = [
   "custom_variant_axes_enabled",
   "category_attributes_enabled",
   "expiry_batch_enabled",
+  "storefront_api_enabled",
 ] as const;
 
 export const DEFAULT_FEATURES: StoreFeatures = {
@@ -27,6 +29,7 @@ export const DEFAULT_FEATURES: StoreFeatures = {
   custom_variant_axes_enabled: false,
   category_attributes_enabled: false,
   expiry_batch_enabled: false,
+  storefront_api_enabled: false,
 };
 
 /** Pure: coerce an unknown JSON value into a fully-defaulted StoreFeatures. */
@@ -38,6 +41,7 @@ export function parseFeatures(value: unknown): StoreFeatures {
       custom_variant_axes_enabled: v.custom_variant_axes_enabled === true,
       category_attributes_enabled: v.category_attributes_enabled === true,
       expiry_batch_enabled: v.expiry_batch_enabled === true,
+      storefront_api_enabled: v.storefront_api_enabled === true,
     };
   }
   return { ...DEFAULT_FEATURES };
@@ -70,4 +74,7 @@ export async function isCategoryAttributesEnabled(storeId: string | null | undef
 }
 export async function isExpiryBatchEnabled(storeId: string | null | undefined): Promise<boolean> {
   return (await getStoreFeatures(storeId)).expiry_batch_enabled;
+}
+export async function isStorefrontApiEnabled(storeId: string | null | undefined): Promise<boolean> {
+  return (await getStoreFeatures(storeId)).storefront_api_enabled;
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
+import { parseFeatures } from "@/lib/features";
 import { storeSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
 
 export async function updateStoreSettings(input: StoreSettingsInput) {
@@ -17,6 +18,19 @@ export async function updateStoreSettings(input: StoreSettingsInput) {
   const parsed = storeSettingsSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid settings data" };
   const data = parsed.data;
+
+  // storefront_api_enabled is the owner's switch, not the manager's. This
+  // action runs for MANAGER, so the submitted value is discarded and the
+  // stored one is kept — the form never shows the toggle, but the payload
+  // carries the whole features object and a crafted request could flip it.
+  const current = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { features: true },
+  });
+  const features = {
+    ...data.features,
+    storefront_api_enabled: parseFeatures(current?.features).storefront_api_enabled,
+  };
 
   await prisma.store.update({
     where: { id: storeId },
@@ -32,7 +46,7 @@ export async function updateStoreSettings(input: StoreSettingsInput) {
       phone: data.phone || null,
       email: data.email || null,
       logo: data.logo || null,
-      features: data.features,
+      features,
     },
   });
 

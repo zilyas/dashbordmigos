@@ -27,6 +27,7 @@ const FEATURE_LABELS: Record<keyof StoreFeatures, string> = {
   category_attributes_enabled: "Category attributes",
   custom_variant_axes_enabled: "Custom variant axes",
   expiry_batch_enabled: "Expiry & batch tracking",
+  storefront_api_enabled: "Storefront API",
 };
 
 function countLine(label: string, created: number, reused: number) {

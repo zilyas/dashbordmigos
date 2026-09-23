@@ -131,7 +131,8 @@ model Store {
   timezone            String      @default("UTC")
   /// Per-store feature flags for optional multi-vertical extensions. Shape:
   /// { units_enabled, custom_variant_axes_enabled, category_attributes_enabled,
-  /// expiry_batch_enabled } — all default false (see src/lib/features.ts).
+  /// expiry_batch_enabled, storefront_api_enabled } — all default false
+  /// (see src/lib/features.ts).
   features            Json?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt

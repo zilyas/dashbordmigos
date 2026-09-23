@@ -119,10 +119,9 @@ describe("mergeFeatures / featuresNewlyEnabled", () => {
 
   it("7. enables required flags but never disables any", () => {
     const current: StoreFeatures = {
+      ...DEFAULT_FEATURES,
       units_enabled: true,
-      category_attributes_enabled: false,
       custom_variant_axes_enabled: true,
-      expiry_batch_enabled: false,
     };
     const merged = mergeFeatures(current, { category_attributes_enabled: true });
     // required flag turned on

@@ -7,6 +7,7 @@ export const storeFeaturesSchema = z.object({
   custom_variant_axes_enabled: z.boolean(),
   category_attributes_enabled: z.boolean(),
   expiry_batch_enabled: z.boolean(),
+  storefront_api_enabled: z.boolean(),
 });
 
 export type StoreFeaturesInput = z.infer<typeof storeFeaturesSchema>;

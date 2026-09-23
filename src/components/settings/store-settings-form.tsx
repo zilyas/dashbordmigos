@@ -42,6 +42,10 @@ const FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string; descripti
   },
 ];
 
+// storefront_api_enabled is deliberately absent: only the owner grants a store
+// API access, from Stores > Edit. updateStoreSettings pins it server-side too,
+// so a hand-made request cannot flip it either.
+
 export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
   const [isPending, startTransition] = useTransition();
 

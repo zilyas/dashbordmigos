@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { bearerFrom, parseKeyPrefix, verifyApiKey } from "@/lib/api/keys";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { scopedLogger } from "@/lib/logger";
+import { parseFeatures } from "@/lib/features";
 
 const apiLogger = scopedLogger("system");
 
@@ -77,7 +78,7 @@ export async function authenticateApiRequest(
       keyHash: true,
       expiresAt: true,
       revokedAt: true,
-      store: { select: { status: true } },
+      store: { select: { status: true, features: true } },
       actor: { select: { status: true } },
     },
   });
@@ -100,6 +101,21 @@ export async function authenticateApiRequest(
   if (dead) {
     apiLogger.warn({ clientId: client.id, storeId: client.storeId }, "api auth failed: credential or store inactive");
     return { ok: false, response: apiError(403, "credential_inactive", "This API key is revoked, expired, or its store is inactive.") };
+  }
+
+  // The owner's per-store switch. Read from the row already fetched above, so
+  // this costs no extra query and there is nothing to invalidate: turning the
+  // switch off in Stores > Edit stops the very next request.
+  if (!parseFeatures(client.store.features).storefront_api_enabled) {
+    apiLogger.warn({ clientId: client.id, storeId: client.storeId }, "api auth failed: store API not enabled");
+    return {
+      ok: false,
+      response: apiError(
+        403,
+        "api_not_enabled",
+        "The storefront API is not enabled for this store. Ask the platform owner to switch it on."
+      ),
+    };
   }
 
   if (!client.scopes.includes(scope)) {
