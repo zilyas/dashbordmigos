@@ -7,6 +7,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_IDS = 200;
+const MAX_LIMIT = 200;
+const DEFAULT_LIMIT = 50;
 
 /**
  * `GET /api/v1/stock` — the cheap, high-frequency endpoint. Quantities only,
@@ -15,13 +17,22 @@ const MAX_IDS = 200;
  * and images from `/api/v1/products`.
  *
  * Two modes:
- *   ?ids=a,b,c        — exact levels for a known set (e.g. the items in a cart)
- *   ?updatedSince=ISO — everything whose stock may have moved since that instant
+ *   ?ids=a,b,c        — exact levels for a known set (e.g. the items in a cart).
+ *                       Bounded by the 1..200 ids validation itself, so it is
+ *                       not cursor-paginated; `cursor` is rejected alongside `ids`.
+ *   ?updatedSince=ISO — everything whose stock may have moved since that instant.
+ *                       Cursor-paginated: pass `limit` (default 50, max 200) and
+ *                       `cursor` (the last row's product id from `nextCursor`).
+ *                       Poll: follow `nextCursor` while `hasMore` is true, then
+ *                       start the next round from the previous response's
+ *                       `syncedAt` (minus a few seconds of overlap — re-reading
+ *                       a row is free, missing one means overselling).
  *
- * `updatedSince` is served off `@@index([storeId, updatedAt])`. Poll it with the
- * `syncedAt` from your previous response, minus a few seconds of overlap: a row
- * updated in the same millisecond as your cutoff could otherwise be missed, and
- * re-reading a row is free whereas missing one means overselling.
+ * `updatedSince` is served off `@@index([storeId, updatedAt])`. Order is
+ * `(updatedAt asc, id asc)` — the `id` tiebreak is required for cursor
+ * correctness: without it, rows sharing an `updatedAt` millisecond could be
+ * split across pages in an order Postgres doesn't guarantee, silently
+ * skipping or duplicating a row at the page boundary.
  */
 export async function GET(request: Request) {
   const auth = await authenticateApiRequest(request, "stock:read", "read");
@@ -31,9 +42,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const idsRaw = url.searchParams.get("ids");
     const updatedSinceRaw = url.searchParams.get("updatedSince");
+    const cursor = url.searchParams.get("cursor");
 
     if (!idsRaw && !updatedSinceRaw) {
       return noStore(apiError(400, "invalid_parameter", "Pass either ids or updatedSince."));
+    }
+
+    if (idsRaw && cursor) {
+      return noStore(apiError(400, "invalid_parameter", "cursor is not supported with ids; ids is already bounded."));
     }
 
     let ids: string[] | undefined;
@@ -53,6 +69,8 @@ export async function GET(request: Request) {
       updatedSince = parsed;
     }
 
+    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT));
+
     const products = await prisma.product.findMany({
       where: {
         storeId: auth.context.storeId,
@@ -61,7 +79,10 @@ export async function GET(request: Request) {
         ...(updatedSince ? { updatedAt: { gte: updatedSince } } : {}),
       },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-      take: MAX_IDS,
+      // `ids` mode is already bounded, so it takes the full set in one page.
+      // `updatedSince` mode probes one extra row to detect `hasMore`.
+      take: ids ? MAX_IDS : limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
         sku: true,
@@ -72,9 +93,12 @@ export async function GET(request: Request) {
       },
     });
 
+    const hasMore = !ids && products.length > limit;
+    const page = hasMore ? products.slice(0, limit) : products;
+
     return noStore(
       NextResponse.json({
-        data: products.map((p) => ({
+        data: page.map((p) => ({
           productId: p.id,
           sku: p.sku,
           available: p.hasVariants
@@ -88,6 +112,8 @@ export async function GET(request: Request) {
           })),
           updatedAt: p.updatedAt,
         })),
+        hasMore,
+        nextCursor: hasMore ? page[page.length - 1].id : null,
         syncedAt: new Date().toISOString(),
       })
     );
