@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
 import { getStoreFeatures } from "@/lib/features";
-import { incrementProductStock, incrementVariantStock } from "@/lib/inventory";
+import { incrementProductStock, incrementVariantStock, touchProductForVariant } from "@/lib/inventory";
 import { round3 } from "@/lib/sale-math";
 import {
   reconcileBatchStock,
@@ -448,6 +448,8 @@ export async function adjustBatchStock(input: AdjustBatchStockInput) {
               data: { stock: { decrement: dec } },
             });
         if (guard.count === 0) throw new NegativeStock();
+        // Variant-only write: bump the parent so /api/v1/stock?updatedSince= sees it.
+        if (batch.variantId) await touchProductForVariant(tx, batch.variantId);
       }
 
       await tx.inventoryMovement.create({
