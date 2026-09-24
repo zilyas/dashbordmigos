@@ -118,3 +118,27 @@ describe("idempotency key reuse", () => {
     expect(hashOrderBody(a)).toBe(hashOrderBody(b));
   });
 });
+describe("in-transaction insufficient_stock message", () => {
+  it("leaks neither name nor stock to an orders-only key", async () => {
+    // Pre-check passes (stock looks fine), the in-transaction guard loses the race.
+    stubCreatePath(10);
+    decrementProductStock.mockResolvedValue(false);
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: false, status: 409, code: "insufficient_stock" });
+    if (res.ok) throw new Error("unreachable");
+    expect(res.message).not.toContain("Secret Hoodie");
+    expect(res.message).not.toContain("10");
+    expect(res.message).toContain("product p1");
+  });
+
+  it("still shows name and stock to a key that holds both read scopes", async () => {
+    stubCreatePath(10);
+    decrementProductStock.mockResolvedValue(false);
+
+    const res = await createApiOrder(FULL_SCOPE, INPUT);
+    if (res.ok) throw new Error("unreachable");
+    expect(res.message).toContain("Secret Hoodie");
+    expect(res.message).toContain("10 available");
+  });
+});
