@@ -514,6 +514,12 @@ model Sale {
   /// other. A retried webhook replays the same key and gets the original sale
   /// back instead of decrementing stock a second time.
   idempotencyKey String?
+  /// SHA-256 of the meaningful order body that first used `idempotencyKey`.
+  /// The key alone only proves "same key", not "same request": a storefront
+  /// that recycles a key for a different basket would otherwise get the first
+  /// order's receipt back and never learn its new order was dropped. A mismatch
+  /// is answered with 409 `idempotency_key_reused`. Null for POS sales.
+  idempotencyHash String?
   items         SaleItem[]
   createdAt     DateTime      @default(now())
 

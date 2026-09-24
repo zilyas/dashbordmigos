@@ -22,6 +22,7 @@ import {
   round3,
   variantLabel,
 } from "@/lib/sale-math";
+import { hashOrderBody } from "@/lib/api/idempotency";
 import { parseFeatures } from "@/lib/features";
 import { logActivity } from "@/lib/audit";
 import type { ApiClientContext } from "@/lib/api/auth";
@@ -29,6 +30,7 @@ import type { ApiOrderInput } from "@/lib/validations/api-order";
 
 class InsufficientStock extends Error {
   constructor(
+    readonly productId: string,
     readonly productName: string,
     readonly available: number
   ) {
@@ -50,6 +52,25 @@ function toSummary(sale: { id: string; invoiceNumber: string; total: Prisma.Deci
 }
 
 /**
+ * Decides whether a stored key may be replayed for this body.
+ *
+ * A null stored hash means the row predates the column (or came from a path
+ * that did not record one), so it is accepted rather than failed — an old
+ * integration must not start getting 409s. A mismatch is a real bug on the
+ * caller's side: the key was already spent on a DIFFERENT basket, and silently
+ * returning the first order would lose the second one without a trace.
+ */
+function replayConflict(storedHash: string | null, bodyHash: string): OrderResult | null {
+  if (storedHash === null || storedHash === bodyHash) return null;
+  return {
+    ok: false,
+    status: 409,
+    code: "idempotency_key_reused",
+    message: "This idempotencyKey was already used for a different order. Use a new key.",
+  };
+}
+
+/**
  * Creates one sale from an external order, decrementing central inventory.
  *
  * Idempotency: `idempotencyKey` is unique per store. A retried webhook replays
@@ -67,11 +88,17 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
   const showStock = context.scopes.includes("stock:read");
   const label = (id: string, name: string) => (showNames ? `"${name}"` : `product ${id}`);
 
+  const bodyHash = hashOrderBody(input);
+
   const existing = await prisma.sale.findUnique({
     where: { storeId_idempotencyKey: { storeId, idempotencyKey: input.idempotencyKey } },
-    select: { id: true, invoiceNumber: true, total: true, createdAt: true },
+    select: { id: true, invoiceNumber: true, total: true, createdAt: true, idempotencyHash: true },
   });
-  if (existing) return { ok: true, replayed: true, sale: toSummary(existing) };
+  if (existing) {
+    const conflict = replayConflict(existing.idempotencyHash, bodyHash);
+    if (conflict) return conflict;
+    return { ok: true, replayed: true, sale: toSummary(existing) };
+  }
 
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store) return { ok: false, status: 404, code: "store_not_found", message: "Store not found." };
@@ -218,7 +245,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           const ok = line.variantId
             ? await decrementVariantStock(tx, line.variantId, line.quantity)
             : await decrementProductStock(tx, line.productId, line.quantity);
-          if (!ok) throw new InsufficientStock(line.productName, line.availableStock);
+          if (!ok) throw new InsufficientStock(line.productId, line.productName, line.availableStock);
         }
 
         const count = await tx.sale.count({ where: { storeId } });
@@ -233,6 +260,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
             sellerId: actorUserId,
             apiClientId: clientId,
             idempotencyKey: input.idempotencyKey,
+            idempotencyHash: bodyHash,
             customerName: input.customerName || null,
             customerPhone: input.customerPhone || null,
             subtotal: totals.subtotal,
@@ -293,11 +321,13 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
       return { ok: true, replayed: false, sale: toSummary(created) };
     } catch (error) {
       if (error instanceof InsufficientStock) {
+        // Same scope gating as the pre-check above: an orders-only key must not
+        // read catalogue names or exact stock out of a 409 it can trigger at will.
         return {
           ok: false,
           status: 409,
           code: "insufficient_stock",
-          message: `Not enough stock for "${error.productName}" (${error.available} available).`,
+          message: `Not enough stock for ${label(error.productId, error.productName)}${showStock ? ` (${error.available} available)` : ""}.`,
         };
       }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -307,9 +337,13 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
         if (target.includes("idempotencyKey")) {
           const winner = await prisma.sale.findUnique({
             where: { storeId_idempotencyKey: { storeId, idempotencyKey: input.idempotencyKey } },
-            select: { id: true, invoiceNumber: true, total: true, createdAt: true },
+            select: { id: true, invoiceNumber: true, total: true, createdAt: true, idempotencyHash: true },
           });
-          if (winner) return { ok: true, replayed: true, sale: toSummary(winner) };
+          if (winner) {
+            const conflict = replayConflict(winner.idempotencyHash, bodyHash);
+            if (conflict) return conflict;
+            return { ok: true, replayed: true, sale: toSummary(winner) };
+          }
         }
         // Invoice-number collision under concurrency — retry the whole atomic
         // transaction so the loser re-derives the next free number.

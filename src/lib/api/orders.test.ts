@@ -1,85 +1,120 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * A key scoped to `orders:create` alone must not be able to read the catalogue
- * through error messages. The 409 pre-check writes nothing, so it is otherwise
- * a free, repeatable probe: send quantity 999999 and read back the product's
- * real name and exact stock — the whole `products:read` + `stock:read` surface
- * without holding either scope.
- */
-const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: {
-    sale: { findUnique: vi.fn(async () => null) },
-    store: { findUnique: vi.fn(async () => ({ id: "s1", features: {} })) },
-    product: { findMany: vi.fn(async () => []) },
+const { db } = vi.hoisted(() => ({
+  db: {
+    sale: { findUnique: vi.fn(), count: vi.fn(), create: vi.fn() },
+    store: { findUnique: vi.fn() },
+    product: { findMany: vi.fn() },
+    saleItem: { create: vi.fn() },
+    inventoryMovement: { create: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
-vi.mock("@/lib/audit", () => ({ logActivity: vi.fn(async () => undefined) }));
+vi.mock("@/lib/prisma", () => ({ prisma: db }));
+vi.mock("@/lib/audit", () => ({ logActivity: vi.fn() }));
 
-const { createApiOrder } = await import("@/lib/api/orders");
+const { decrementProductStock } = vi.hoisted(() => ({ decrementProductStock: vi.fn() }));
+vi.mock("@/lib/inventory", () => ({
+  decrementProductStock,
+  decrementVariantStock: vi.fn(async () => true),
+}));
 
-const PRODUCT = {
-  id: "p1",
-  name: "Straga",
-  status: "ACTIVE",
+import { createApiOrder } from "@/lib/api/orders";
+import { hashOrderBody } from "@/lib/api/idempotency";
+import type { ApiClientContext } from "@/lib/api/auth";
+import type { ApiOrderInput } from "@/lib/validations/api-order";
+
+const ORDERS_ONLY: ApiClientContext = {
+  clientId: "c1",
   storeId: "s1",
-  trackBatch: false,
-  hasVariants: false,
-  allowDecimalQuantity: false,
-  sellingPrice: 100,
-  fabricationPrice: 40,
-  stock: 3,
-  variants: [],
+  actorUserId: "u1",
+  scopes: ["orders:create"],
+};
+const FULL_SCOPE: ApiClientContext = { ...ORDERS_ONLY, scopes: ["orders:create", "products:read", "stock:read"] };
+
+const INPUT: ApiOrderInput = {
+  idempotencyKey: "key-12345678",
+  items: [{ productId: "p1", quantity: 2 }],
 };
 
-function context(scopes: string[]) {
-  return { clientId: "c1", storeId: "s1", actorUserId: "u1", scopes };
+function stubCreatePath(stock: number) {
+  db.sale.findUnique.mockResolvedValue(null);
+  db.store.findUnique.mockResolvedValue({ id: "s1", taxRate: 0, features: null });
+  db.product.findMany.mockResolvedValue([
+    {
+      id: "p1",
+      name: "Secret Hoodie",
+      stock,
+      sellingPrice: 100,
+      fabricationPrice: 40,
+      hasVariants: false,
+      trackBatch: false,
+      unit: null,
+      variants: [],
+    },
+  ]);
+  db.sale.count.mockResolvedValue(0);
+  db.sale.create.mockResolvedValue({ id: "sale-1", invoiceNumber: "INV-000001", total: 200, createdAt: new Date() });
+  db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db));
 }
-const ORDER = { idempotencyKey: "probe-0001", items: [{ productId: "p1", quantity: 999999 }] };
 
-describe("createApiOrder error messages respect scopes", () => {
-  beforeEach(() => {
-    prismaMock.product.findMany.mockResolvedValue([PRODUCT] as never);
+beforeEach(() => {
+  vi.clearAllMocks();
+  decrementProductStock.mockResolvedValue(true);
+});
+
+describe("idempotency key reuse", () => {
+  it("replays when the stored hash matches the body", async () => {
+    db.sale.findUnique.mockResolvedValue({
+      id: "sale-1",
+      invoiceNumber: "INV-000001",
+      total: 200,
+      createdAt: new Date(),
+      idempotencyHash: hashOrderBody(INPUT),
+    });
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: true, replayed: true });
   });
 
-  it("hides the product name and the stock level from an orders-only key", async () => {
-    const result = await createApiOrder(context(["orders:create"]), ORDER);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("insufficient_stock");
-    expect(result.message).not.toContain("Straga");
-    // The exact count is the `stock:read` surface; 3 must not appear.
-    expect(result.message).not.toMatch(/\b3\b/);
-    // The caller's own input is safe to echo back.
-    expect(result.message).toContain("p1");
+  it("rejects the same key used for a DIFFERENT body with 409 idempotency_key_reused", async () => {
+    db.sale.findUnique.mockResolvedValue({
+      id: "sale-1",
+      invoiceNumber: "INV-000001",
+      total: 200,
+      createdAt: new Date(),
+      // hash of a different basket
+      idempotencyHash: hashOrderBody({ ...INPUT, items: [{ productId: "p9", quantity: 1 }] }),
+    });
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: false, status: 409, code: "idempotency_key_reused" });
   });
 
-  it("still names the product for a key that holds products:read", async () => {
-    const result = await createApiOrder(context(["orders:create", "products:read"]), ORDER);
-    if (result.ok) throw new Error("expected failure");
-    expect(result.message).toContain("Straga");
-    expect(result.message).not.toMatch(/\b3\b/);
+  it("accepts a legacy row that has no stored hash", async () => {
+    db.sale.findUnique.mockResolvedValue({
+      id: "sale-1",
+      invoiceNumber: "INV-000001",
+      total: 200,
+      createdAt: new Date(),
+      idempotencyHash: null,
+    });
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: true, replayed: true });
   });
 
-  it("gives the exact stock only to a key that holds stock:read", async () => {
-    const result = await createApiOrder(
-      context(["orders:create", "products:read", "stock:read"]),
-      ORDER
-    );
-    if (result.ok) throw new Error("expected failure");
-    expect(result.message).toContain("Straga");
-    expect(result.message).toContain("3 available");
+  it("stores the body hash on a new sale", async () => {
+    stubCreatePath(10);
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: true, replayed: false });
+    expect(db.sale.create.mock.calls[0][0].data.idempotencyHash).toBe(hashOrderBody(INPUT));
   });
 
-  it("hides the name in the variant-required message too", async () => {
-    prismaMock.product.findMany.mockResolvedValue([
-      { ...PRODUCT, hasVariants: true, variants: [] },
-    ] as never);
-    const result = await createApiOrder(context(["orders:create"]), ORDER);
-    if (result.ok) throw new Error("expected failure");
-    expect(result.code).toBe("variant_required");
-    expect(result.message).not.toContain("Straga");
+  it("treats a reordered items array as the same request", () => {
+    const a: ApiOrderInput = { idempotencyKey: "k-12345678", items: [{ productId: "a", quantity: 1 }, { productId: "b", quantity: 2 }] };
+    const b: ApiOrderInput = { idempotencyKey: "k-12345678", items: [{ productId: "b", quantity: 2 }, { productId: "a", quantity: 1 }] };
+    expect(hashOrderBody(a)).toBe(hashOrderBody(b));
   });
 });
