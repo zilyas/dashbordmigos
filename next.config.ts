@@ -85,6 +85,16 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        // The actual per-request `x-request-id` value is minted at request
+        // time by `resolveRequestId()` in src/lib/logger.ts — this config is
+        // evaluated once at build/start, so it cannot generate that value
+        // itself. All it does is tell a browser-based integrator's `fetch`
+        // that it is allowed to read the header once a route sets it —
+        // browsers hide non-"simple" response headers from JS by default.
+        source: "/api/:path*",
+        headers: [{ key: "Access-Control-Expose-Headers", value: "x-request-id" }],
+      },
     ];
   },
 };

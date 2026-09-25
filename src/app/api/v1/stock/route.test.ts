@@ -22,6 +22,19 @@ vi.mock("@/lib/api/auth", () => ({
     res.headers.set("Cache-Control", "no-store");
     return res;
   },
+  // The real `apiRoute` is thin (resolve an id, await the handler, set one
+  // header) and stubbing it keeps this file's focus on pagination. The wrapper's
+  // own behaviour is covered against the real module in the catch-all test.
+  apiRoute: (handler: (request: Request, requestId: string) => Promise<NextResponse>) => (request: Request) =>
+    handler(request, "test-request-id"),
+  methodNotAllowed: (allow: string) => {
+    const res = NextResponse.json(
+      { error: { code: "method_not_allowed", message: `Only ${allow} is allowed on this endpoint.` } },
+      { status: 405 }
+    );
+    res.headers.set("Allow", allow);
+    return res;
+  },
 }));
 
 import { GET } from "./route";

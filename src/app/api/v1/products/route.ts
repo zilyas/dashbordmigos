@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authenticateApiRequest, noStore, apiError } from "@/lib/api/auth";
+import { apiError, apiRoute, authenticateApiRequest, methodNotAllowed, noStore } from "@/lib/api/auth";
 import { logServerError } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -20,7 +20,7 @@ const DEFAULT_LIMIT = 50;
  * Cost fields (`fabricationPrice`, `profit`) are never selected — they are
  * internal, gated even for in-store Sellers by `Store.allowSellerViewCost`.
  */
-export async function GET(request: Request) {
+async function handle(request: Request, requestId: string) {
   const auth = await authenticateApiRequest(request, "products:read", "read");
   if (!auth.ok) return noStore(auth.response);
 
@@ -108,7 +108,23 @@ export async function GET(request: Request) {
       })
     );
   } catch (error) {
-    await logServerError("app", error, { route: "GET /api/v1/products", clientId: auth.context.clientId });
+    await logServerError("app", error, { requestId, route: "GET /api/v1/products", clientId: auth.context.clientId });
     return noStore(apiError(500, "internal_error", "Could not read the catalog."));
   }
 }
+
+/**
+ * `apiRoute` stamps `x-request-id` on every response this file returns — the
+ * success body, an auth 401/403/429, a 400, and the 500 — from one place, so a
+ * future early return cannot forget it.
+ */
+export const GET = apiRoute(handle);
+
+// Explicit JSON 405s. Without these exports Next answers an unsupported method
+// itself with an EMPTY body, which `response.json()` throws on — an integrator
+// sees a parse error instead of "wrong method". See `methodNotAllowed`.
+const rejected = () => noStore(methodNotAllowed("GET"));
+export const POST = rejected;
+export const PUT = rejected;
+export const PATCH = rejected;
+export const DELETE = rejected;

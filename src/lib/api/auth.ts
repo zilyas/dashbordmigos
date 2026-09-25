@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { bearerFrom, parseKeyPrefix, verifyApiKey } from "@/lib/api/keys";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { scopedLogger } from "@/lib/logger";
+import { resolveRequestId, scopedLogger } from "@/lib/logger";
 import { parseFeatures } from "@/lib/features";
 
 const apiLogger = scopedLogger("system");
@@ -235,5 +235,45 @@ export async function authenticateApiRequest(
 /** Stock levels must never be cached anywhere between us and the storefront. */
 export function noStore<T extends NextResponse>(res: T): T {
   res.headers.set("Cache-Control", "no-store");
+  return res;
+}
+
+/**
+ * Wraps a v1 route handler so EVERY response it produces — success, 4xx from
+ * `authenticateApiRequest`, or a 500 from the catch block — carries
+ * `x-request-id`, and so the handler's log lines carry the same value.
+ *
+ * `src/proxy.ts`'s matcher excludes `api`, so nothing upstream stamps the id
+ * for these routes (see the note at the top of this file). Setting the header
+ * here instead of at each `return` means a future early-return cannot forget
+ * it: there is exactly one place the response leaves the route.
+ *
+ * The resolved id is handed to the handler as a second argument rather than
+ * left for `getRequestId()` to re-read, because when the caller sent no
+ * inbound `x-request-id` the minted one exists only here — a handler relying
+ * on `getRequestId()` would log nothing while the response advertised an id,
+ * which is worse than no id at all for anyone trying to match the two.
+ */
+export function apiRoute(handler: (request: Request, requestId: string) => Promise<NextResponse>) {
+  return async (request: Request): Promise<NextResponse> => {
+    const requestId = resolveRequestId(request);
+    const res = await handler(request, requestId);
+    res.headers.set("x-request-id", requestId);
+    return res;
+  };
+}
+
+/**
+ * JSON 405 for a method an existing route does not implement.
+ *
+ * Next generates its own 405 — with an EMPTY body — for any method a route
+ * file does not export, and it does that before our code runs, so the only way
+ * to return a parseable body is to export the method and answer it ourselves.
+ * `Allow` is part of the HTTP contract for a 405 and integrators' clients read
+ * it, so it is set rather than left to the framework.
+ */
+export function methodNotAllowed(allow: string) {
+  const res = apiError(405, "method_not_allowed", `Only ${allow} is allowed on this endpoint.`);
+  res.headers.set("Allow", allow);
   return res;
 }
