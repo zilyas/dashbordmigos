@@ -8,10 +8,16 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        DATABASE_URL: ${DATABASE_URL}
-        AUTH_SECRET: ${AUTH_SECRET}
-        # Must be a build arg, not just an env var: next/image remotePatterns
-        # and the CSP img-src are baked into the standalone build.
+        # DATABASE_URL and AUTH_SECRET are deliberately NOT build args. A build
+        # arg is baked into the image layer metadata forever — anyone who can
+        # pull or inspect the image (or run `docker history`) reads it back
+        # out, even after the layer is "removed" in a later stage. They reach
+        # the app only at runtime, via the env_file below.
+        #
+        # R2_PUBLIC_BASE_URL stays a build arg. It is a public bucket URL, not
+        # a secret, and it MUST stay a build arg because next/image
+        # remotePatterns and the CSP img-src are baked into the standalone
+        # build. Do not remove it, and do not add other secrets here.
         R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
     restart: unless-stopped
     ports:
