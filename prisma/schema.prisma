@@ -155,9 +155,28 @@ model Store {
   conversations                Conversation[]
   announcements                Announcement[]
   apiClients                   ApiClient[]
+  invoiceSequence              InvoiceSequence?
 
   @@index([status])
   @@map("stores")
+}
+
+/// Per-store atomic invoice-number counter. `nextValue` is taken and advanced
+/// in one statement — `upsert` with `update: { nextValue: { increment: 1 } }`
+/// compiles to a single row-locked `UPDATE ... RETURNING` (or, for a store's
+/// very first sale, `INSERT ... ON CONFLICT DO UPDATE`) — so two concurrent
+/// sales for the same store can never read the same "next" number the way the
+/// old `sale.count() + 1` read-then-write could. A sale that rolls back after
+/// taking a number leaves a gap in the sequence; that is fine and expected.
+/// A DUPLICATE invoice number is what must never happen, and
+/// `Sale.@@unique([storeId, invoiceNumber])` remains as the last line of
+/// defence in case this invariant is ever broken by a future change.
+model InvoiceSequence {
+  storeId   String @id
+  store     Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  nextValue Int    @default(1)
+
+  @@map("invoice_sequences")
 }
 
 model User {

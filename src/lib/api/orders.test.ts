@@ -5,8 +5,9 @@ const { db } = vi.hoisted(() => ({
     sale: { findUnique: vi.fn(), count: vi.fn(), create: vi.fn() },
     store: { findUnique: vi.fn() },
     product: { findMany: vi.fn() },
-    saleItem: { create: vi.fn() },
-    inventoryMovement: { create: vi.fn() },
+    saleItem: { create: vi.fn(), createMany: vi.fn() },
+    inventoryMovement: { create: vi.fn(), createMany: vi.fn() },
+    invoiceSequence: { upsert: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -55,6 +56,7 @@ function stubCreatePath(stock: number) {
     },
   ]);
   db.sale.count.mockResolvedValue(0);
+  db.invoiceSequence.upsert.mockResolvedValue({ nextValue: 1 });
   db.sale.create.mockResolvedValue({ id: "sale-1", invoiceNumber: "INV-000001", total: 200, createdAt: new Date() });
   db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db));
 }
@@ -140,5 +142,81 @@ describe("in-transaction insufficient_stock message", () => {
     if (res.ok) throw new Error("unreachable");
     expect(res.message).toContain("Secret Hoodie");
     expect(res.message).toContain("10 available");
+  });
+});
+
+describe("invoice numbering", () => {
+  it("takes the invoice number from the atomic counter, not sale.count", async () => {
+    stubCreatePath(10);
+    db.invoiceSequence.upsert.mockResolvedValue({ nextValue: 7 });
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: true, replayed: false });
+    expect(db.invoiceSequence.upsert).toHaveBeenCalledTimes(1);
+    expect(db.sale.count).not.toHaveBeenCalled();
+    expect(db.sale.create.mock.calls[0][0].data.invoiceNumber).toBe("INV-000007");
+  });
+
+  it("gives the first sale for a store INV-000001 when no counter row exists yet", async () => {
+    stubCreatePath(10);
+    // upsert's `create` branch fires when there is no prior row: the value
+    // handed back is the freshly-inserted nextValue itself, not an
+    // incremented one, so a brand new store still starts at 1.
+    db.invoiceSequence.upsert.mockResolvedValue({ nextValue: 1 });
+
+    const res = await createApiOrder(ORDERS_ONLY, INPUT);
+    expect(res).toMatchObject({ ok: true, replayed: false });
+    expect(db.sale.create.mock.calls[0][0].data.invoiceNumber).toBe("INV-000001");
+  });
+});
+
+describe("deadlock avoidance", () => {
+  const TWO_PRODUCTS = [
+    { id: "p2", name: "B", stock: 10, sellingPrice: 10, fabricationPrice: 5, hasVariants: false, trackBatch: false, unit: null, variants: [] },
+    { id: "p1", name: "A", stock: 10, sellingPrice: 10, fabricationPrice: 5, hasVariants: false, trackBatch: false, unit: null, variants: [] },
+  ];
+
+  it("decrements stock in sorted productId order regardless of input order", async () => {
+    stubCreatePath(10);
+    db.product.findMany.mockResolvedValue(TWO_PRODUCTS);
+    const input: ApiOrderInput = {
+      idempotencyKey: "key-sorted01",
+      items: [
+        { productId: "p2", quantity: 1 },
+        { productId: "p1", quantity: 1 },
+      ],
+    };
+
+    const res = await createApiOrder(ORDERS_ONLY, input);
+    expect(res).toMatchObject({ ok: true, replayed: false });
+    // Caller listed p2 then p1; the lock order must be p1 then p2 regardless,
+    // so two orders naming the same products in opposite order never deadlock.
+    expect(decrementProductStock.mock.calls.map((c) => c[1])).toEqual(["p1", "p2"]);
+  });
+});
+
+describe("batched per-line writes", () => {
+  it("writes saleItem and inventoryMovement rows with one createMany call each", async () => {
+    stubCreatePath(10);
+    db.product.findMany.mockResolvedValue([
+      { id: "p2", name: "B", stock: 10, sellingPrice: 10, fabricationPrice: 5, hasVariants: false, trackBatch: false, unit: null, variants: [] },
+      { id: "p1", name: "A", stock: 10, sellingPrice: 10, fabricationPrice: 5, hasVariants: false, trackBatch: false, unit: null, variants: [] },
+    ]);
+    const input: ApiOrderInput = {
+      idempotencyKey: "key-batch001",
+      items: [
+        { productId: "p2", quantity: 1 },
+        { productId: "p1", quantity: 3 },
+      ],
+    };
+
+    const res = await createApiOrder(ORDERS_ONLY, input);
+    expect(res).toMatchObject({ ok: true, replayed: false });
+    expect(db.saleItem.create).not.toHaveBeenCalled();
+    expect(db.saleItem.createMany).toHaveBeenCalledTimes(1);
+    expect(db.saleItem.createMany.mock.calls[0][0].data).toHaveLength(2);
+    expect(db.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(db.inventoryMovement.createMany).toHaveBeenCalledTimes(1);
+    expect(db.inventoryMovement.createMany.mock.calls[0][0].data).toHaveLength(2);
   });
 });

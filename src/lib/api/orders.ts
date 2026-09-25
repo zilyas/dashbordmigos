@@ -241,15 +241,36 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       const created = await prisma.$transaction(async (tx) => {
-        for (const line of lines) {
+        // Decrement locks are taken in a store-wide stable order (productId,
+        // then variantId), not in whatever order the caller listed items —
+        // two concurrent orders that name the same two products in opposite
+        // order would otherwise each hold one row lock and wait on the
+        // other's, deadlocking. Sorting only this loop's iteration order is
+        // enough; it does not touch `lines` itself, so saleItem/inventoryMovement
+        // creation below and the API response keep the caller's original order.
+        const decrementOrder = [...lines].sort((a, b) => {
+          const p = a.productId.localeCompare(b.productId);
+          return p !== 0 ? p : (a.variantId ?? "").localeCompare(b.variantId ?? "");
+        });
+        for (const line of decrementOrder) {
           const ok = line.variantId
             ? await decrementVariantStock(tx, line.variantId, line.quantity)
             : await decrementProductStock(tx, line.productId, line.quantity);
           if (!ok) throw new InsufficientStock(line.productId, line.productName, line.availableStock);
         }
 
-        const count = await tx.sale.count({ where: { storeId } });
-        const invoiceNumber = formatInvoiceNumber(count + 1);
+        // The counter row is taken and advanced by ONE atomic statement in
+        // the same transaction as the sale write — see InvoiceSequence in
+        // schema.prisma for why this can't race the way `sale.count() + 1`
+        // used to. `create` covers a store's very first sale, when no row
+        // exists yet.
+        const sequence = await tx.invoiceSequence.upsert({
+          where: { storeId },
+          create: { storeId, nextValue: 1 },
+          update: { nextValue: { increment: 1 } },
+          select: { nextValue: true },
+        });
+        const invoiceNumber = formatInvoiceNumber(sequence.nextValue);
 
         const sale = await tx.sale.create({
           data: {
@@ -272,31 +293,32 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           },
         });
 
-        for (const line of lines) {
-          await tx.saleItem.create({
-            data: {
-              saleId: sale.id,
-              productId: line.productId,
-              variantId: line.variantId,
-              variantLabel: line.variantLabel,
-              quantity: line.quantity,
-              sellingPrice: line.sellingPrice,
-              fabricationPrice: line.fabricationPrice,
-              profit: round2((line.sellingPrice - line.fabricationPrice) * line.quantity),
-            },
-          });
-          await tx.inventoryMovement.create({
-            data: {
-              storeId,
-              productId: line.productId,
-              variantId: line.variantId,
-              type: "OUT",
-              quantity: -line.quantity,
-              note: `Online order ${invoiceNumber} (API)`,
-              createdById: actorUserId,
-            },
-          });
-        }
+        // Neither call's return value is used (no saleItem id or movement id
+        // is read back below), so both loops collapse into one createMany
+        // each instead of one round trip per line.
+        await tx.saleItem.createMany({
+          data: lines.map((line) => ({
+            saleId: sale.id,
+            productId: line.productId,
+            variantId: line.variantId,
+            variantLabel: line.variantLabel,
+            quantity: line.quantity,
+            sellingPrice: line.sellingPrice,
+            fabricationPrice: line.fabricationPrice,
+            profit: round2((line.sellingPrice - line.fabricationPrice) * line.quantity),
+          })),
+        });
+        await tx.inventoryMovement.createMany({
+          data: lines.map((line) => ({
+            storeId,
+            productId: line.productId,
+            variantId: line.variantId,
+            type: "OUT" as const,
+            quantity: -line.quantity,
+            note: `Online order ${invoiceNumber} (API)`,
+            createdById: actorUserId,
+          })),
+        });
 
         await logActivity(
           {
@@ -345,8 +367,10 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
             return { ok: true, replayed: true, sale: toSummary(winner) };
           }
         }
-        // Invoice-number collision under concurrency — retry the whole atomic
-        // transaction so the loser re-derives the next free number.
+        // With the atomic InvoiceSequence counter this branch should no longer
+        // be reachable in practice — it's now a belt-and-braces path for the
+        // unique constraint, not the expected route to a retry. Kept (with the
+        // 503 fallback below) in case that invariant is ever broken.
         if (attempt < MAX_ATTEMPTS - 1) continue;
       }
       throw error;
