@@ -59,9 +59,13 @@ jobs:
       # for organization-owned repositories and a read+write GITHUB_TOKEN to
       # post PR comments. `detect` scans the full history, matching what the
       # local .pre-commit-config.yaml hook enforces on staged changes.
+      #
+      # --config points at .gitleaks.toml, which extends the default ruleset
+      # and allowlists a handful of documented placeholder tokens by exact path
+      # AND exact string; see the comment block in that file before editing it.
       - name: Scan for secrets
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --redact --verbose --exit-code 1
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --config=/repo/.gitleaks.toml --redact --verbose --exit-code 1
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -120,9 +124,8 @@ jobs:
           tags: app:smoke-test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            DATABASE_URL=${{ env.DATABASE_URL }}
-            AUTH_SECRET=${{ env.AUTH_SECRET }}
+          # No build-args: DATABASE_URL and AUTH_SECRET are runtime-only and
+          # must never be baked into an image layer.
 
       - name: Start container
         run: |
