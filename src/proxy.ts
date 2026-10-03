@@ -7,7 +7,10 @@ import { prisma } from "@/lib/prisma";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
+// "/offline" is the service worker's navigation fallback and must never
+// redirect: it is only ever reached with no network, and both the /login
+// redirect and the signed-in /dashboard redirect would need one to resolve.
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/offline"];
 
 export default auth(async (req) => {
   const { nextUrl } = req;
@@ -53,6 +56,10 @@ export default auth(async (req) => {
     return next();
   }
 
+  if (nextUrl.pathname === "/offline") {
+    return next();
+  }
+
   if (isPublicPath) {
     if (isLoggedIn) {
       return Response.redirect(new URL("/dashboard", nextUrl));
@@ -74,5 +81,10 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // `sw.js` and `manifest.webmanifest` must be excluded: the browser fetches
+  // both WITHOUT credentials, so anything auth-gated answers them with a 302 to
+  // /login and the PWA silently fails to install or register its worker.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
