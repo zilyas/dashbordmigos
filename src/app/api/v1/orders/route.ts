@@ -72,7 +72,10 @@ export const POST = apiRoute(handle);
 // Explicit JSON 405s. Without these exports Next answers an unsupported method
 // itself with an EMPTY body, which `response.json()` throws on — an integrator
 // sees a parse error instead of "wrong method". See `methodNotAllowed`.
-const rejected = () => noStore(methodNotAllowed("POST"));
+// Wrapped in `apiRoute` too: it is the single `x-request-id` stamping point,
+// and a 405 is the response an integrator is most likely to hit while wiring
+// up their first call -- exactly when they need an id to quote to support.
+const rejected = apiRoute(async () => noStore(methodNotAllowed("POST")));
 export const GET = rejected;
 export const PUT = rejected;
 export const PATCH = rejected;

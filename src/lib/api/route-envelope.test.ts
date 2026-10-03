@@ -59,7 +59,7 @@ describe("methodNotAllowed", () => {
 describe("real v1 routes reject an unsupported method with JSON", () => {
   it("PUT /api/v1/products is a 405 with a body and an Allow header", async () => {
     const { PUT } = await import("@/app/api/v1/products/route");
-    const res = await PUT();
+    const res = await PUT(new Request("https://x.test/api/v1/products", { method: "PUT" }));
     expect(res.status).toBe(405);
     expect(res.headers.get("Allow")).toBe("GET");
     expect((await res.json()).error.code).toBe("method_not_allowed");
@@ -67,8 +67,11 @@ describe("real v1 routes reject an unsupported method with JSON", () => {
 
   it("GET /api/v1/orders is a 405 — orders is POST-only", async () => {
     const { GET } = await import("@/app/api/v1/orders/route");
-    const res = await GET();
+    const res = await GET(new Request("https://x.test/api/v1/orders"));
     expect(res.status).toBe(405);
     expect(res.headers.get("Allow")).toBe("POST");
+    // The rejecters run through `apiRoute`, so a 405 is traceable like any other
+    // response -- see the 405 case in src/app/api/v1/contract.test.ts.
+    expect(res.headers.get("x-request-id")).toBeTruthy();
   });
 });
