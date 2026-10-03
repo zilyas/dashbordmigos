@@ -267,7 +267,7 @@ Do this loop:
 Between polls, your website must persist two things:
 
 - The last `syncedAt` value you finished a poll on. Use it (minus a small buffer) as the next `updatedSince`.
-- The current `cursor`, only while a single page walk is in progress. Once `hasMore` (on `/api/v1/stock`) or a `null` `nextCursor` (on `/api/v1/products`) tells you the walk is done, you no longer need it.
+- The current `cursor`, only while a single page walk is in progress. Once `hasMore: false` (on `/api/v1/stock`) or a `null` `nextCursor` (on `/api/v1/products`) tells you the walk is done, you no longer need it.
 
 For a fast-changing stock number without full catalogue detail, poll `/api/v1/stock` with `updatedSince` on its own short interval. It is cheaper than `/api/v1/products` because it returns quantities only.
 
