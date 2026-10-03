@@ -93,6 +93,10 @@ export async function getSales({
     include: {
       seller: { select: { name: true } },
       store: { select: { name: true } },
+      // Sale.apiClientId was write-only until now: tracing a bad storefront
+      // order meant raw SQL against production. Surfaced so the list can both
+      // show and filter by origin.
+      apiClient: { select: { id: true, name: true } },
       // Line detail is carried on the list rows so the Manager return dialog
       // can open instantly without a second round-trip per sale.
       items: {
@@ -115,6 +119,8 @@ export async function getSales({
     invoiceNumber: s.invoiceNumber,
     sellerName: s.seller.name,
     storeName: s.store.name,
+    apiClientId: s.apiClientId,
+    apiClientName: s.apiClient?.name ?? null,
     customerName: s.customerName,
     customerPhone: s.customerPhone,
     itemCount: s.items.reduce((sum, i) => sum + Number(i.quantity), 0),

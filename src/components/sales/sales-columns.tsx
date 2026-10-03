@@ -8,6 +8,9 @@ import { formatCurrency, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
 
+/** Shown for sales with no apiClient — rung up by a human on the POS terminal. */
+const IN_STORE_SOURCE = "In-store";
+
 export function buildSalesColumns({
   currency,
   showSeller,
@@ -58,6 +61,26 @@ export function buildSalesColumns({
       id: "seller",
       accessorFn: (row) => row.sellerName,
       header: "Seller",
+    });
+    // Reuses the showSeller gate deliberately: a Seller only ever sees sales
+    // they rang up themselves and cannot create an API sale, so the value is
+    // the constant "In-store" for every row they can see. Incident response on
+    // a storefront integration is a Manager/Admin job.
+    columns.push({
+      id: "source",
+      // An accessorFn is all it takes to make the integration name reachable
+      // from the table's existing global search — typing it narrows the list to
+      // that client's sales, no dedicated filter UI needed.
+      accessorFn: (row) => row.apiClientName ?? IN_STORE_SOURCE,
+      header: "Source",
+      cell: ({ row }) => {
+        const apiClientName = row.original.apiClientName;
+        return apiClientName ? (
+          <StatusBadge variant="info">{apiClientName}</StatusBadge>
+        ) : (
+          <span className="text-sm text-muted-foreground">{IN_STORE_SOURCE}</span>
+        );
+      },
     });
   }
 
