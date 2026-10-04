@@ -22,6 +22,7 @@ import {
   round3,
   variantLabel,
 } from "@/lib/sale-math";
+import { hashOrderBody } from "@/lib/api/idempotency";
 import { parseFeatures } from "@/lib/features";
 import { logActivity } from "@/lib/audit";
 import type { ApiClientContext } from "@/lib/api/auth";
@@ -29,6 +30,7 @@ import type { ApiOrderInput } from "@/lib/validations/api-order";
 
 class InsufficientStock extends Error {
   constructor(
+    readonly productId: string,
     readonly productName: string,
     readonly available: number
   ) {
@@ -50,6 +52,25 @@ function toSummary(sale: { id: string; invoiceNumber: string; total: Prisma.Deci
 }
 
 /**
+ * Decides whether a stored key may be replayed for this body.
+ *
+ * A null stored hash means the row predates the column (or came from a path
+ * that did not record one), so it is accepted rather than failed — an old
+ * integration must not start getting 409s. A mismatch is a real bug on the
+ * caller's side: the key was already spent on a DIFFERENT basket, and silently
+ * returning the first order would lose the second one without a trace.
+ */
+function replayConflict(storedHash: string | null, bodyHash: string): OrderResult | null {
+  if (storedHash === null || storedHash === bodyHash) return null;
+  return {
+    ok: false,
+    status: 409,
+    code: "idempotency_key_reused",
+    message: "This idempotencyKey was already used for a different order. Use a new key.",
+  };
+}
+
+/**
  * Creates one sale from an external order, decrementing central inventory.
  *
  * Idempotency: `idempotencyKey` is unique per store. A retried webhook replays
@@ -67,11 +88,17 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
   const showStock = context.scopes.includes("stock:read");
   const label = (id: string, name: string) => (showNames ? `"${name}"` : `product ${id}`);
 
+  const bodyHash = hashOrderBody(input);
+
   const existing = await prisma.sale.findUnique({
     where: { storeId_idempotencyKey: { storeId, idempotencyKey: input.idempotencyKey } },
-    select: { id: true, invoiceNumber: true, total: true, createdAt: true },
+    select: { id: true, invoiceNumber: true, total: true, createdAt: true, idempotencyHash: true },
   });
-  if (existing) return { ok: true, replayed: true, sale: toSummary(existing) };
+  if (existing) {
+    const conflict = replayConflict(existing.idempotencyHash, bodyHash);
+    if (conflict) return conflict;
+    return { ok: true, replayed: true, sale: toSummary(existing) };
+  }
 
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store) return { ok: false, status: 404, code: "store_not_found", message: "Store not found." };
@@ -214,15 +241,36 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       const created = await prisma.$transaction(async (tx) => {
-        for (const line of lines) {
+        // Decrement locks are taken in a store-wide stable order (productId,
+        // then variantId), not in whatever order the caller listed items —
+        // two concurrent orders that name the same two products in opposite
+        // order would otherwise each hold one row lock and wait on the
+        // other's, deadlocking. Sorting only this loop's iteration order is
+        // enough; it does not touch `lines` itself, so saleItem/inventoryMovement
+        // creation below and the API response keep the caller's original order.
+        const decrementOrder = [...lines].sort((a, b) => {
+          const p = a.productId.localeCompare(b.productId);
+          return p !== 0 ? p : (a.variantId ?? "").localeCompare(b.variantId ?? "");
+        });
+        for (const line of decrementOrder) {
           const ok = line.variantId
             ? await decrementVariantStock(tx, line.variantId, line.quantity)
             : await decrementProductStock(tx, line.productId, line.quantity);
-          if (!ok) throw new InsufficientStock(line.productName, line.availableStock);
+          if (!ok) throw new InsufficientStock(line.productId, line.productName, line.availableStock);
         }
 
-        const count = await tx.sale.count({ where: { storeId } });
-        const invoiceNumber = formatInvoiceNumber(count + 1);
+        // The counter row is taken and advanced by ONE atomic statement in
+        // the same transaction as the sale write — see InvoiceSequence in
+        // schema.prisma for why this can't race the way `sale.count() + 1`
+        // used to. `create` covers a store's very first sale, when no row
+        // exists yet.
+        const sequence = await tx.invoiceSequence.upsert({
+          where: { storeId },
+          create: { storeId, nextValue: 1 },
+          update: { nextValue: { increment: 1 } },
+          select: { nextValue: true },
+        });
+        const invoiceNumber = formatInvoiceNumber(sequence.nextValue);
 
         const sale = await tx.sale.create({
           data: {
@@ -233,6 +281,7 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
             sellerId: actorUserId,
             apiClientId: clientId,
             idempotencyKey: input.idempotencyKey,
+            idempotencyHash: bodyHash,
             customerName: input.customerName || null,
             customerPhone: input.customerPhone || null,
             subtotal: totals.subtotal,
@@ -244,31 +293,32 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
           },
         });
 
-        for (const line of lines) {
-          await tx.saleItem.create({
-            data: {
-              saleId: sale.id,
-              productId: line.productId,
-              variantId: line.variantId,
-              variantLabel: line.variantLabel,
-              quantity: line.quantity,
-              sellingPrice: line.sellingPrice,
-              fabricationPrice: line.fabricationPrice,
-              profit: round2((line.sellingPrice - line.fabricationPrice) * line.quantity),
-            },
-          });
-          await tx.inventoryMovement.create({
-            data: {
-              storeId,
-              productId: line.productId,
-              variantId: line.variantId,
-              type: "OUT",
-              quantity: -line.quantity,
-              note: `Online order ${invoiceNumber} (API)`,
-              createdById: actorUserId,
-            },
-          });
-        }
+        // Neither call's return value is used (no saleItem id or movement id
+        // is read back below), so both loops collapse into one createMany
+        // each instead of one round trip per line.
+        await tx.saleItem.createMany({
+          data: lines.map((line) => ({
+            saleId: sale.id,
+            productId: line.productId,
+            variantId: line.variantId,
+            variantLabel: line.variantLabel,
+            quantity: line.quantity,
+            sellingPrice: line.sellingPrice,
+            fabricationPrice: line.fabricationPrice,
+            profit: round2((line.sellingPrice - line.fabricationPrice) * line.quantity),
+          })),
+        });
+        await tx.inventoryMovement.createMany({
+          data: lines.map((line) => ({
+            storeId,
+            productId: line.productId,
+            variantId: line.variantId,
+            type: "OUT" as const,
+            quantity: -line.quantity,
+            note: `Online order ${invoiceNumber} (API)`,
+            createdById: actorUserId,
+          })),
+        });
 
         await logActivity(
           {
@@ -293,11 +343,13 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
       return { ok: true, replayed: false, sale: toSummary(created) };
     } catch (error) {
       if (error instanceof InsufficientStock) {
+        // Same scope gating as the pre-check above: an orders-only key must not
+        // read catalogue names or exact stock out of a 409 it can trigger at will.
         return {
           ok: false,
           status: 409,
           code: "insufficient_stock",
-          message: `Not enough stock for "${error.productName}" (${error.available} available).`,
+          message: `Not enough stock for ${label(error.productId, error.productName)}${showStock ? ` (${error.available} available)` : ""}.`,
         };
       }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -307,12 +359,18 @@ export async function createApiOrder(context: ApiClientContext, input: ApiOrderI
         if (target.includes("idempotencyKey")) {
           const winner = await prisma.sale.findUnique({
             where: { storeId_idempotencyKey: { storeId, idempotencyKey: input.idempotencyKey } },
-            select: { id: true, invoiceNumber: true, total: true, createdAt: true },
+            select: { id: true, invoiceNumber: true, total: true, createdAt: true, idempotencyHash: true },
           });
-          if (winner) return { ok: true, replayed: true, sale: toSummary(winner) };
+          if (winner) {
+            const conflict = replayConflict(winner.idempotencyHash, bodyHash);
+            if (conflict) return conflict;
+            return { ok: true, replayed: true, sale: toSummary(winner) };
+          }
         }
-        // Invoice-number collision under concurrency — retry the whole atomic
-        // transaction so the loser re-derives the next free number.
+        // With the atomic InvoiceSequence counter this branch should no longer
+        // be reachable in practice — it's now a belt-and-braces path for the
+        // unique constraint, not the expected route to a retry. Kept (with the
+        // 503 fallback below) in case that invariant is ever broken.
         if (attempt < MAX_ATTEMPTS - 1) continue;
       }
       throw error;

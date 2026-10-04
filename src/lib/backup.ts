@@ -5,10 +5,11 @@ import type { Prisma } from "@/generated/prisma/client";
  * v2 added the 15 tables v1 silently dropped (variants, axes, sizes, colors,
  * category attributes, batches, batch allocations, messaging, announcements).
  * v3 added api_clients (storefront API credentials).
- * v1 and v2 files still restore — their missing tables simply read as empty.
+ * v4 added invoice_sequences (per-store invoice-number counter).
+ * Older files still restore — their missing tables simply read as empty.
  */
-export const BACKUP_VERSION = 3;
-const SUPPORTED_VERSIONS = [1, 2, 3];
+export const BACKUP_VERSION = 4;
+const SUPPORTED_VERSIONS = [1, 2, 3, 4];
 
 type Rows = unknown[];
 
@@ -53,6 +54,12 @@ export type BackupPayload = {
     announcementRecipients?: Rows;
     // v3 additions.
     apiClients?: Rows;
+    // v4 addition. Must be backed up: the counter is the only record of which
+    // invoice numbers a store has already issued. A restore that dropped it
+    // while keeping the sales would reset it to 1, and every subsequent sale
+    // would then collide with an existing invoice number until the counter
+    // climbed past the highest one already in the table.
+    invoiceSequences?: Rows;
   };
 };
 
@@ -102,6 +109,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     recoveryCodes,
     backupRecords,
     apiClients,
+    invoiceSequences,
   ] = await Promise.all([
     prisma.store.findMany(),
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -138,6 +146,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
     prisma.recoveryCode.findMany(),
     prisma.backupRecord.findMany(),
     prisma.apiClient.findMany(),
+    prisma.invoiceSequence.findMany(),
   ]);
 
   return {
@@ -179,6 +188,7 @@ export async function createBackupPayload(): Promise<BackupPayload> {
       recoveryCodes,
       backupRecords,
       apiClients,
+      invoiceSequences,
     },
   };
 }
@@ -227,6 +237,7 @@ export async function restoreBackupPayload(payload: BackupPayload): Promise<void
       await tx.userSession.deleteMany();
       await tx.saleItem.deleteMany();
       await tx.sale.deleteMany();
+      await tx.invoiceSequence.deleteMany();
       await tx.apiClient.deleteMany();
       await tx.inventoryMovement.deleteMany();
       await tx.productBatch.deleteMany();
@@ -307,6 +318,13 @@ export async function restoreBackupPayload(payload: BackupPayload): Promise<void
       // Before sales: Sale.apiClientId points here. After users: actorUserId does.
       await insert(rows<Prisma.ApiClientCreateManyInput>(t.apiClients), (d) =>
         tx.apiClient.createMany({ data: d })
+      );
+      // After stores (storeId FK). A pre-v4 backup has no `invoiceSequences`,
+      // so this inserts nothing and the counter stays at its default 1 — which
+      // is why `createApiOrder` keeps the `@@unique([storeId, invoiceNumber])`
+      // retry loop rather than trusting the counter blindly.
+      await insert(rows<Prisma.InvoiceSequenceCreateManyInput>(t.invoiceSequences), (d) =>
+        tx.invoiceSequence.createMany({ data: d })
       );
       await insert(rows<Prisma.SaleCreateManyInput>(t.sales), (d) => tx.sale.createMany({ data: d }));
       await insert(rows<Prisma.SaleItemCreateManyInput>(t.saleItems), (d) =>

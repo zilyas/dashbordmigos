@@ -9,6 +9,7 @@ import { getStoreFeatures } from "@/lib/features";
 import { validateAxisValues } from "@/lib/variant-axes";
 import { round3 } from "@/lib/sale-math";
 import { Prisma } from "@/generated/prisma/client";
+import { touchProductForVariant } from "@/lib/inventory";
 
 const requireVariantManager = requireStorePermission("product.edit");
 
@@ -198,6 +199,8 @@ export async function updateVariant(id: string, input: VariantInput) {
       });
 
       if (stock !== existingStock) {
+        // Variant-only write: bump the parent so /api/v1/stock?updatedSince= sees it.
+        await touchProductForVariant(tx, id);
         await tx.inventoryMovement.create({
           data: {
             storeId: session.storeId,

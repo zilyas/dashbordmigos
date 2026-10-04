@@ -1,0 +1,83 @@
+# gitleaks configuration — https://github.com/gitleaks/gitleaks#configuration
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# CI runs `gitleaks detect`, which scans the FULL git history, not the working
+# tree. That is deliberate: it matches the `gitleaks protect --staged` hook in
+# .pre-commit-config.yaml and means a credential cannot be hidden by deleting
+# it in a later commit. The consequence is that a false positive in an old
+# commit re-fires on every new commit forever, and an inline `gitleaks:allow`
+# comment CANNOT fix it — that comment only exists in the working tree, never
+# in the historical blob the scanner reads. A config allowlist is the only
+# mechanism that reaches back into history.
+#
+# Every entry below is scoped with `condition = "AND"`, so BOTH the file path
+# AND the exact placeholder string must match before a finding is suppressed.
+# Each is also attached to a single rule via `[[rules.allowlists]]`, so it can
+# never widen to a different rule.
+#
+# NEVER ADD
+# ---------
+#   * A bare `paths` entry (no `regexes`) — that mutes an entire file.
+#   * `src/` or `docs/` or any directory prefix — scope to one exact file.
+#   * An unanchored or open-ended `regexes` entry such as `sk_.*` — that
+#     allowlists every real key this project issues.
+#   * A rule to `[extend] disabledRules` — the rules below must stay armed.
+#   * A `commits = [...]` entry to wave through a whole commit.
+# If a scan fires on a NEW placeholder, add a new narrowly-anchored entry here
+# rather than loosening an existing one. If it fires on something you did not
+# write, treat it as a real leak: rotate the credential first, ask later.
+
+[extend]
+# Inherit the full upstream ruleset. Only allowlists are added below; no rule
+# is disabled, relaxed, or replaced.
+useDefault = true
+
+[[rules]]
+# Upstream rule: "Discovered a potential authorization token provided in a curl
+# command header". Fires on the `-H "Authorization: Bearer ..."` lines in our
+# copy-pasteable curl examples, where the token is deliberately fake.
+id = "curl-auth-header"
+
+  [[rules.allowlists]]
+  # src/components/integrations/integration-guide.tsx lines 8/15/22, first
+  # committed in 717beadef714d76f8a61f02fca7094111848b2cb. The "secret" is the
+  # literal string sk_live_xxx rendered inside a UI help card so a shop owner
+  # can see the header shape. Flagged at entropy 2.845351.
+  description = "Placeholder API key in the integrations help card curl examples"
+  condition = "AND"
+  paths = ['''src[\/]components[\/]integrations[\/]integration-guide\.tsx$''']
+  regexes = ['''^sk_live_xxx$''']
+
+  [[rules.allowlists]]
+  # docs/storefront-api.md lines 48/96/169/224. Same idea, documentation
+  # instead of UI: the placeholder spells out that the reader must substitute
+  # their own value. API.md line 26 uses `sk_<prefix>_<secret>`, which the rule
+  # does not flag (the angle brackets fail its character class), so it needs no
+  # entry here.
+  description = "Placeholder API key in the storefront API doc curl examples"
+  condition = "AND"
+  paths = ['''docs[\/]storefront-api\.md$''']
+  regexes = ['''^sk_xxxxxxxxxxxx_YOUR_SECRET_HERE$''']
+
+[[rules]]
+# Upstream catch-all entropy rule. It reads our idempotency-key EXAMPLES as
+# secrets. An idempotency key is not a credential: it is a client-chosen
+# de-duplication token, echoed back in responses and safe in a log.
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  # docs/storefront-api.md line 227 — "idempotencyKey": "order-8f3a1c2d-0001"
+  # in the documented order-creation request body.
+  description = "Example idempotency key in the storefront API doc order payload"
+  condition = "AND"
+  paths = ['''docs[\/]storefront-api\.md$''']
+  regexes = ['''^order-8f3a1c2d-0001$''']
+
+  [[rules.allowlists]]
+  # src/lib/api/orders.test.ts line 37 — the fixture idempotency key the unit
+  # test sends through createOrder.
+  description = "Fixture idempotency key in the orders unit test"
+  condition = "AND"
+  paths = ['''src[\/]lib[\/]api[\/]orders\.test\.ts$''']
+  regexes = ['''^key-12345678$''']

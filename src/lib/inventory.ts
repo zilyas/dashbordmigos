@@ -1,6 +1,24 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
+ * Advances the parent `Product.updatedAt` after a variant-only stock write.
+ *
+ * Delta-sync (`GET /api/v1/stock?updatedSince=`) filters on `Product.updatedAt`
+ * only, so a write that touches nothing but `ProductVariant.stock` is invisible
+ * to every external storefront polling it. Call this in the SAME transaction as
+ * the stock write, so a rolled-back sale cannot leave a phantom bump behind.
+ */
+export async function touchProductForVariant(
+  tx: Prisma.TransactionClient,
+  variantId: string
+): Promise<void> {
+  await tx.product.updateMany({
+    where: { variants: { some: { id: variantId } } },
+    data: { updatedAt: new Date() },
+  });
+}
+
+/**
  * Atomic, oversell-safe stock decrement. The `stock: { gte: quantity }` guard
  * lives inside the same UPDATE, so two concurrent sales can never both pass a
  * separate check-then-write and drive stock negative — Postgres row-locks the
@@ -31,7 +49,9 @@ export async function decrementVariantStock(
     where: { id: variantId, stock: { gte: quantity } },
     data: { stock: { decrement: quantity } },
   });
-  return res.count > 0;
+  if (res.count === 0) return false;
+  await touchProductForVariant(tx, variantId);
+  return true;
 }
 
 /** Restores units to a product (returns, sale deletion). Always succeeds. */
@@ -56,6 +76,7 @@ export async function incrementVariantStock(
     where: { id: variantId },
     data: { stock: { increment: quantity } },
   });
+  await touchProductForVariant(tx, variantId);
 }
 
 /**

@@ -8,7 +8,7 @@ import { loginSchema } from "@/lib/validations/auth";
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/security/password";
 import { extractRequestInfo, type RequestInfo } from "@/lib/security/request-info";
 import { RATE_LIMITS, rateLimit, resetRateLimit } from "@/lib/security/rate-limit";
-import { verifyTotpCode } from "@/lib/security/two-factor";
+import { verifyStoredTotpCode } from "@/lib/security/verify-stored-totp";
 import { scopedLogger } from "@/lib/logger";
 
 const authLogger = scopedLogger("auth");
@@ -139,7 +139,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
           const isTotp = /^\d{6}$/.test(code);
           const validCode = isTotp
-            ? await verifyTotpCode(user.twoFactorCredential.secret, code)
+            // secret is encrypted at rest — must decrypt before verifying the entered code
+            ? await verifyStoredTotpCode(user.twoFactorCredential.secret, code)
             : await tryConsumeRecoveryCode(user.twoFactorCredential.id, code);
           if (!validCode) {
             await logAttempt(email, false, info, "invalid_two_factor_code");

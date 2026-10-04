@@ -10,7 +10,9 @@ repos:
       - id: gitleaks
         name: Gitleaks - Detect secrets
         description: Scans commits to prevent secrets (API keys, passwords, tokens) from being committed
-        entry: gitleaks protect --verbose --redact --exit-code 1 --staged
+        # --config keeps this hook in lockstep with the CI gitleaks step;
+        # a placeholder allowlisted in one must be allowlisted in the other.
+        entry: gitleaks protect --config=.gitleaks.toml --verbose --redact --exit-code 1 --staged
         language: golang
         stages: [commit]
         pass_filenames: false

@@ -28,7 +28,9 @@ export function SalesTable({
     <DataTable
       columns={columns}
       data={sales}
-      searchPlaceholder="Search by invoice or customer..."
+      searchPlaceholder={
+        showSeller ? "Search by invoice, customer, seller or source..." : "Search by invoice or customer..."
+      }
       emptyIcon={<Receipt />}
       emptyTitle="No sales yet"
       emptyDescription="Completed sales will show up here."

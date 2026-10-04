@@ -47,15 +47,15 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# A syntactically valid connection string is enough for `next build` — the
-# Prisma driver adapter is constructed at module load but never opens a
-# connection until a request actually queries it, so no live DB is needed
-# here. Coolify should still pass the real values as buildtime-available
-# vars (see the deployment checklist) in case that ever changes.
-ARG DATABASE_URL="postgresql://user:pass@localhost:5432/db"
-ENV DATABASE_URL=${DATABASE_URL}
-ARG AUTH_SECRET="build-time-placeholder"
-ENV AUTH_SECRET=${AUTH_SECRET}
+# DATABASE_URL and AUTH_SECRET are NOT build args/ENV here on purpose — a
+# build arg is baked into the image layer metadata forever (`docker history`
+# shows it), so the production DB URL and session-signing secret must never
+# pass through this stage. `next build` doesn't need them: the schema has no
+# `env("DATABASE_URL")` (see prisma/schema.prisma's datasource block), so
+# `prisma generate` doesn't require it either, and the Prisma driver adapter
+# in src/lib/prisma.ts is constructed at module load but never opens a
+# connection until a request actually queries it. Both reach the app only at
+# runtime, via the compose service's `env_file: [.env]`.
 # next.config.ts reads this at config-resolution time to build BOTH the CSP
 # img-src origin and images.remotePatterns, and standalone bakes the resolved
 # config into .next/standalone/server.js — it is never re-read at runtime (see

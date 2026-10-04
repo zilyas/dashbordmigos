@@ -56,6 +56,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Connectivity-aware UI + automatic retry of blocked navigations, prefetches
+    // and Server Actions. This is what makes a dropped shop-floor connection
+    // show "offline, will retry" instead of throwing a fetch error at the user.
+    // It does NOT make a cold reload work offline — that is the service worker's
+    // job (public/sw.js).
+    useOffline: true,
+  },
   // Traces only the files each route actually needs into .next/standalone —
   // the Docker runner image copies that instead of the full node_modules.
   output: "standalone",
@@ -84,6 +92,27 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // The service worker controls every page it is registered for, so a
+        // stale copy is far worse than a stale asset: it would keep serving an
+        // old shell after a deploy. Never cache it, and pin its content type —
+        // a worker served as anything but JavaScript is rejected outright.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+      {
+        // The actual per-request `x-request-id` value is minted at request
+        // time by `resolveRequestId()` in src/lib/logger.ts — this config is
+        // evaluated once at build/start, so it cannot generate that value
+        // itself. All it does is tell a browser-based integrator's `fetch`
+        // that it is allowed to read the header once a route sets it —
+        // browsers hide non-"simple" response headers from JS by default.
+        source: "/api/:path*",
+        headers: [{ key: "Access-Control-Expose-Headers", value: "x-request-id" }],
       },
     ];
   },

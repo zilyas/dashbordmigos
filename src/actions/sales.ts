@@ -256,10 +256,14 @@ export async function createSale(input: SaleInput) {
   );
 
   try {
-    // Invoice numbers derive from a per-store count, which can collide under
-    // concurrent sales. The unique constraint guarantees correctness; we retry
-    // the whole (atomic) transaction a few times so the loser re-derives the
-    // next number instead of surfacing an error to the cashier.
+    // Invoice numbers come from the atomic InvoiceSequence counter (same one
+    // used by the API order path in src/lib/api/orders.ts), taken and advanced
+    // in a single statement inside this transaction, so two concurrent sales
+    // can't read the same next number the way a `sale.count() + 1` read-then-
+    // write could. The retry loop below is now belt-and-braces against the
+    // unique constraint rather than the expected path to a fresh number, but
+    // it stays — the loop and the "couldn't assign an invoice number" fallback
+    // are unchanged.
     const MAX_INVOICE_ATTEMPTS = 5;
     let sale: Awaited<ReturnType<typeof prisma.sale.create>> | null = null;
 
@@ -321,8 +325,15 @@ export async function createSale(input: SaleInput) {
             lineAllocations.set(i, allocations);
           }
 
-          const count = await tx.sale.count({ where: { storeId } });
-          const invoiceNumber = formatInvoiceNumber(count + 1);
+          // `create` covers a store's very first sale, when no counter row
+          // exists yet — see InvoiceSequence in schema.prisma.
+          const sequence = await tx.invoiceSequence.upsert({
+            where: { storeId },
+            create: { storeId, nextValue: 1 },
+            update: { nextValue: { increment: 1 } },
+            select: { nextValue: true },
+          });
+          const invoiceNumber = formatInvoiceNumber(sequence.nextValue);
 
           const created = await tx.sale.create({
             data: {
