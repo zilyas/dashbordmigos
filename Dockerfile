@@ -135,4 +135,29 @@ EXPOSE 3000
 #
 # `node server.js` runs as PID 1, so it receives SIGTERM directly and Next
 # drains in-flight requests on its own — no init/signal-forwarding wrapper.
+#
+# Deliberately NOT an entrypoint script that migrates first. Three reasons,
+# recorded here because the obvious "just add a shell wrapper" fix is wrong:
+#
+#  1. The prisma CLI is not in this stage. The COPYs above bring in
+#     .next/standalone plus sharp and @img and nothing else; there is no
+#     `prisma` binary, no @prisma/engines schema-engine, and no
+#     prisma/migrations directory. Adding them costs ~65MB uncompressed (~20MB
+#     of it the schema-engine binary alone) on an image whose point is to be
+#     slim.
+#  2. A wrapper breaks the PID 1 property above unless every path ends in
+#     `exec node server.js` — and a wrapper that does exec still cannot undo
+#     the ordering problem: by the time it discovers a migration is broken,
+#     Coolify has already scheduled this container and is waiting on its health
+#     check. The old container may already be gone.
+#  3. Migrations need the unpooled DIRECT_URL (Prisma's advisory lock is
+#     session-scoped and dies behind PgBouncer in transaction mode), which this
+#     container is not given — it runs on the pooled DATABASE_URL.
+#
+# Migrations therefore run in the `Deploy (Coolify)` job of
+# .github/workflows/ci.yml, BEFORE the deploy webhook is POSTed. See the long
+# comment on its "Apply pending database migrations" step, and §4 of README.md.
+# This was added after prisma/migrations/20260924180000_invoice_sequence sat
+# unapplied in production from 2026-09-24 to 2026-10-05, 500ing every API order
+# on `tx.invoiceSequence.upsert`, because nothing in the deploy path ran it.
 CMD ["node", "server.js"]

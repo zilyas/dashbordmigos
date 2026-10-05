@@ -1,8 +1,11 @@
 name: CI
 
-# Validation gate only — this workflow does not deploy anywhere. It exists so
-# no push/PR can silently break typecheck, lint, unit tests, the Prisma
-# schema, or the production build.
+# Validation gate for every push/PR, plus the production deploy path for
+# master. The `validate` and `container-smoke` jobs exist so no push/PR can
+# silently break typecheck, lint, unit tests, the Prisma schema, or the
+# production build. The `deploy` job runs only on a master push, only once both
+# gates are green, and is the ONLY place pending Prisma migrations are applied —
+# see the comment on its "Apply pending database migrations" step.
 on:
   push:
     branches: ["**"]
@@ -10,7 +13,9 @@ on:
     branches: ["**"]
 
 # Least-privilege GITHUB_TOKEN: this workflow only reads the repo to validate
-# it (typecheck/lint/test/build) — it never comments, releases, or pushes.
+# it (typecheck/lint/test/build) and to deploy from it — it never comments,
+# releases, or pushes. Deploy credentials are repository secrets, not this
+# token.
 permissions:
   contents: read
 
@@ -197,6 +202,114 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Hoisted out of the trigger step below so the migration step can share
+      # the same gate. Before the Coolify secrets exist, this job would fail on
+      # every master push and turn CI permanently red for a deploy nobody has
+      # set up yet — and it must not migrate a production database for a deploy
+      # that is not going to happen either. Skipping is loud (a run
+      # annotation), not silent.
+      - name: Check deploy secrets are configured
+        id: preflight
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COOLIFY_WEBHOOK:-}" ] || [ -z "${COOLIFY_TOKEN:-}" ]; then
+            echo "::notice::COOLIFY_WEBHOOK/COOLIFY_TOKEN not set - skipping migrations and deploy. Add them under Settings > Secrets and variables > Actions to enable auto-deploy."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The deploy job needs a checkout and an install for exactly one reason:
+      # the migration step below. The Coolify trigger itself is pure curl.
+      - name: Checkout
+        if: steps.preflight.outputs.skipped == 'false'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.preflight.outputs.skipped == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      # Plain `npm ci`, NOT `--ignore-scripts`: @prisma/engines downloads the
+      # schema-engine binary in its own postinstall, and `migrate deploy` is
+      # that binary. Skipping scripts here produces a prisma CLI that cannot
+      # migrate anything.
+      - name: Install dependencies
+        if: steps.preflight.outputs.skipped == 'false'
+        run: npm ci
+
+      # ── Why migrations run HERE and not in the container ──────────────────
+      #
+      # Incident: prisma/migrations/20260924180000_invoice_sequence landed on
+      # 2026-09-24 and was still unapplied in production on 2026-10-05. Nothing
+      # in the deploy path ever ran it: the Dockerfile's CMD is `node server.js`
+      # with no entrypoint, package.json has no migrate script, Coolify only
+      # builds the image, and this job only POSTed the webhook below. The result
+      # was every API order 500ing on `tx.invoiceSequence.upsert` against a
+      # table that does not exist, while README.md quietly listed
+      # `npx prisma migrate deploy` as a step a human was supposed to remember.
+      #
+      # This step is the fix. It runs BEFORE the webhook, so a failed migration
+      # means no deployment is ever queued — the running container keeps serving
+      # the old code against the schema it was built for, which is the safe
+      # outcome. A container-side entrypoint cannot give that ordering: it has
+      # already been scheduled and is racing a health check by the time it finds
+      # out the migration is broken.
+      #
+      # The runner stage of the Dockerfile also simply does not contain the
+      # prisma CLI. It copies `.next/standalone` plus `node_modules/sharp` and
+      # `node_modules/@img` and nothing else (Dockerfile:93-103), so an
+      # entrypoint calling `prisma migrate deploy` would die on "not found".
+      # Making it work means copying prisma + @prisma/engines + @prisma/config +
+      # dotenv (~65MB uncompressed, of which ~20MB is the schema-engine binary),
+      # plus prisma/migrations and prisma.config.ts, into an image whose whole
+      # point is to be slim — and it would wrap PID 1 in a shell, see the
+      # SIGTERM note at Dockerfile:136.
+      #
+      # DIRECT_URL, not DATABASE_URL. prisma.config.ts prefers DIRECT_URL, and
+      # that preference is load-bearing here: Prisma Migrate takes a Postgres
+      # *session-scoped* advisory lock, and Neon's pooled endpoint is PgBouncer
+      # in transaction mode, which hands the lock statement and the migration
+      # statements to different backends. The lock is then held by a session
+      # nobody can reach and the 10s acquire times out. Point this at the
+      # unpooled endpoint.
+      #
+      # Concurrency: `prisma migrate deploy` takes that advisory lock precisely
+      # so "multiple commands cannot run at the same time - for example, if you
+      # merge two pull requests in quick succession"; the acquire timeout is 10s
+      # and not configurable.
+      # https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/development-and-production#advisory-locking
+      # The `concurrency: deploy-production` group above already serialises this
+      # job, so the lock is the second line of defence, not the first. Do NOT
+      # set PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK to work around a hang — a hang
+      # means the URL is pooled, and disabling the lock removes the only thing
+      # stopping two deploys from writing _prisma_migrations at once.
+      #
+      # `migrate status` runs first purely as a log of what is about to change.
+      # It exits non-zero when migrations are pending, which is the normal case
+      # here, so its exit code is deliberately discarded; `migrate deploy` on
+      # the next line is the step that is allowed to fail the job.
+      - name: Apply pending database migrations
+        if: steps.preflight.outputs.skipped == 'false'
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DIRECT_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
+            echo "Neither DIRECT_URL nor DATABASE_URL is set, so pending migrations cannot be applied."
+            echo "Refusing to deploy: shipping new code onto an unmigrated schema is the 2026-09-24 incident."
+            echo "Add DIRECT_URL (the unpooled Neon endpoint) under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          npx prisma migrate status || true
+          npx prisma migrate deploy
+
       # COOLIFY_WEBHOOK is the full deploy URL from the app's Webhooks tab
       # (https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>&force=false) and
       # COOLIFY_TOKEN is an API token created under Keys & Tokens > API tokens.
@@ -213,19 +326,12 @@ jobs:
       # a green checkmark.
       - name: Trigger Coolify deployment
         id: trigger
+        if: steps.preflight.outputs.skipped == 'false'
         env:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
           set -euo pipefail
-          # Before those secrets exist this job would fail on every master
-          # push and turn CI permanently red for a deploy nobody has set up
-          # yet. Skipping is loud (a run annotation), not silent.
-          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
-            echo "::notice::COOLIFY_WEBHOOK/COOLIFY_TOKEN not set - skipping deploy. Add them under Settings > Secrets and variables > Actions to enable auto-deploy."
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           response=$(curl --fail-with-body --silent --show-error --location \
             --request POST "$COOLIFY_WEBHOOK" \
             --header "Authorization: Bearer $COOLIFY_TOKEN")
@@ -238,7 +344,6 @@ jobs:
             echo "::warning::Deploy queued but Coolify returned no deployment_uuid - cannot wait for the result."
           fi
           echo "deployment_uuid=$uuid" >> "$GITHUB_OUTPUT"
-          echo "skipped=false" >> "$GITHUB_OUTPUT"
 
       # Without this the job goes green the instant Coolify accepts the
       # request, which says nothing about whether the build succeeded. The
@@ -252,7 +357,7 @@ jobs:
       # warns and stops instead of failing the job. Use a `root` token if you
       # want the job to actually wait.
       - name: Wait for the deployment to finish
-        if: steps.trigger.outputs.skipped == 'false' && steps.trigger.outputs.deployment_uuid != ''
+        if: steps.preflight.outputs.skipped == 'false' && steps.trigger.outputs.deployment_uuid != ''
         env:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}

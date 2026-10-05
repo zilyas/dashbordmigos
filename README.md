@@ -22,9 +22,14 @@ stock, price/cost overrides and images).
 ```bash
 npm install                 # also runs `prisma generate` (postinstall hook)
 cp .env.example .env        # then fill in the values (see below)
-npx prisma migrate deploy   # apply migrations
+npx prisma migrate deploy   # apply migrations (local only — see note)
 npx prisma db seed          # super admin + demo data
 ```
+
+> **In production you do not run `migrate deploy` by hand.** The `Deploy
+> (Coolify)` job in `.github/workflows/ci.yml` runs it on every `master` push,
+> before it triggers the Coolify build — see [§4](#4-migrations--seed). The
+> command above is for setting up a *local* database.
 
 > **Prisma client is generated automatically.** `prisma generate` runs on
 > `postinstall`, `predev`, and `prebuild`, so a fresh checkout or CI run can
@@ -100,9 +105,52 @@ logs the error; the DB-backed account lockout still protects against brute force
 
 ```bash
 npx prisma migrate dev --name <change>   # create + apply a migration (dev)
-npx prisma migrate deploy                # apply pending migrations (prod)
+npx prisma migrate deploy                # apply pending migrations (local/manual)
+npx prisma migrate status                # what is applied vs pending
 npx prisma db seed                       # idempotent: super admin + demo data
 ```
+
+### Production migrations are automatic
+
+**`prisma migrate deploy` runs in CI, not by hand.** The `Deploy (Coolify)` job
+in `.github/workflows/ci.yml` applies pending migrations *before* it POSTs the
+Coolify deploy webhook. Commit a migration, merge to `master`, and it is applied
+— there is nothing to remember.
+
+Why it works that way:
+
+- **Order matters.** Migrations run *before* the deploy is queued. If one fails,
+  the job exits non-zero, the webhook is never sent, and the currently-running
+  container keeps serving the old code against the schema it was built for. A
+  migration step inside the container could only fail *after* the new version
+  had already been scheduled.
+- **The prisma CLI is not in the image.** The Dockerfile's runner stage copies
+  `.next/standalone` plus `node_modules/sharp` and `node_modules/@img` and
+  nothing else, so there is no `prisma` binary and no `prisma/migrations`
+  directory inside the container. Putting them there costs ~65MB (about 20MB of
+  that is the schema-engine binary) and would mean wrapping `node server.js` in
+  a shell, which is exactly what the comment at `Dockerfile:136` says not to do.
+- **It needs `DIRECT_URL`.** Migrations must use the **unpooled** Postgres
+  endpoint. Prisma Migrate takes a *session-scoped* Postgres advisory lock, and
+  Neon's pooled endpoint is PgBouncer in transaction mode, which would hand the
+  lock and the migration to different backends and hang. `prisma.config.ts`
+  already prefers `DIRECT_URL` over `DATABASE_URL` for this reason.
+- **Concurrent deploys are safe.** That advisory lock exists so two
+  `migrate deploy` runs cannot overlap — the second waits (10s timeout, not
+  configurable). The deploy job's `concurrency: deploy-production` group
+  serialises them before the lock is even reached. Do **not** set
+  `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK`; if the lock ever times out the cause is
+  a pooled URL, not the lock.
+
+> **One-time secret required:** add **`DIRECT_URL`** (the unpooled Neon
+> connection string) under **Settings → Secrets and variables → Actions**. Until
+> it exists the migration step fails the deploy job on purpose rather than
+> shipping code onto an unmigrated schema.
+
+> **Still manual:** a migration that is *already* pending in production right now
+> has to be applied once by hand (or by re-running the deploy job) — CI only
+> covers deploys from this point forward. Check with
+> `npx prisma migrate status` against the production `DIRECT_URL`.
 
 The seed creates a `SUPER_ADMIN`, and (unless `SEED_DEMO=false`) a **demo store**
 with a manager, seller, sizes (`S/M/L/XL`), colors (`Noir/Blanc/Rouge/Bleu`), a
@@ -369,8 +417,12 @@ formatting, and the R2 upload pipeline (with the S3 client mocked).
 ## 8. Continuous Integration
 
 Every push to any branch and every pull request runs the
-`.github/workflows/ci.yml` GitHub Actions workflow. It is a **validation
-gate only** — it never deploys anywhere.
+`.github/workflows/ci.yml` GitHub Actions workflow. It has three jobs:
+`Validate` and `Container Build & Smoke Test` run on every branch and PR;
+`Deploy (Coolify)` runs only on a push to `master` and only once both have
+passed.
+
+### `Validate`
 
 Steps run in this order, and any failure fails the whole workflow (no
 `continue-on-error` anywhere):
@@ -400,8 +452,25 @@ Notes:
   placeholder values purely so `prisma validate`/`next build` have
   something syntactically valid to read — nothing in CI ever reads or
   writes real data.
-- The workflow needs zero real secrets, since it doesn't deploy or talk to
-  any real service.
+- The `Validate` and `Container Build & Smoke Test` jobs need zero real
+  secrets, since neither deploys or talks to any real service.
+
+### `Deploy (Coolify)`
+
+Gated on `github.ref == refs/heads/master` and a real push, and on both jobs
+above being green. In order:
+
+1. Check the deploy secrets exist (absent → the whole job skips with a notice,
+   so an unconfigured deploy never turns `master` red and never migrates a
+   database for a deploy that will not happen)
+2. Checkout, Node 24, `npm ci`
+3. `npx prisma migrate status`, then **`npx prisma migrate deploy`** — see
+   [§4](#production-migrations-are-automatic). A failure here stops the job and
+   the deploy is never queued.
+4. POST the Coolify deploy webhook
+5. Poll the deployment until Coolify reports `finished`
+
+Secrets it needs: `COOLIFY_WEBHOOK`, `COOLIFY_TOKEN`, and `DIRECT_URL`.
 
 **Manual step required in GitHub:** branch protection with required status
 checks is **not** configured from files and must be enabled manually in the
