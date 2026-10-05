@@ -81,3 +81,15 @@ id = "generic-api-key"
   condition = "AND"
   paths = ['''src[\/]lib[\/]api[\/]orders\.test\.ts$''']
   regexes = ['''^key-12345678$''']
+
+  [[rules.allowlists]]
+  # src/app/api/v1/contract.test.ts line 231 — the ORDER_BODY fixture the
+  # contract test POSTs to /api/v1/orders. Same literal as the doc entry above
+  # on purpose: the test asserts the exact payload docs/storefront-api.md hands
+  # integrators, so the two must not drift. First committed in
+  # cb25c88af6e49aa428f3cd1423d082f52b10ae3f, after this file was written, which
+  # is why it has no entry until now. Flagged at entropy 3.576618.
+  description = "Example idempotency key in the storefront contract test order payload"
+  condition = "AND"
+  paths = ['''src[\/]app[\/]api[\/]v1[\/]contract\.test\.ts$''']
+  regexes = ['''^order-8f3a1c2d-0001$''']
