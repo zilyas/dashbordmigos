@@ -113,6 +113,20 @@ jobs:
     env:
       DATABASE_URL: "postgresql://user:pass@127.0.0.1:5432/nonexistent?sslmode=disable"
       AUTH_SECRET: "ci-placeholder-secret-not-a-real-secret"
+      # Unlike the two above, this one cannot be an arbitrary readable string.
+      # The boot gate (src/instrumentation.ts -> assertEnvOrThrow) and
+      # getEncryptionKey() both require canonical base64 decoding to EXACTLY 32
+      # bytes, so a "ci-placeholder-..." literal is rejected and the container
+      # exits before serving anything -- which is how this job broke when the
+      # gate landed. This value is base64 for the ASCII string
+      # "fake-key-fake-key-fake-key-fake-"; decode it to confirm nobody
+      # generated it. It only has to be well-formed: this job boots the image
+      # and curls /api/health, it never encrypts or decrypts.
+      #
+      # The validate job does NOT need this: register() is skipped during
+      # NEXT_PHASE=phase-production-build, and the unit tests mock the env.
+      # A real server start is the one place the gate actually runs.
+      ENCRYPTION_KEY: "ZmFrZS1rZXktZmFrZS1rZXktZmFrZS1rZXktZmFrZS0="
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -137,6 +151,7 @@ jobs:
           docker run -d \
             -e DATABASE_URL="${{ env.DATABASE_URL }}" \
             -e AUTH_SECRET="${{ env.AUTH_SECRET }}" \
+            -e ENCRYPTION_KEY="${{ env.ENCRYPTION_KEY }}" \
             -e NODE_ENV=production \
             -p 3000:3000 \
             --name app-test \
@@ -150,9 +165,19 @@ jobs:
       # points at nothing here, so /api/health correctly returns 503 - which is
       # a successful HTTP exchange and proves the process booted and is
       # serving. Whether the body is ok or error is the next step's business.
+      # The loop also re-checks the container is still alive each round. Without
+      # that it spends the full 60s polling a process that exited on its first
+      # tick, and reports "failed to become ready" -- true, but it buries the
+      # reason. A dead container should say so at once.
       - name: Wait for container to be ready
         run: |
           for i in {1..30}; do
+            if [ "$(docker inspect -f '{{.State.Running}}' app-test 2>/dev/null)" != "true" ]; then
+              echo "ERROR: container exited before it began serving."
+              echo "--- docker logs app-test ---"
+              docker logs app-test || true
+              exit 1
+            fi
             if docker exec app-test node -e "fetch('http://127.0.0.1:3000/api/health').then(() => process.exit(0)).catch(() => process.exit(1))"; then
               echo "Container is serving"
               exit 0
@@ -167,12 +192,39 @@ jobs:
       # --fail is deliberately absent: 503 is the expected answer with no
       # database, and it still proves the route rendered. The assertion is
       # that the endpoint returns JSON with a status field at all.
+      #
+      # Everything below dumps `docker logs` before failing. The step used to
+      # pipe the body straight into jq, so when the container died at boot the
+      # only output was `jq: parse error: Invalid numeric literal` -- a message
+      # about JSON, for a problem that was nothing to do with JSON. The startup
+      # validator prints exactly which variable is missing and nobody ever saw
+      # it. Report the cause, not the symptom.
       - name: Smoke test health endpoint
         run: |
-          response=$(curl -s http://127.0.0.1:3000/api/health)
+          if ! response=$(curl -s --max-time 10 http://127.0.0.1:3000/api/health); then
+            echo "ERROR: could not reach the health endpoint at all."
+            echo "--- docker logs app-test ---"
+            docker logs app-test || true
+            exit 1
+          fi
+          if [ -z "$response" ]; then
+            echo "ERROR: health endpoint returned an empty body."
+            echo "--- docker logs app-test ---"
+            docker logs app-test || true
+            exit 1
+          fi
+          # Probe with jq before trusting it: an HTML error page here would
+          # otherwise surface as a parse error rather than as "not JSON".
+          if ! echo "$response" | jq -e . >/dev/null 2>&1; then
+            echo "ERROR: health endpoint did not return JSON."
+            echo "Response (first 500 bytes): $(echo "$response" | head -c 500)"
+            echo "--- docker logs app-test ---"
+            docker logs app-test || true
+            exit 1
+          fi
           status=$(echo "$response" | jq -r '.status // empty')
           if [ -z "$status" ]; then
-            echo "ERROR: health endpoint did not return a JSON status field"
+            echo "ERROR: health endpoint returned JSON with no status field"
             echo "Response: $response"
             exit 1
           fi
