@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
+import { logServerError, scopedLogger } from "@/lib/logger";
 import {
   decrementProductStock,
   decrementVariantStock,
@@ -42,6 +43,38 @@ import {
   type SaleReturnInput,
   type SaleDetailsInput,
 } from "@/lib/validations/sale";
+
+const salesLogger = scopedLogger("app");
+
+/**
+ * Generic failure text for the POS. Deliberately says nothing about the cause:
+ * everything useful goes to the server log, nothing extra goes to the shop
+ * floor.
+ */
+const SALE_FAILED = "Failed to complete sale. Please try again." as const;
+
+/**
+ * Text for failures that retrying can never fix. The Sept 2026 incident: the
+ * `invoice_sequences` table (migration 20260924180000_invoice_sequence) was
+ * never applied in production because `prisma migrate deploy` was missing from
+ * the deploy path until 44d48ed, so `tx.invoiceSequence.upsert` raised P2021
+ * and every sale rolled back. The POS said "Please try again", so shop staff
+ * hammered the button against a schema that could not serve them.
+ */
+const SALE_FAILED_PERMANENTLY =
+  "This sale could not be recorded because of a server problem. Retrying will not help — please contact an administrator." as const;
+
+/**
+ * P2021 (table does not exist) / P2022 (column does not exist) mean the
+ * deployed schema and the deployed code disagree. No amount of retrying
+ * reconciles that, so the POS must say so instead of inviting a retry.
+ * Intentionally just these two codes — not an error taxonomy.
+ */
+function isSchemaMismatch(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022")
+  );
+}
 
 /** Thrown inside the sale transaction when an atomic stock decrement fails. */
 class InsufficientStock extends Error {
@@ -478,8 +511,12 @@ export async function createSale(input: SaleInput) {
           ),
         });
       }
-    } catch {
-      // notifications are non-critical
+    } catch (error) {
+      // Notifications are genuinely non-critical — the sale is already
+      // committed and must not be failed for this. But `warn` rather than
+      // silence: a manager who stops getting low-stock alerts has no other
+      // signal that this block has been throwing for weeks.
+      salesLogger.warn({ err: error, action: "sale.lowStockNotify", storeId, saleId: sale.id }, "low-stock notification failed");
     }
 
     revalidatePath("/sales");
@@ -487,8 +524,23 @@ export async function createSale(input: SaleInput) {
     revalidatePath("/dashboard");
 
     return { success: true as const, saleId: sale.id, invoiceNumber: sale.invoiceNumber };
-  } catch {
-    return { error: "Failed to complete sale. Please try again." };
+  } catch (error) {
+    // Bind and log: this used to be a bare `catch {}`, which collapsed every
+    // failure mode of this ~370-line function into one opaque string with no
+    // server-side trace at all. `logServerError` picks up the proxy-stamped
+    // `x-request-id` itself, so the log line joins the rest of the request.
+    await logServerError("app", error, {
+      action: "sale.create",
+      storeId,
+      userId: context.userId,
+      lineCount: lines.length,
+      total: totals.total,
+      schemaMismatch: isSchemaMismatch(error),
+    });
+    // The returned string is rendered verbatim in the POS
+    // (src/components/sales/pos-terminal.tsx) — it must never carry a Prisma
+    // code, a table name, SQL or a stack. Full detail stays in the log above.
+    return { error: isSchemaMismatch(error) ? SALE_FAILED_PERMANENTLY : SALE_FAILED };
   }
 }
 
@@ -817,7 +869,13 @@ export async function updateSaleDetails(saleId: string, input: SaleDetailsInput)
 
     revalidatePath("/sales");
     return { success: true as const };
-  } catch {
+  } catch (error) {
+    await logServerError("app", error, {
+      action: "sale.updateDetails",
+      storeId,
+      userId: context.userId,
+      saleId: sale.id,
+    });
     return { error: "Failed to update the sale. Please try again." };
   }
 }
