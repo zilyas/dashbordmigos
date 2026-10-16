@@ -169,7 +169,13 @@ export async function createSale(input: SaleInput) {
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store) return { error: "Store not found" };
 
-  const productIds = data.items.map((i) => i.productId);
+  // De-duplicated: a cart legitimately holds several lines of the SAME product
+  // when the buyer takes more than one variant of it (sweeter in S/M/L/XL is
+  // four lines, one product). `findMany` returns that product once, so
+  // comparing against the raw item count made every multi-variant sale fail
+  // with "One or more products could not be found" — a real sale blocked by an
+  // arithmetic mistake, not by missing data.
+  const productIds = [...new Set(data.items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, storeId },
     include: {

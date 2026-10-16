@@ -99,9 +99,20 @@ export function buildProductColumns({
         const variant: StatusBadgeVariant =
           p.stock === 0 ? "destructive" : p.stock <= p.minimumStock ? "warning" : "success";
         return (
-          <StatusBadge variant={variant}>
-            {p.stock} unit{p.stock === 1 ? "" : "s"}
-          </StatusBadge>
+          <div className="flex flex-col gap-0.5">
+            <StatusBadge variant={variant}>
+              {p.stock} unit{p.stock === 1 ? "" : "s"}
+            </StatusBadge>
+            {/* For a variant product this figure is the sum of its live
+                variants, not an editable field on the product — the form hides
+                the stock input once variants are on. Saying so stops an owner
+                hunting for a product-level box that does not exist. */}
+            {p.hasVariants && (
+              <span className="text-[11px] text-muted-foreground">
+                across {p.variantCount} variant{p.variantCount === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
         );
       },
     },

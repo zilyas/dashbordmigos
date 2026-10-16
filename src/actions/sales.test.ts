@@ -131,3 +131,62 @@ describe("createSale error handling", () => {
     expect(logServerErrorMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Regression cover for the Oct 2026 POS incident: a cart holding several
+ * variants of the SAME product was rejected with "One or more products could
+ * not be found". `productIds` was a raw `.map()` over the cart lines, so four
+ * sweeter variants produced four identical ids, `findMany` returned the one
+ * product row, and `4 !== 1` failed the guard. A real, in-stock sale blocked
+ * by an arithmetic mistake rather than by missing data.
+ */
+describe("createSale with several variants of one product", () => {
+  const VARIANT_PRODUCT = {
+    id: "prod-v", name: "sweeter", sku: "S-01", hasVariants: true,
+    sellingPrice: new Prisma.Decimal(200), fabricationPrice: new Prisma.Decimal(80),
+    stock: new Prisma.Decimal(0), minimumStock: new Prisma.Decimal(1),
+    trackBatch: false, trackExpiry: false, allowDecimalQuantity: false,
+    variants: ["S", "M", "L", "XL"].map((s) => ({
+      id: `var-${s}`, sku: `S-01-${s}`, isActive: true,
+      stock: new Prisma.Decimal(10), sellingPrice: null, fabricationPrice: null,
+      size: { name: s }, color: { name: "Black" }, axisValues: null,
+    })),
+  };
+
+  const FOUR_VARIANT_CART = {
+    ...INPUT,
+    items: ["S", "M", "L", "XL"].map((s) => ({
+      productId: "prod-v", variantId: `var-${s}`, quantity: 1,
+    })),
+  };
+
+  it("does not reject four lines of one product as missing products", async () => {
+    db.product.findMany.mockResolvedValue([VARIANT_PRODUCT]);
+    db.$transaction.mockResolvedValue({ id: "sale-9", invoiceNumber: "INV-000009" });
+
+    const result = await createSale(FOUR_VARIANT_CART);
+
+    expect(result).not.toMatchObject({ error: "One or more products could not be found" });
+    expect(result).toMatchObject({ success: true });
+  });
+
+  it("queries each product id once, however many lines reference it", async () => {
+    db.product.findMany.mockResolvedValue([VARIANT_PRODUCT]);
+    db.$transaction.mockResolvedValue({ id: "sale-9", invoiceNumber: "INV-000009" });
+
+    await createSale(FOUR_VARIANT_CART);
+
+    // De-duplicated: the guard compares against distinct ids, so the `in` list
+    // must carry one entry even though the cart has four lines.
+    expect(db.product.findMany.mock.calls[0][0].where.id.in).toEqual(["prod-v"]);
+  });
+
+  it("still rejects a cart naming a product that really is absent", async () => {
+    // The guard must keep working — de-duplicating must not weaken it.
+    db.product.findMany.mockResolvedValue([]);
+
+    const result = await createSale(FOUR_VARIANT_CART);
+
+    expect(result).toEqual({ error: "One or more products could not be found" });
+  });
+});
