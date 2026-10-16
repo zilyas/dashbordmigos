@@ -25,6 +25,29 @@ export async function getProducts(storeId: string) {
     },
   });
 
+  // Live variant stock, summed per product.
+  //
+  // For a variant product `Product.stock` is never written: a sale calls
+  // decrementVariantStock (src/lib/inventory.ts), which updates the variant row
+  // and only touches the parent's `updatedAt`. Nothing syncs the parent column
+  // down from its children — src/app/api/v1/products/route.ts:87 calls it
+  // "stale by design" and sums the variants instead.
+  //
+  // This page was the one reader that did not. A WaaS integrator reported
+  // /api/v1/stock returning 80 and 97 for products this table showed as
+  // "0 units"; the API was right and the UI was rendering an unmaintained
+  // column. `isActive: true` matches the API's filter exactly, so the two
+  // surfaces cannot drift again.
+  const variantProductIds = products.filter((p) => p.hasVariants).map((p) => p.id);
+  const variantStock = variantProductIds.length
+    ? await prisma.productVariant.groupBy({
+        by: ["productId"],
+        where: { productId: { in: variantProductIds }, isActive: true },
+        _sum: { stock: true },
+      })
+    : [];
+  const liveStockByProduct = new Map(variantStock.map((v) => [v.productId, Number(v._sum.stock ?? 0)]));
+
   return products.map((p) => ({
     id: p.id,
     sku: p.sku,
@@ -41,7 +64,10 @@ export async function getProducts(storeId: string) {
     fabricationPrice: Number(p.fabricationPrice),
     sellingPrice: Number(p.sellingPrice),
     profitMargin: Number(p.profitMargin),
-    stock: Number(p.stock),
+    // A variant product with every variant deactivated has no live stock, so
+    // `?? 0` is the right fallback — not the parent column, which would revive
+    // the stale number this fix exists to remove.
+    stock: p.hasVariants ? (liveStockByProduct.get(p.id) ?? 0) : Number(p.stock),
     minimumStock: Number(p.minimumStock),
     status: p.status,
     image: p.images[0]?.url ?? p.variants[0]?.imageUrl ?? null,
