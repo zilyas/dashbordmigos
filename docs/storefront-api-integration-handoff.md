@@ -103,6 +103,11 @@ Query parameters:
           "id": "clx...",
           "sku": "TSHIRT-001-M-RED",
           "barcode": "5901234123464",
+          "name": "M / Red",
+          "optionValues": [
+            {"name": "Size",  "value": "M"},
+            {"name": "Color", "value": "Red"}
+          ],
           "price": 149.99,
           "stock": 12,
           "imageUrl": "https://cdn.example/m-red.jpg"
@@ -123,6 +128,16 @@ Field notes that will bite you if missed:
 - `variants` is `[]` when `hasVariants` is `false`.
 - A variant's `price` falls back to the parent's price when the variant has no
   own price, so it is **never null** — no need to coalesce.
+- A variant's **`name`** is the display label — render this on a size/colour
+  button, never the SKU. Built from Size, then Color, then the store's custom
+  axes in their configured order, joined with ` / ` (e.g. `"XL / White"`). It
+  is **never null and never empty**: a variant with no Size, Color or axes set
+  falls back to its SKU, so there is always something to show.
+- **`optionValues`** is the same data structured: `[{name, value}, …]`, in the
+  same order. Use it to build one selector per option instead of parsing
+  `name`. It is `[]` for a variant with nothing set.
+- Both carry real text, so accents and spaces survive — `"Bleu Nuit"` arrives
+  intact. Do not derive a label from the SKU; a SKU cannot hold either.
 - **`stock` on a variant product is the SUM of its live variants**, not the
   parent column. The parent column is stale by design; nothing syncs it from
   the children. Do not read the parent row's stock from anywhere else.

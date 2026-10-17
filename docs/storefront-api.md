@@ -119,6 +119,11 @@ Example response:
           "id": "ckuvariant001",
           "sku": "TS-BLK-M",
           "barcode": "0123456789012",
+          "name": "M / Black",
+          "optionValues": [
+            {"name": "Size",  "value": "M"},
+            {"name": "Color", "value": "Black"}
+          ],
           "price": 19.99,
           "stock": 42,
           "imageUrl": null

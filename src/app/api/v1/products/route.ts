@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, apiRoute, authenticateApiRequest, methodNotAllowed, noStore } from "@/lib/api/auth";
 import { logServerError } from "@/lib/logger";
+import { variantLabelFromParts } from "@/lib/sale-math";
+import { orderedAxisValues, parseAxisValues } from "@/lib/variant-axes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,9 +68,30 @@ async function handle(request: Request, requestId: string) {
         images: { where: { variantId: null }, orderBy: { position: "asc" }, select: { url: true } },
         variants: {
           where: { isActive: true },
-          select: { id: true, sku: true, barcode: true, sellingPrice: true, stock: true, imageUrl: true },
+          select: {
+            id: true,
+            sku: true,
+            barcode: true,
+            sellingPrice: true,
+            stock: true,
+            imageUrl: true,
+            // Naming data for `name` / `optionValues` below. A storefront
+            // showed shoppers "BAC" and "Swk" because the SKU was the only
+            // thing it had to put on a colour button.
+            size: { select: { name: true } },
+            color: { select: { name: true } },
+            axisValues: true,
+          },
         },
       },
+    });
+
+    // Custom axis definitions, needed to order and label axisValues. One query
+    // for the whole page rather than per variant.
+    const axisDefs = await prisma.variantAxisDefinition.findMany({
+      where: { storeId: auth.context.storeId, isActive: true },
+      orderBy: [{ position: "asc" }, { label: "asc" }],
+      select: { key: true, label: true },
     });
 
     const hasMore = products.length > limit;
@@ -93,14 +116,32 @@ async function handle(request: Request, requestId: string) {
           hasVariants: p.hasVariants,
           category: p.category,
           images: p.images.map((i) => i.url),
-          variants: p.variants.map((v) => ({
-            id: v.id,
-            sku: v.sku,
-            barcode: v.barcode,
-            price: v.sellingPrice != null ? Number(v.sellingPrice) : Number(p.sellingPrice),
-            stock: Number(v.stock),
-            imageUrl: v.imageUrl,
-          })),
+          variants: p.variants.map((v) => {
+            // Built-in Size/Color first, then the store's custom axes in their
+            // configured order — the same order variantLabelFromParts gives a
+            // POS receipt, so a shopper and a till agree on what a variant is
+            // called.
+            const axes = orderedAxisValues(parseAxisValues(v.axisValues), axisDefs);
+            const optionValues = [
+              ...(v.size?.name ? [{ name: "Size", value: v.size.name }] : []),
+              ...(v.color?.name ? [{ name: "Color", value: v.color.name }] : []),
+              ...axes.map((a) => ({ name: a.label, value: a.value })),
+            ];
+            return {
+              id: v.id,
+              sku: v.sku,
+              barcode: v.barcode,
+              // Falls back to the SKU rather than null: a storefront always has
+              // something to render on a button, which is the whole point. The
+              // SKU is also what a shop with no size/colour set would have
+              // typed anyway.
+              name: variantLabelFromParts(optionValues.map((o) => o.value)) ?? v.sku,
+              optionValues,
+              price: v.sellingPrice != null ? Number(v.sellingPrice) : Number(p.sellingPrice),
+              stock: Number(v.stock),
+              imageUrl: v.imageUrl,
+            };
+          }),
           updatedAt: p.updatedAt,
         })),
         nextCursor: hasMore ? page[page.length - 1].id : null,

@@ -85,6 +85,10 @@ const { db } = vi.hoisted(() => ({
   db: {
     apiClient: { findUnique: vi.fn(), update: vi.fn() },
     product: { findMany: vi.fn() },
+    // Custom variant axes, read per page to label `optionValues`. Defaults to
+    // an empty list: most stores define none, and a variant then names itself
+    // from Size/Color alone.
+    variantAxisDefinition: { findMany: vi.fn(async (): Promise<{ key: string; label: string }[]> => []) },
     sale: { findUnique: vi.fn(), create: vi.fn(), count: vi.fn() },
     store: { findUnique: vi.fn() },
     invoiceSequence: { upsert: vi.fn() },
@@ -118,7 +122,11 @@ const PRODUCT_ROW = [
   "barcode", "category", "description", "hasVariants", "id", "images",
   "name", "price", "slug", "sku", "stock", "unit", "updatedAt", "variants",
 ].sort();
-const PRODUCT_VARIANT = ["barcode", "id", "imageUrl", "price", "sku", "stock"].sort();
+// `name` and `optionValues` added 2026-10-17: a storefront had only the SKU to
+// put on a colour button, so shoppers were picking between "BAC" and "WAC".
+// Additive — no existing field moved.
+const PRODUCT_VARIANT = ["barcode", "id", "imageUrl", "name", "optionValues", "price", "sku", "stock"].sort();
+const OPTION_VALUE = ["name", "value"].sort();
 const CATEGORY = ["id", "name", "slug"].sort();
 
 const STOCK_ENVELOPE = ["data", "hasMore", "nextCursor", "syncedAt"].sort();
@@ -212,6 +220,9 @@ function variantRow(id: string, stock: string, price: string | null = "24.50") {
     sellingPrice: price === null ? null : new Prisma.Decimal(price),
     stock: new Prisma.Decimal(stock),
     imageUrl: null,
+    size: { name: "M" },
+    color: { name: "Black" },
+    axisValues: null,
     updatedAt: new Date("2026-09-20T14:03:11.000Z"),
   };
 }
@@ -351,7 +362,90 @@ describe("CONTRACT GET /api/v1/products", () => {
       expect(typeof v.price).toBe("number");
       expect(typeof v.stock).toBe("number");
       expect(typeof v.imageUrl === "string" || v.imageUrl === null).toBe(true);
+      expect(typeof v.name).toBe("string");
+      expect(Array.isArray(v.optionValues)).toBe(true);
     }
+  });
+
+  /**
+   * A storefront renders `name` on the button a shopper taps. Before this
+   * existed the only string available was the SKU, so real shops were showing
+   * "BAC" and "Swk" as colour choices. These lock the shape that replaced it.
+   */
+  it("names a variant from its Size and Color, in that order", async () => {
+    authorize(["products:read"]);
+    db.product.findMany.mockResolvedValue([
+      productRow({ hasVariants: true, variants: [variantRow("v1", "4")] }),
+    ]);
+
+    const [row] = (await (await productsGET(req("/api/v1/products"))).json()).data;
+    const [v] = row.variants;
+    expect(v.name).toBe("M / Black");
+    expect(v.optionValues).toEqual([
+      { name: "Size", value: "M" },
+      { name: "Color", value: "Black" },
+    ]);
+    for (const o of v.optionValues) expect(keys(o)).toEqual(OPTION_VALUE);
+  });
+
+  it("appends the store's custom axes after Size and Color, in configured order", async () => {
+    authorize(["products:read"]);
+    db.variantAxisDefinition.findMany.mockResolvedValueOnce([
+      { key: "material", label: "Material" },
+      { key: "fit", label: "Fit" },
+    ]);
+    db.product.findMany.mockResolvedValue([
+      productRow({
+        hasVariants: true,
+        variants: [
+          { ...variantRow("v1", "4"), axisValues: { fit: "Slim", material: "Cotton" } },
+        ],
+      }),
+    ]);
+
+    const [row] = (await (await productsGET(req("/api/v1/products"))).json()).data;
+    const [v] = row.variants;
+    // Definition order, not the order the keys happen to sit in the JSON blob.
+    expect(v.name).toBe("M / Black / Cotton / Slim");
+    expect(v.optionValues.map((o: { name: string }) => o.name)).toEqual([
+      "Size",
+      "Color",
+      "Material",
+      "Fit",
+    ]);
+  });
+
+  it("falls back to the SKU when a variant has no size, colour or axes", async () => {
+    // The real case behind this: a shop that built variants by typing SKUs and
+    // never set Size/Color. A storefront must still have something to render,
+    // so `name` is never null and never an empty string.
+    authorize(["products:read"]);
+    db.product.findMany.mockResolvedValue([
+      productRow({
+        hasVariants: true,
+        variants: [{ ...variantRow("v1", "4"), size: null, color: null, axisValues: null }],
+      }),
+    ]);
+
+    const [row] = (await (await productsGET(req("/api/v1/products"))).json()).data;
+    const [v] = row.variants;
+    expect(v.name).toBe("v1-SKU");
+    expect(v.optionValues).toEqual([]);
+  });
+
+  it("keeps accents and spaces intact, which a SKU cannot carry", async () => {
+    // "Bleu Nuit" was the integrator's example: it can never survive a SKU, so
+    // it is the proof that `name` reads the real text column.
+    authorize(["products:read"]);
+    db.product.findMany.mockResolvedValue([
+      productRow({
+        hasVariants: true,
+        variants: [{ ...variantRow("v1", "4"), size: null, color: { name: "Bleu Nuit" } }],
+      }),
+    ]);
+
+    const [row] = (await (await productsGET(req("/api/v1/products"))).json()).data;
+    expect(row.variants[0].name).toBe("Bleu Nuit");
   });
 
   it("a variant with no price of its own inherits the parent price as a number", async () => {
