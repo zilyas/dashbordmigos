@@ -117,6 +117,7 @@ Query parameters:
     }
   ],
   "nextCursor": "clx7a2b9c0000qwerty",
+  "currency": "MAD",
   "syncedAt": "2026-10-05T09:00:00.000Z"
 }
 ```
@@ -180,6 +181,7 @@ The cheap, frequent call. Two mutually exclusive modes:
   ],
   "hasMore": false,
   "nextCursor": null,
+  "currency": "MAD",
   "syncedAt": "2026-10-05T09:00:00.000Z"
 }
 ```
@@ -273,10 +275,10 @@ new total under the same key, you get a `409`, not a new order.
 **Every monetary and quantity value is a JSON number, not a string.**
 `price`, `stock`, `available` and `total` all arrive as numbers.
 
-**No response carries a currency field.** Not on a product, not on an order.
-Currency is a per-store property (`Store.currency`, default `"MAD"`) and is not
-exposed through the API at all. You must store the currency on your own tenant
-row, alongside the key.
+**Currency is on the envelope, once per response** — `"currency": "MAD"` on both
+`/products` and `/stock`, an ISO 4217 code from `Store.currency`. Not per price:
+a payload never mixes currencies, because a key is pinned to one store. The
+order response does not carry it; read it from either read endpoint.
 
 **The precision trap.** Underneath, these are PostgreSQL `Decimal(12,3)`
 columns — three decimal places, because stock can be weight-priced. The server

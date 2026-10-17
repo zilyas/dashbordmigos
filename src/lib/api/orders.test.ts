@@ -31,6 +31,7 @@ const ORDERS_ONLY: ApiClientContext = {
   storeId: "s1",
   actorUserId: "u1",
   scopes: ["orders:create"],
+  currency: "MAD",
 };
 const FULL_SCOPE: ApiClientContext = { ...ORDERS_ONLY, scopes: ["orders:create", "products:read", "stock:read"] };
 

@@ -117,7 +117,9 @@ import { GET as catchAllGET } from "@/app/api/[...catchAll]/route";
 // Sorted, exhaustive key sets. A rename shows up as one key missing AND one
 // key added; an accidental leak shows up as one key added. Both fail.
 
-const PRODUCTS_ENVELOPE = ["data", "nextCursor", "syncedAt"];
+// `currency` added 2026-10-17: nothing in a payload said what a price was
+// denominated in, so an integrator had to store it per shop out of band.
+const PRODUCTS_ENVELOPE = ["currency", "data", "nextCursor", "syncedAt"].sort();
 const PRODUCT_ROW = [
   "barcode", "category", "description", "hasVariants", "id", "images",
   "name", "price", "slug", "sku", "stock", "unit", "updatedAt", "variants",
@@ -129,7 +131,7 @@ const PRODUCT_VARIANT = ["barcode", "id", "imageUrl", "name", "optionValues", "p
 const OPTION_VALUE = ["name", "value"].sort();
 const CATEGORY = ["id", "name", "slug"].sort();
 
-const STOCK_ENVELOPE = ["data", "hasMore", "nextCursor", "syncedAt"].sort();
+const STOCK_ENVELOPE = ["currency", "data", "hasMore", "nextCursor", "syncedAt"].sort();
 const STOCK_ROW = ["available", "productId", "sku", "updatedAt", "variants"].sort();
 const STOCK_VARIANT = ["available", "sku", "updatedAt", "variantId"].sort();
 
@@ -167,7 +169,7 @@ function clientRow(scopes: string[], overrides: Record<string, unknown> = {}) {
     keyHash: KEY.keyHash,
     expiresAt: null,
     revokedAt: null,
-    store: { status: "ACTIVE", features: { storefront_api_enabled: true } },
+    store: { status: "ACTIVE", features: { storefront_api_enabled: true }, currency: "MAD" },
     actor: { status: "ACTIVE" },
     ...overrides,
   };
@@ -299,6 +301,11 @@ describe("CONTRACT GET /api/v1/products", () => {
     expect(keys(body)).toEqual(PRODUCTS_ENVELOPE);
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.syncedAt).toMatch(ISO_8601);
+    // Asserted as a VALUE, not just a present key: `currency: undefined` is
+    // dropped by JSON.stringify, so a key-set check alone passes while the
+    // field silently disappears. That is exactly what happened the first time
+    // this shipped.
+    expect(body.currency).toBe("MAD");
   });
 
   it("each data row has exactly the 14 documented keys", async () => {
@@ -522,6 +529,8 @@ describe("CONTRACT GET /api/v1/stock", () => {
     const body = await res.json();
 
     expect(keys(body)).toEqual(STOCK_ENVELOPE);
+    // Value, not just key presence — see the /products envelope test.
+    expect(body.currency).toBe("MAD");
     expect(Array.isArray(body.data)).toBe(true);
     expect(typeof body.hasMore).toBe("boolean");
     expect(body.nextCursor === null || typeof body.nextCursor === "string").toBe(true);

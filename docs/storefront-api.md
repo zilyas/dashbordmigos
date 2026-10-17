@@ -133,6 +133,7 @@ Example response:
     }
   ],
   "nextCursor": "cku1product001",
+  "currency": "MAD",
   "syncedAt": "2026-09-25T09:12:00.000Z"
 }
 ```
@@ -140,6 +141,8 @@ Example response:
 Notes on the fields:
 
 - `price` and each variant `price` are numbers, in the store's currency.
+- `currency` is an ISO 4217 code on the envelope, once per response — a payload never mixes currencies, because a key belongs to one store.
+- Each variant carries `name` (a display label such as `"XL / White"`, never null — it falls back to the SKU) and `optionValues` (`[{name, value}]`, in the same order). Render `name` on a size or colour button; never show a shopper the SKU.
 - `stock` on a product with `hasVariants: true` is the sum of all its active variants' stock. Use each variant's own `stock` value to sell a specific variant.
 - `category` is `null` when the product has no category.
 - `nextCursor` is `null` when there is no next page.
@@ -196,6 +199,7 @@ Example response:
   ],
   "hasMore": false,
   "nextCursor": null,
+  "currency": "MAD",
   "syncedAt": "2026-09-25T09:12:00.000Z"
 }
 ```

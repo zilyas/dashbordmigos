@@ -146,6 +146,10 @@ async function handle(request: Request, requestId: string) {
         })),
         nextCursor: hasMore ? page[page.length - 1].id : null,
         syncedAt: new Date().toISOString(),
+        // ISO 4217 code for every price in this payload. Once per response,
+        // not per price: a payload never mixes currencies, since the key is
+        // pinned to one store.
+        currency: auth.context.currency,
       })
     );
   } catch (error) {

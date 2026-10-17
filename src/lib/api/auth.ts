@@ -32,6 +32,13 @@ export type ApiClientContext = {
   /** The real user every Sale / InventoryMovement / ActivityLog is attributed to. */
   actorUserId: string;
   scopes: string[];
+  /**
+   * ISO 4217 code every `price` and `total` in a response is denominated in.
+   * Carried here because the store row is already joined for the feature-flag
+   * check, so exposing it costs no extra query. A storefront otherwise has to
+   * be told its shop's currency out of band and guess on a mismatch.
+   */
+  currency: string;
 };
 
 export const API_RATE_LIMITS = {
@@ -152,7 +159,7 @@ export async function authenticateApiRequest(
       keyHash: true,
       expiresAt: true,
       revokedAt: true,
-      store: { select: { status: true, features: true } },
+      store: { select: { status: true, features: true, currency: true } },
       actor: { select: { status: true } },
     },
   });
@@ -228,6 +235,7 @@ export async function authenticateApiRequest(
       storeId: client.storeId,
       actorUserId: client.actorUserId,
       scopes: client.scopes,
+      currency: client.store.currency,
     },
   };
 }
