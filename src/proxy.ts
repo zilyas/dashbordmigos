@@ -7,10 +7,12 @@ import { prisma } from "@/lib/prisma";
 
 const { auth } = NextAuth(authConfig);
 
-// "/offline" is the service worker's navigation fallback and must never
-// redirect: it is only ever reached with no network, and both the /login
-// redirect and the signed-in /dashboard redirect would need one to resolve.
+// "/offline" and "/offline/pos" are the service worker's navigation fallbacks
+// and must never redirect: they are only ever reached with no network, and both
+// the /login redirect and the signed-in /dashboard redirect would need one to
+// resolve. The prefix below covers every current and future /offline/* shell.
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/offline"];
+const OFFLINE_PREFIX = "/offline";
 
 export default auth(async (req) => {
   const { nextUrl } = req;
@@ -29,6 +31,18 @@ export default auth(async (req) => {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-request-id", randomUUID());
   const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+
+  // Every /offline/* page is a precached static shell, so it must short-circuit
+  // BEFORE the revocation lookup below: that query needs the database, which is
+  // exactly what the device does not have when it lands here. Reaching Prisma
+  // offline turns the fallback into a hung request and the till shows nothing.
+  // These pages carry no session data of their own (see src/app/offline/pos),
+  // so skipping the check costs nothing — the lease and the server-side check
+  // at sync time (src/lib/offline/lease-server.ts) are what actually gate
+  // offline selling.
+  if (nextUrl.pathname === OFFLINE_PREFIX || nextUrl.pathname.startsWith(`${OFFLINE_PREFIX}/`)) {
+    return next();
+  }
 
   // SECURITY: Check if the user account is still active (not deactivated/terminated).
   // This ensures deactivated employees lose access immediately, not just at session expiry.
@@ -53,10 +67,6 @@ export default auth(async (req) => {
   // `getSessionContext()`/`can()` and returns a normal `{ error }` result
   // (or a session-less redirect from `auth()`) instead of crashing.
   if (req.headers.get("next-action")) {
-    return next();
-  }
-
-  if (nextUrl.pathname === "/offline") {
     return next();
   }
 

@@ -6,37 +6,24 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
-import { logServerError, scopedLogger } from "@/lib/logger";
+import { logServerError } from "@/lib/logger";
 import {
-  decrementProductStock,
-  decrementVariantStock,
   incrementProductStock,
   incrementVariantStock,
-  decrementBatchStock,
-  decrementExpiredBatchStock,
   incrementBatchStock,
 } from "@/lib/inventory";
-import {
-  planExpiryAwareAllocation,
-  planReturnRestoration,
-  planDeletionRestoration,
-  reconcileBatchStock,
-} from "@/lib/batches";
+import { planReturnRestoration, planDeletionRestoration } from "@/lib/batches";
 import { getTodayInTimezone, toDateKey } from "@/lib/timezone";
+import { computeReturnAmounts, round2, round3, isValidQuantity } from "@/lib/sale-math";
+import { getStoreFeatures } from "@/lib/features";
 import {
-  computeSaleTotals,
-  computeReturnAmounts,
-  formatInvoiceNumber,
-  resolvePricing,
-  round2,
-  round3,
-  isValidQuantity,
-  variantLabel,
-} from "@/lib/sale-math";
-import { parseFeatures, getStoreFeatures } from "@/lib/features";
-import { parseAxisValues, axisValueList } from "@/lib/variant-axes";
+  createSaleCore,
+  assertGrainReconciled,
+  BatchAllocationConflict,
+  SaleCoreUnexpectedError,
+  type CreateSaleResult,
+} from "@/lib/sales/create-sale";
 import {
-  saleSchema,
   saleReturnSchema,
   saleDetailsSchema,
   type SaleInput,
@@ -44,7 +31,6 @@ import {
   type SaleDetailsInput,
 } from "@/lib/validations/sale";
 
-const salesLogger = scopedLogger("app");
 
 /**
  * Generic failure text for the POS. Deliberately says nothing about the cause:
@@ -74,30 +60,6 @@ function isSchemaMismatch(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022")
   );
-}
-
-/** Thrown inside the sale transaction when an atomic stock decrement fails. */
-class InsufficientStock extends Error {
-  constructor(
-    readonly productName: string,
-    readonly available: number
-  ) {
-    super("insufficient_stock");
-  }
-}
-
-/** Thrown when a planned batch decrement loses a concurrency race (count !== 1). */
-class BatchAllocationConflict extends Error {
-  constructor(readonly productName: string) {
-    super("batch_allocation_conflict");
-  }
-}
-
-/** Thrown when aggregate stock exists but non-expired batch stock is insufficient. */
-class InsufficientExpiryStock extends Error {
-  constructor(readonly productName: string) {
-    super("insufficient_expiry_stock");
-  }
 }
 
 /** Thrown when a tracked SaleItem's batch allocation history is missing/inconsistent. */
@@ -131,30 +93,18 @@ async function reviveRestoredBatch(
 }
 
 /**
- * Reconciliation guard used inside sale/return/delete transactions: the aggregate
- * must equal the sum of a grain's batch stock across ALL statuses. ARCHIVED and
- * EXPIRED batches still hold physical stock (archiving/expiry never zeroes it),
- * so they count toward the total even though they're not sellable. Throws if not.
+ * POS sale creation, as a server action.
+ *
+ * The ~390 lines this used to hold now live in `createSaleCore`
+ * (src/lib/sales/create-sale.ts) so the offline-POS route handler can reach
+ * them without a session. What stays here is what is genuinely an *action*
+ * concern: resolving the session, RBAC, cache revalidation, and flattening the
+ * core's rich discriminated result down to the one string the POS renders.
+ *
+ * The flattening is lossy ON PURPOSE. `src/components/sales/pos-terminal.tsx`
+ * prints `error` verbatim, so every failure mode collapses to one message and
+ * the machine-readable `code` is dropped — HTTP callers get the codes instead.
  */
-async function assertGrainReconciled(
-  tx: Prisma.TransactionClient,
-  productId: string,
-  variantId: string | null
-) {
-  const batches = await tx.productBatch.findMany({
-    where: { productId, variantId },
-    select: { stock: true },
-  });
-  const aggregate = variantId
-    ? Number((await tx.productVariant.findUniqueOrThrow({ where: { id: variantId }, select: { stock: true } })).stock)
-    : Number((await tx.product.findUniqueOrThrow({ where: { id: productId }, select: { stock: true } })).stock);
-  const r = reconcileBatchStock(
-    aggregate,
-    batches.map((b) => ({ id: "", expiryDate: null, receivedAt: "", stock: Number(b.stock) }))
-  );
-  if (!r.reconciled) throw new Error(`batch reconciliation failed (${productId}/${variantId ?? "-"}: ${r.difference})`);
-}
-
 export async function createSale(input: SaleInput) {
   const context = await getSessionContext();
   if (!context || !can(context.role, "sale.create")) {
@@ -162,393 +112,46 @@ export async function createSale(input: SaleInput) {
   }
   const storeId = requireStoreId(context);
 
-  const parsed = saleSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid sale data" };
-  const data = parsed.data;
-
-  const store = await prisma.store.findUnique({ where: { id: storeId } });
-  if (!store) return { error: "Store not found" };
-
-  // De-duplicated: a cart legitimately holds several lines of the SAME product
-  // when the buyer takes more than one variant of it (sweeter in S/M/L/XL is
-  // four lines, one product). `findMany` returns that product once, so
-  // comparing against the raw item count made every multi-variant sale fail
-  // with "One or more products could not be found" — a real sale blocked by an
-  // arithmetic mistake, not by missing data.
-  const productIds = [...new Set(data.items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, storeId },
-    include: {
-      variants: { include: { size: { select: { name: true } }, color: { select: { name: true } } } },
-    },
-  });
-
-  if (products.length !== productIds.length) {
-    return { error: "One or more products could not be found" };
-  }
-
-  // Resolve every line to a concrete price, stock target (variant or product)
-  // and a variant label snapshot. Variant-enabled products require a variant.
-  const lines: {
-    productId: string;
-    productName: string;
-    variantId: string | null;
-    variantLabel: string | null;
-    quantity: number;
-    sellingPrice: number;
-    fabricationPrice: number;
-    availableStock: number;
-    trackBatch: boolean;
-    trackExpiry: boolean;
-  }[] = [];
-
-  const features = parseFeatures(store.features);
-  const unitsEnabled = features.units_enabled;
-  // Store-local "today" for expiry eligibility, resolved once per sale request.
-  const storeToday = getTodayInTimezone(store.timezone);
-  // Phase 5: Manager-only expired-stock override. A non-Manager session can never
-  // enable it, regardless of the client flag (enforced from the session role).
-  const expiredOverride = data.allowExpiredOverride === true && context.role === "MANAGER";
-  // Store's custom axes (for building variant labels), only when enabled.
-  const axisDefs = features.custom_variant_axes_enabled
-    ? await prisma.variantAxisDefinition.findMany({
-        where: { storeId, isActive: true },
-        orderBy: [{ position: "asc" }, { label: "asc" }],
-        select: { key: true, label: true },
-      })
-    : [];
-
-  for (const item of data.items) {
-    const product = products.find((p) => p.id === item.productId)!;
-
-    // Expiry tracking is not active until Phase 4c — refuse to sell such a line.
-    if (product.trackBatch && product.trackExpiry) {
-      return { error: `Expiry tracking is not supported yet for "${product.name}".` };
-    }
-
-    // Decimal quantities are allowed only for decimal-enabled products in a
-    // units-enabled store; otherwise the quantity must be a whole number.
-    const allowDecimal = unitsEnabled && product.allowDecimalQuantity;
-    if (!isValidQuantity(item.quantity, allowDecimal)) {
-      return { error: `Quantity for "${product.name}" must be a whole number.` };
-    }
-    const quantity = round3(item.quantity);
-
-    if (product.hasVariants) {
-      if (!item.variantId) {
-        return { error: `Choose a variant for "${product.name}"` };
-      }
-      const variant = product.variants.find((v) => v.id === item.variantId);
-      if (!variant || !variant.isActive) {
-        return { error: `That variant of "${product.name}" is unavailable` };
-      }
-      const priced = resolvePricing(
-        { sellingPrice: Number(product.sellingPrice), fabricationPrice: Number(product.fabricationPrice) },
-        {
-          sellingPrice: variant.sellingPrice != null ? Number(variant.sellingPrice) : null,
-          fabricationPrice: variant.fabricationPrice != null ? Number(variant.fabricationPrice) : null,
-        }
-      );
-      lines.push({
-        productId: product.id,
-        productName: product.name,
-        variantId: variant.id,
-        variantLabel: variantLabel(
-          variant.size?.name,
-          variant.color?.name,
-          axisValueList(parseAxisValues(variant.axisValues), axisDefs)
-        ),
-        quantity,
-        sellingPrice: priced.sellingPrice,
-        fabricationPrice: priced.fabricationPrice,
-        availableStock: Number(variant.stock),
-        trackBatch: product.trackBatch,
-        trackExpiry: product.trackExpiry,
-      });
-    } else {
-      lines.push({
-        productId: product.id,
-        productName: product.name,
-        variantId: null,
-        variantLabel: null,
-        quantity,
-        sellingPrice: Number(product.sellingPrice),
-        fabricationPrice: Number(product.fabricationPrice),
-        availableStock: Number(product.stock),
-        trackBatch: product.trackBatch,
-        trackExpiry: product.trackExpiry,
-      });
-    }
-  }
-
-  // Friendly pre-check; the atomic decrement inside the tx is the real guard.
-  for (const line of lines) {
-    if (line.availableStock < line.quantity) {
-      return { error: `Not enough stock for "${line.productName}" (${line.availableStock} available)` };
-    }
-  }
-
-  const totals = computeSaleTotals(
-    lines.map((l) => ({ sellingPrice: l.sellingPrice, fabricationPrice: l.fabricationPrice, quantity: l.quantity })),
-    data.discountPercent,
-    Number(store.taxRate)
-  );
-
+  let result: CreateSaleResult;
   try {
-    // Invoice numbers come from the atomic InvoiceSequence counter (same one
-    // used by the API order path in src/lib/api/orders.ts), taken and advanced
-    // in a single statement inside this transaction, so two concurrent sales
-    // can't read the same next number the way a `sale.count() + 1` read-then-
-    // write could. The retry loop below is now belt-and-braces against the
-    // unique constraint rather than the expected path to a fresh number, but
-    // it stays — the loop and the "couldn't assign an invoice number" fallback
-    // are unchanged.
-    const MAX_INVOICE_ATTEMPTS = 5;
-    let sale: Awaited<ReturnType<typeof prisma.sale.create>> | null = null;
-
-    for (let attempt = 0; attempt < MAX_INVOICE_ATTEMPTS; attempt++) {
-      try {
-        sale = await prisma.$transaction(async (tx) => {
-          // Phase 1: move stock. Every line decrements the aggregate atomically;
-          // batch-tracked lines ALSO draw down FEFO batches by the same quantity
-          // in the same transaction, so aggregate and batch stock never diverge.
-          const lineAllocations = new Map<number, { batchId: string; quantity: number; fromExpired: boolean }[]>();
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const okAgg = line.variantId
-              ? await decrementVariantStock(tx, line.variantId, line.quantity)
-              : await decrementProductStock(tx, line.productId, line.quantity);
-            if (!okAgg) throw new InsufficientStock(line.productName, line.availableStock);
-
-            if (!line.trackBatch) continue;
-
-            // Include EXPIRED batches in the candidate set only for a Manager
-            // expired-override on a trackExpiry line; otherwise ACTIVE only.
-            const includeExpired = line.trackExpiry && expiredOverride;
-            const batches = await tx.productBatch.findMany({
-              where: {
-                storeId,
-                productId: line.productId,
-                variantId: line.variantId,
-                status: includeExpired ? { in: ["ACTIVE", "EXPIRED"] } : "ACTIVE",
-                stock: { gt: 0 },
-              },
-              orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }, { id: "asc" }],
-              select: { id: true, expiryDate: true, receivedAt: true, stock: true, status: true },
-            });
-            const mapped = batches.map((b) => ({ id: b.id, expiryDate: b.expiryDate, receivedAt: b.receivedAt, stock: Number(b.stock), status: b.status }));
-
-            const alloc = planExpiryAwareAllocation(line.quantity, mapped, {
-              trackExpiry: line.trackExpiry,
-              storeToday,
-              allowExpired: expiredOverride,
-            });
-            if (!alloc.ok) {
-              if (line.trackExpiry) throw new InsufficientExpiryStock(line.productName);
-              throw new InsufficientStock(line.productName, line.availableStock);
-            }
-            const allocations = alloc.allocations;
-
-            for (const a of allocations) {
-              const okBatch = a.fromExpired
-                ? await decrementExpiredBatchStock(tx, a.batchId, a.quantity)
-                : await decrementBatchStock(tx, a.batchId, a.quantity);
-              if (!okBatch) throw new BatchAllocationConflict(line.productName);
-              // Mark an ACTIVE batch DEPLETED once it hits exactly zero (an EXPIRED
-              // batch drawn via override keeps EXPIRED status).
-              await tx.productBatch.updateMany({
-                where: { id: a.batchId, stock: 0, status: "ACTIVE" },
-                data: { status: "DEPLETED" },
-              });
-            }
-            lineAllocations.set(i, allocations);
-          }
-
-          // `create` covers a store's very first sale, when no counter row
-          // exists yet — see InvoiceSequence in schema.prisma.
-          const sequence = await tx.invoiceSequence.upsert({
-            where: { storeId },
-            create: { storeId, nextValue: 1 },
-            update: { nextValue: { increment: 1 } },
-            select: { nextValue: true },
-          });
-          const invoiceNumber = formatInvoiceNumber(sequence.nextValue);
-
-          const created = await tx.sale.create({
-            data: {
-              invoiceNumber,
-              sellerId: context.userId,
-              customerName: data.customerName || null,
-              customerPhone: data.customerPhone || null,
-              subtotal: totals.subtotal,
-              discount: totals.discount,
-              tax: totals.tax,
-              total: totals.total,
-              netProfit: totals.netProfit,
-              paymentMethod: data.paymentMethod,
-              storeId,
-            },
-          });
-
-          // Phase 2: create sale items, batch allocations, and inventory movements.
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const saleItem = await tx.saleItem.create({
-              data: {
-                saleId: created.id,
-                productId: line.productId,
-                variantId: line.variantId,
-                variantLabel: line.variantLabel,
-                quantity: line.quantity,
-                sellingPrice: line.sellingPrice,
-                fabricationPrice: line.fabricationPrice,
-                profit: round2((line.sellingPrice - line.fabricationPrice) * line.quantity),
-              },
-            });
-
-            const allocs = lineAllocations.get(i);
-            if (allocs && allocs.length > 0) {
-              const sum = round3(allocs.reduce((s, a) => s + a.quantity, 0));
-              if (sum !== round3(line.quantity)) throw new BatchAllocationConflict(line.productName);
-              for (const a of allocs) {
-                await tx.saleItemBatchAllocation.create({
-                  data: { saleItemId: saleItem.id, batchId: a.batchId, quantity: a.quantity, fromExpired: a.fromExpired },
-                });
-                await tx.inventoryMovement.create({
-                  data: {
-                    storeId,
-                    productId: line.productId,
-                    variantId: line.variantId,
-                    batchId: a.batchId,
-                    type: "OUT",
-                    quantity: -a.quantity,
-                    note: a.fromExpired
-                      ? `Sold on invoice ${invoiceNumber} — EXPIRED stock (manager override)`
-                      : `Sold on invoice ${invoiceNumber}`,
-                    createdById: context.userId,
-                  },
-                });
-                if (a.fromExpired) {
-                  // Dedicated, per-batch audit trail for the exceptional override.
-                  await logActivity(
-                    {
-                      storeId,
-                      userId: context.userId,
-                      action: "sale.expiredOverrideUsed",
-                      entity: "Sale",
-                      entityId: created.id,
-                      metadata: { invoiceNumber, productName: line.productName, batchId: a.batchId, quantity: a.quantity },
-                    },
-                    tx
-                  );
-                }
-              }
-              await assertGrainReconciled(tx, line.productId, line.variantId);
-            } else {
-              await tx.inventoryMovement.create({
-                data: {
-                  storeId,
-                  productId: line.productId,
-                  variantId: line.variantId,
-                  type: "OUT",
-                  quantity: -line.quantity,
-                  note: `Sold on invoice ${invoiceNumber}`,
-                  createdById: context.userId,
-                },
-              });
-            }
-          }
-
-          await logActivity(
-            {
-              storeId,
-              userId: context.userId,
-              action: "sale.created",
-              entity: "Sale",
-              entityId: created.id,
-              metadata: { invoiceNumber, total: totals.total },
-            },
-            tx
-          );
-
-          return created;
-        });
-        break;
-      } catch (error) {
-        if (error instanceof InsufficientStock) {
-          return { error: `Not enough stock for "${error.productName}" (${error.available} available)` };
-        }
-        if (error instanceof BatchAllocationConflict) {
-          return { error: `Stock for "${error.productName}" changed mid-sale — please try again.` };
-        }
-        if (error instanceof InsufficientExpiryStock) {
-          return { error: `Insufficient non-expired stock for "${error.productName}".` };
-        }
-        const isInvoiceClash =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002" &&
-          attempt < MAX_INVOICE_ATTEMPTS - 1;
-        if (!isInvoiceClash) throw error;
-      }
-    }
-
-    if (!sale) return { error: "Could not assign an invoice number. Please try again." };
-
-    // Low-stock notifications, best-effort — do not fail the sale if this errors.
-    try {
-      const updatedProducts = await prisma.product.findMany({
-        where: { id: { in: productIds } },
-      });
-      const lowStock = updatedProducts.filter((p) => Number(p.stock) <= Number(p.minimumStock));
-      if (lowStock.length > 0) {
-        const recipients = await prisma.user.findMany({
-          where: { storeId, role: "MANAGER", status: "ACTIVE" },
-          select: { id: true },
-        });
-        await prisma.notification.createMany({
-          data: lowStock.flatMap((p) =>
-            recipients.map((r) => ({
-              storeId,
-              userId: r.id,
-              type: "LOW_STOCK" as const,
-              title: "Low stock alert",
-              message: `${p.name} (${p.sku}) is at ${p.stock} units, below the minimum of ${p.minimumStock}.`,
-            }))
-          ),
-        });
-      }
-    } catch (error) {
-      // Notifications are genuinely non-critical — the sale is already
-      // committed and must not be failed for this. But `warn` rather than
-      // silence: a manager who stops getting low-stock alerts has no other
-      // signal that this block has been throwing for weeks.
-      salesLogger.warn({ err: error, action: "sale.lowStockNotify", storeId, saleId: sale.id }, "low-stock notification failed");
-    }
-
-    revalidatePath("/sales");
-    revalidatePath("/products");
-    revalidatePath("/dashboard");
-
-    return { success: true as const, saleId: sale.id, invoiceNumber: sale.invoiceNumber };
+    // No options: an online POS sale has no till-supplied id, no till clock and
+    // — deliberately — no `expectedTotal`. The price-override path inside the
+    // core is unreachable from here, which is the point of gating it on
+    // `offline`.
+    result = await createSaleCore({ userId: context.userId, role: context.role, storeId }, input);
   } catch (error) {
     // Bind and log: this used to be a bare `catch {}`, which collapsed every
     // failure mode of this ~370-line function into one opaque string with no
     // server-side trace at all. `logServerError` picks up the proxy-stamped
     // `x-request-id` itself, so the log line joins the rest of the request.
-    await logServerError("app", error, {
+    // The core wraps unexpected errors to carry the line count and total it
+    // alone could compute; `cause` is the error that actually happened.
+    const cause = error instanceof SaleCoreUnexpectedError ? error.cause : error;
+    const diagnostics =
+      error instanceof SaleCoreUnexpectedError ? error.diagnostics : { lineCount: 0, total: 0 };
+    await logServerError("app", cause, {
       action: "sale.create",
       storeId,
       userId: context.userId,
-      lineCount: lines.length,
-      total: totals.total,
-      schemaMismatch: isSchemaMismatch(error),
+      lineCount: diagnostics.lineCount,
+      total: diagnostics.total,
+      schemaMismatch: isSchemaMismatch(cause),
     });
     // The returned string is rendered verbatim in the POS
     // (src/components/sales/pos-terminal.tsx) — it must never carry a Prisma
     // code, a table name, SQL or a stack. Full detail stays in the log above.
-    return { error: isSchemaMismatch(error) ? SALE_FAILED_PERMANENTLY : SALE_FAILED };
+    return { error: isSchemaMismatch(cause) ? SALE_FAILED_PERMANENTLY : SALE_FAILED };
   }
+
+  if (!result.ok) return { error: result.message };
+
+  revalidatePath("/sales");
+  revalidatePath("/products");
+  revalidatePath("/dashboard");
+
+  return { success: true as const, saleId: result.saleId, invoiceNumber: result.invoiceNumber };
 }
+
 
 /**
  * Returns some or all units of a sale back into stock and refunds the

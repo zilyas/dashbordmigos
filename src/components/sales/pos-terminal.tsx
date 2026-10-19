@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Image from "next/image";
+import { useOffline } from "next/offline";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -13,6 +14,8 @@ import {
   ImageOff,
   ScanLine,
   Layers,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -38,6 +41,16 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Receipt } from "@/components/sales/receipt";
 import { ReceiptActions } from "@/components/sales/receipt-actions";
 import { createSale } from "@/actions/sales";
+import type { CachedProduct, CachedVariant } from "@/lib/offline/db";
+import { loadOfflineState, recordOfflineSale, syncNow } from "@/lib/offline/sync";
+import { evaluateCachedLease, pendingQuantities } from "@/lib/offline/recent-sales";
+import type { LeaseState, StockKey } from "@/lib/offline/recent-sales";
+import {
+  describeRecordResult,
+  offlineCatalogue,
+  offlineSaleGate,
+  type OfflineProductRow,
+} from "@/components/sales/pos-offline";
 import { round3 } from "@/lib/sale-math";
 import { matchesAny } from "@/lib/text";
 import { formatCurrency } from "@/lib/format";
@@ -94,6 +107,46 @@ function lineFromVariant(product: POSProduct, variant: POSVariant, allowDecimal:
   };
 }
 
+// The cached catalogue carries `price` (and no image) where the online query
+// carries `sellingPrice`, so offline lines are built from their own mappers
+// rather than casting one shape into the other.
+function lineFromCached(product: CachedProduct, stock: number, allowDecimal: boolean): CartLine {
+  return {
+    lineKey: product.id,
+    productId: product.id,
+    name: product.name,
+    sku: product.sku,
+    variantId: null,
+    variantLabel: null,
+    sellingPrice: product.price,
+    stock,
+    quantity: 1,
+    allowDecimal,
+    unit: product.unit,
+  };
+}
+
+function lineFromCachedVariant(
+  product: CachedProduct,
+  variant: CachedVariant,
+  stock: number,
+  allowDecimal: boolean
+): CartLine {
+  return {
+    lineKey: `${product.id}:${variant.id}`,
+    productId: product.id,
+    name: product.name,
+    sku: variant.sku,
+    variantId: variant.id,
+    variantLabel: variant.label,
+    sellingPrice: variant.price,
+    stock,
+    quantity: 1,
+    allowDecimal,
+    unit: product.unit,
+  };
+}
+
 export function POSTerminal({
   products,
   taxRate,
@@ -126,6 +179,183 @@ export function POSTerminal({
   // Manager expired-stock override confirmation (Phase 5).
   const [expiredPromptOpen, setExpiredPromptOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  /* ---------- offline selling ---------- */
+
+  // `experimental.useOffline` is on, so this also flips on a failed framework
+  // fetch, not only on the browser's `offline` event.
+  const isOffline = useOffline();
+  const [offlineData, setOfflineData] = useState<{
+    products: CachedProduct[];
+    held: Map<StockKey, number>;
+    lease: LeaseState;
+    pending: number;
+  } | null>(null);
+  const [offlineSaving, setOfflineSaving] = useState(false);
+  const [offlinePicker, setOfflinePicker] = useState<CachedProduct | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  // Minted on the first press of Complete sale and held until that sale is on
+  // disk. A retry after a failed write MUST reuse it: a fresh uuid is a second
+  // idempotency key, and the server would then happily book the sale twice.
+  const clientSaleIdRef = useRef<string | null>(null);
+
+  const readOffline = useCallback(async () => {
+    try {
+      const state = await loadOfflineState();
+      const unsynced = state.pendingSales.filter((s) => s.status !== "synced");
+      setOfflineData({
+        products: state.products,
+        held: pendingQuantities(state.pendingSales),
+        lease: await evaluateCachedLease(state.lease, state.publicKey),
+        // Counts `review` too — those goods left the shop, so the figure must
+        // never read as zero work outstanding.
+        pending: unsynced.length,
+      });
+    } catch {
+      // A blocked or broken IndexedDB must not break the online till, which is
+      // the only thing on screen when this fails while connected.
+      setOfflineData(null);
+    }
+  }, []);
+
+  const runSync = useCallback(
+    async (manual: boolean) => {
+      setSyncing(true);
+      try {
+        const summary = await syncNow();
+        if (summary.ran && !summary.stopped) setLastSyncAt(new Date());
+        if (manual) {
+          if (summary.stopped) toast.error(summary.message ?? "Sync stopped.");
+          else if (!summary.ran) toast.info("A sync is already running.");
+          else if (summary.uploaded === 0) toast.info("Nothing to sync.");
+          else toast.success(`${summary.uploaded} sale(s) sent.`);
+        }
+        if (summary.review > 0) toast.error(`${summary.review} sale(s) need review.`);
+      } finally {
+        setSyncing(false);
+        await readOffline();
+      }
+    },
+    [readOffline]
+  );
+
+  // One read per connectivity flip: going dark needs the catalogue, coming back
+  // needs the pending count the sync just changed. Deferred to an animation
+  // frame so the till paints before IndexedDB is opened (same reason as
+  // install-prompt.tsx) and so this effect holds no synchronous setState.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => void readOffline());
+    return () => cancelAnimationFrame(frame);
+  }, [readOffline, isOffline]);
+
+  // Auto-sync on reconnection. The browser `online` event and `useOffline`
+  // flipping to false are different signals (the hook also clears after a
+  // successful framework fetch), so both are wired rather than trusting one.
+  useEffect(() => {
+    if (isOffline) return;
+    const frame = requestAnimationFrame(() => void runSync(false));
+    const onOnline = () => void runSync(false);
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [isOffline, runSync]);
+
+  // While anything is queued, keep trying: an outage that ends without an
+  // `online` event (captive portal, flaky upstream) would otherwise leave the
+  // day's takings sitting on the device until someone notices.
+  useEffect(() => {
+    const pending = offlineData?.pending ?? 0;
+    if (pending === 0) return;
+    const id = window.setInterval(() => void runSync(false), 60_000);
+    return () => window.clearInterval(id);
+  }, [offlineData?.pending, runSync]);
+
+  const offlineRows = useMemo<OfflineProductRow[]>(() => {
+    if (!offlineData) return [];
+    return offlineCatalogue(offlineData.products, offlineData.held, search);
+  }, [offlineData, search]);
+
+  const offlineGate = useMemo(
+    () => (offlineData ? offlineSaleGate(offlineData.lease) : null),
+    [offlineData]
+  );
+
+  function addOfflineProduct(row: OfflineProductRow) {
+    if (row.blocked) {
+      toast.error(`${row.product.name}: ${row.blocked}`);
+      return;
+    }
+    if (row.product.hasVariants) {
+      setOfflinePicker(row.product);
+      return;
+    }
+    const allowDecimal = unitsEnabled && row.product.allowDecimalQuantity;
+    addLine(lineFromCached(row.product, row.stock, allowDecimal));
+  }
+
+  /**
+   * Save the cart to this device instead of calling the Server Action.
+   *
+   * `createSale` is deliberately NOT called here: with `experimental.useOffline`
+   * on, Next keeps a failed Server Action pending and replays it when the
+   * network returns, which would race our own sync engine over the same sale
+   * and book it twice.
+   */
+  async function completeOfflineSale() {
+    if (!offlineData) {
+      toast.error("This device has no offline catalogue yet. Reconnect once while online.");
+      return;
+    }
+    if (offlineGate && !offlineGate.allowed) {
+      // Blocks only NEW sales. Anything already queued stays queued and keeps
+      // syncing — it is money that was already taken.
+      toast.error(offlineGate.message);
+      return;
+    }
+
+    const clientSaleId = (clientSaleIdRef.current ??= crypto.randomUUID());
+    setOfflineSaving(true);
+    try {
+      const result = await recordOfflineSale(
+        clientSaleId,
+        {
+          ...(customerName ? { customerName } : {}),
+          ...(customerPhone ? { customerPhone } : {}),
+          discountPercent,
+          paymentMethod,
+          items: cart.map((i) => ({
+            productId: i.productId,
+            ...(i.variantId ? { variantId: i.variantId } : {}),
+            quantity: i.quantity,
+          })),
+        },
+        // The amount actually charged, so the server can refuse a sale whose
+        // price drifted rather than quietly charging a different figure.
+        total
+      );
+      const described = describeRecordResult(result);
+      if (!described.ok) {
+        // NOT on disk: the cart stays on screen, because the page's memory is
+        // now the only copy of this sale.
+        toast.error(described.message);
+        return;
+      }
+
+      clientSaleIdRef.current = null;
+      setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setDiscountPercent(0);
+      setPaymentMethod("CASH");
+      toast.success(described.message);
+      await readOffline();
+    } finally {
+      setOfflineSaving(false);
+    }
+  }
 
   const filteredProducts = useMemo(() => {
     const q = search.trim();
@@ -200,6 +430,39 @@ export function POSTerminal({
     if (e.key !== "Enter") return;
     const value = search.trim();
     if (!value) return;
+
+    // Offline the scan must resolve against the CACHED catalogue: the `products`
+    // prop came from the last render while connected, so its stock figures do
+    // not account for anything sold during this outage.
+    if (isOffline) {
+      for (const row of offlineRows) {
+        const p = row.product;
+        if (!p.hasVariants && (p.barcode === value || p.sku === value)) {
+          addOfflineProduct(row);
+          setSearch("");
+          return;
+        }
+        const variant = p.variants.find((v) => v.sku === value || v.barcode === value);
+        if (!variant) continue;
+        if (row.blocked) {
+          toast.error(`${p.name}: ${row.blocked}`);
+          setSearch("");
+          return;
+        }
+        addLine(
+          lineFromCachedVariant(
+            p,
+            variant,
+            row.variantStock.get(variant.id) ?? 0,
+            unitsEnabled && p.allowDecimalQuantity
+          )
+        );
+        setSearch("");
+        return;
+      }
+      return;
+    }
+
     // Barcode/SKU scan: match a simple product, or a specific variant SKU.
     for (const p of products) {
       if (!p.hasVariants && (p.barcode === value || p.sku === value)) {
@@ -225,6 +488,14 @@ export function POSTerminal({
   function handleCompleteSale(allowExpiredOverride = false) {
     if (cart.length === 0) {
       toast.error("Add at least one product to the cart");
+      return;
+    }
+
+    // The ONLY offline divergence, and it returns before anything below runs:
+    // when connected, every line after this point is the behaviour that shipped
+    // (same action call, same expired-stock manager prompt, same receipt).
+    if (isOffline) {
+      void completeOfflineSale();
       return;
     }
 
@@ -299,7 +570,94 @@ export function POSTerminal({
           <ScanLine className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {/* Connectivity, queue depth and a manual retry. Inside the existing
+            column so nothing about the POS layout moves. */}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs">
+          <StatusBadge variant={isOffline ? "destructive" : "success"}>
+            {isOffline ? (
+              <>
+                <CloudOff className="mr-1 size-3" />
+                Offline
+              </>
+            ) : (
+              "Online"
+            )}
+          </StatusBadge>
+          <span className="text-muted-foreground">
+            {(offlineData?.pending ?? 0) > 0
+              ? `${offlineData?.pending} sale(s) waiting to sync`
+              : "Nothing waiting to sync"}
+          </span>
+          <span className="text-muted-foreground">
+            {lastSyncAt ? `Last sync ${lastSyncAt.toLocaleTimeString()}` : "No sync yet"}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto h-7"
+            disabled={syncing}
+            onClick={() => void runSync(true)}
+          >
+            <RefreshCw className={`mr-1 size-3 ${syncing ? "animate-spin" : ""}`} />
+            Sync now
+          </Button>
+        </div>
+
+        {isOffline && offlineGate && !offlineGate.allowed && (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            {offlineGate.message}
+          </p>
+        )}
+
+        {isOffline ? (
+          offlineRows.length === 0 ? (
+            <EmptyState
+              icon={<CloudOff />}
+              title={
+                offlineData
+                  ? "No cached products match your search"
+                  : "This device has no catalogue stored yet"
+              }
+            />
+          ) : (
+            /* Text-only tiles: the cached catalogue carries no images on
+               purpose (they would balloon the device cache), so there is
+               nothing to render and no broken-image placeholder to show. */
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              {offlineRows.map((row) => (
+                <button
+                  key={row.product.id}
+                  type="button"
+                  onClick={() => addOfflineProduct(row)}
+                  disabled={row.stock <= 0 || !!row.blocked}
+                  className="flex flex-col gap-0.5 rounded-xl border bg-card p-2.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <p className="truncate text-sm font-medium">{row.product.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    SKU {row.product.sku}
+                    {row.product.barcode ? ` · ${row.product.barcode}` : ""}
+                  </p>
+                  {row.product.hasVariants && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {row.product.variants.length} variant(s)
+                    </p>
+                  )}
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                    {formatCurrency(row.product.price, currency)}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {row.blocked
+                      ? row.blocked
+                      : row.stock > 0
+                        ? `${row.stock} ${row.product.unit} available`
+                        : "Out of stock"}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )
+        ) : filteredProducts.length === 0 ? (
           <EmptyState icon={<Search />} title="No products match your search" />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -484,8 +842,14 @@ export function POSTerminal({
             </div>
           </div>
 
-          <Button size="lg" disabled={isPending || cart.length === 0} onClick={() => handleCompleteSale()}>
-            {isPending ? "Processing..." : `Complete Sale · ${formatCurrency(total, currency)}`}
+          <Button
+            size="lg"
+            disabled={isPending || offlineSaving || cart.length === 0}
+            onClick={() => handleCompleteSale()}
+          >
+            {isPending || offlineSaving
+              ? "Processing..."
+              : `Complete Sale · ${formatCurrency(total, currency)}`}
           </Button>
         </CardContent>
       </Card>
@@ -534,6 +898,57 @@ export function POSTerminal({
                 </span>
               </button>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Offline variant picker — same choice, text only, and the stock shown
+          is already net of what the queue holds. */}
+      <Dialog open={!!offlinePicker} onOpenChange={(open) => !open && setOfflinePicker(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{offlinePicker?.name}</DialogTitle>
+            <DialogDescription>Choose a variant to add to the cart.</DialogDescription>
+          </DialogHeader>
+          <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+            {offlinePicker?.variants.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                This product has no cached variants.
+              </p>
+            )}
+            {offlinePicker?.variants.map((variant) => {
+              const row = offlineRows.find((r) => r.product.id === offlinePicker.id);
+              const left = row?.variantStock.get(variant.id) ?? 0;
+              return (
+                <button
+                  key={variant.id}
+                  type="button"
+                  disabled={left <= 0}
+                  onClick={() => {
+                    addLine(
+                      lineFromCachedVariant(
+                        offlinePicker,
+                        variant,
+                        left,
+                        unitsEnabled && offlinePicker.allowDecimalQuantity
+                      )
+                    );
+                    setOfflinePicker(null);
+                  }}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{variant.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      SKU {variant.sku} · {left > 0 ? `${left} in stock` : "out of stock"}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {formatCurrency(variant.price, currency)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
