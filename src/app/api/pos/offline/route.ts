@@ -47,7 +47,7 @@ async function handle(_request: Request, requestId: string): Promise<NextRespons
       return noStore(apiError(403, "no_store", "This account is not attached to a store."));
     }
 
-    const [settings, axisDefs, products, recentSales] = await Promise.all([
+    const [settings, axisDefs, products, recentSales, user] = await Promise.all([
       getStoreSettings(storeId),
       prisma.variantAxisDefinition.findMany({
         where: { storeId, isActive: true },
@@ -93,6 +93,9 @@ async function handle(_request: Request, requestId: string): Promise<NextRespons
       // only their own sales. Reimplementing that filter here is how the two
       // surfaces drift until one leaks a colleague's takings.
       getSales({ role, userId, storeId }),
+      // Receipt line. Cached with the rest because the offline till has no way
+      // to look a name up once the network is gone.
+      prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
     ]);
 
     // A lease is only issued when the keys are configured. Unset keys mean
@@ -113,6 +116,7 @@ async function handle(_request: Request, requestId: string): Promise<NextRespons
         fetchedAt: new Date().toISOString(),
         config: {
           userId,
+          userName: user?.name ?? null,
           role,
           storeId,
           storeName: settings.storeName,

@@ -65,7 +65,16 @@ export function offlineCatalogue(
     });
 }
 
-export type OfflineGate = { allowed: true } | { allowed: false; message: string };
+/**
+ * `reason` lets the UI tell three refusals apart without re-reading the lease:
+ * a window that ran out, a device that never had one, and a permit that will
+ * not verify. All three block new sales; only the wording differs.
+ */
+export type OfflineGateReason = "expired" | "none" | "unusable";
+
+export type OfflineGate =
+  | { allowed: true }
+  | { allowed: false; reason: OfflineGateReason; message: string };
 
 /**
  * May this device start a NEW offline sale?
@@ -82,6 +91,7 @@ export function offlineSaleGate(lease: LeaseState): OfflineGate {
     case "expired":
       return {
         allowed: false,
+        reason: "expired",
         // Naming the date is what tells the cashier whether this is a five-minute
         // reconnect or a week-old device nobody has signed into.
         message: `Offline selling expired on ${lease.expiresAt.toLocaleString()}. Reconnect once to renew it.`,
@@ -89,11 +99,13 @@ export function offlineSaleGate(lease: LeaseState): OfflineGate {
     case "none":
       return {
         allowed: false,
+        reason: "none",
         message: "This device has no offline permit. Reconnect once while online to get one.",
       };
     default:
       return {
         allowed: false,
+        reason: "unusable",
         message: `This device's offline permit is not usable (${lease.reason}). Reconnect once to replace it.`,
       };
   }

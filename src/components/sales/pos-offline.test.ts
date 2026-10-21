@@ -117,3 +117,46 @@ describe("describeRecordResult", () => {
     expect(toast.message).toMatch(/do not hand over/i);
   });
 });
+
+/**
+ * The gate's `reason` drives which message the blocking dialog shows. A
+ * refusal must also never be mistaken for permission, so the allowed cases
+ * are asserted alongside.
+ */
+describe("offlineSaleGate reasons", () => {
+  const expiresAt = new Date("2026-10-20T10:00:00.000Z");
+
+  it("blocks an expired lease and names it as expired", () => {
+    const gate = offlineSaleGate({
+      status: "expired",
+      expiresAt,
+      payload: { v: 1, sub: "u1", storeId: "s1", role: "MANAGER", iat: 0, exp: 0 },
+    });
+    expect(gate.allowed).toBe(false);
+    if (!gate.allowed) {
+      expect(gate.reason).toBe("expired");
+      // The date is what tells a cashier whether this is a quick reconnect.
+      expect(gate.message).toContain("expired");
+    }
+  });
+
+  it("blocks a device that never had a permit", () => {
+    const gate = offlineSaleGate({ status: "none" });
+    expect(gate.allowed).toBe(false);
+    if (!gate.allowed) expect(gate.reason).toBe("none");
+  });
+
+  it("blocks a permit that will not verify", () => {
+    const gate = offlineSaleGate({ status: "invalid", reason: "bad_signature" });
+    expect(gate.allowed).toBe(false);
+    if (!gate.allowed) expect(gate.reason).toBe("unusable");
+  });
+
+  it("allows a lease that is valid or merely expiring soon", () => {
+    const payload = { v: 1 as const, sub: "u1", storeId: "s1", role: "MANAGER", iat: 0, exp: 0 };
+    expect(offlineSaleGate({ status: "valid", expiresAt, msRemaining: 5e8, payload }).allowed).toBe(true);
+    // "Expiring" must still sell: warning the cashier is not the same as
+    // stopping them a day early.
+    expect(offlineSaleGate({ status: "expiring", expiresAt, msRemaining: 1e3, payload }).allowed).toBe(true);
+  });
+});

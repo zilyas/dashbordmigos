@@ -68,6 +68,15 @@ export type OfflineConfig = {
   currency: string;
   taxRate: number;
   unitsEnabled: boolean;
+  /**
+   * The cashier's display name, for the receipt the offline till prints.
+   *
+   * OPTIONAL because a till primed by a deploy before this field existed has a
+   * stored header without it, and that header is not re-read until the device
+   * next reaches the network — which, on the device this matters for, is the
+   * one thing that has not happened. Readers must fall back, not assume.
+   */
+  userName?: string;
 };
 
 /** Exactly the body POST /api/pos/offline/sales validates, minus the lease. */

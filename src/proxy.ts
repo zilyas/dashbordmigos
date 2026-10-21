@@ -4,8 +4,10 @@ import { NextResponse } from "next/server";
 import { authConfig } from "@/lib/auth.config";
 import { isRouteAllowed } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
+import { scopedLogger } from "@/lib/logger";
 
 const { auth } = NextAuth(authConfig);
+const proxyLogger = scopedLogger("system");
 
 // "/offline" and "/offline/pos" are the service worker's navigation fallbacks
 // and must never redirect: they are only ever reached with no network, and both
@@ -47,10 +49,32 @@ export default auth(async (req) => {
   // SECURITY: Check if the user account is still active (not deactivated/terminated).
   // This ensures deactivated employees lose access immediately, not just at session expiry.
   if (isLoggedIn && userId) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { status: true },
-    });
+    let user: { status: string } | null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { status: true },
+      });
+    } catch (error) {
+      // The database is unreachable: a till that lost its connection mid-shift,
+      // or Neon being down. Previously this threw out of the proxy and every
+      // page in the app became a runtime error overlay, including the offline
+      // shells that exist precisely for this moment.
+      //
+      // Fail OPEN here, deliberately, and only here. The cost is that a user
+      // deactivated during an outage keeps their session until the database
+      // answers again, bounded by the 24h JWT. The alternative is failing
+      // closed, which locks every cashier out of a working till the instant
+      // the network blinks -- a far more likely event than a revocation
+      // landing inside that window. Every write path still re-checks the
+      // session server-side and cannot run without the database anyway, so
+      // this gate is not the last line of defence.
+      proxyLogger.warn(
+        { err: error, userId, path: nextUrl.pathname },
+        "revocation check skipped: database unreachable"
+      );
+      return next();
+    }
     // If user is not found or not active, redirect to login
     if (!user || user.status !== "ACTIVE") {
       const loginUrl = new URL("/login", nextUrl);

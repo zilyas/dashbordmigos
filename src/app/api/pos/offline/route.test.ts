@@ -15,6 +15,9 @@ const { db, sessionMock, getSalesMock, issueLeaseMock, enabledMock, publicKeyMoc
     db: {
       product: { findMany: vi.fn() },
       variantAxisDefinition: { findMany: vi.fn(async () => []) },
+      // The snapshot caches the cashier's display name for the offline
+      // receipt, since the till cannot look one up with no network.
+      user: { findUnique: vi.fn(async () => ({ name: "Amina" })) },
     },
     sessionMock: vi.fn(),
     getSalesMock: vi.fn(async (): Promise<Record<string, unknown>[]> => []),

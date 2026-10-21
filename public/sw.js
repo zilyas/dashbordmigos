@@ -30,7 +30,7 @@
 // activate handler only drops caches outside KEEP, so an unbumped version
 // leaves every already-installed till serving the previous deploy's shell
 // (and, before v3, no POS shell at all) until someone clears site data.
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `static-${VERSION}`;
 const OFFLINE_CACHE = `offline-${VERSION}`;
 const KEEP = [STATIC_CACHE, OFFLINE_CACHE];
