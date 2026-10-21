@@ -80,10 +80,10 @@ export function OfflinePOSClient() {
     <div className="pos-offline-till">
       <POSTerminal
         // Always [] here: this page is served from the worker's precache and
-        // has no server data. `cacheOnly` tells the terminal to read the grid
-        // from IndexedDB instead, online or not.
+        // has no server data. Force cacheOnly=true so the terminal always reads
+        // from IndexedDB, never from the (empty) products prop.
         products={[]}
-        cacheOnly
+        cacheOnly={true}
         taxRate={state.config.taxRate}
         currency={state.config.currency}
         storeName={state.config.storeName}
