@@ -55,7 +55,7 @@ describe("token format", () => {
     expect(parts[2]).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 
-  it("exp is iat + 7 days, in seconds", async () => {
+  it("exp is iat + 5 days, in seconds", async () => {
     const { payload } = await lease();
     expect(payload.exp - payload.iat).toBe(LEASE_TTL_SECONDS);
     expect(payload.iat).toBe(Math.floor(T0.getTime() / 1000));
@@ -90,7 +90,13 @@ describe("verifyLease", () => {
   it("rejects a tampered signature", async () => {
     const { token } = await lease();
     const [v, body, sig] = token.split(".");
-    const flipped = sig.slice(0, -1) + (sig.at(-1) === "A" ? "B" : "A");
+    // Flip a char in the MIDDLE, not the last one: a P-256 signature is 64
+    // bytes = 512 bits, but 86 base64url chars carry 516, so the final char
+    // has 4 unused bits and some flips of it decode to identical bytes. That
+    // made this test pass or fail depending on the signature it happened to
+    // get, which is how it started failing when the lease TTL changed.
+    const mid = Math.floor(sig.length / 2);
+    const flipped = sig.slice(0, mid) + (sig[mid] === "A" ? "B" : "A") + sig.slice(mid + 1);
     expect((await verifyLease(`${v}.${body}.${flipped}`, publicKeyB64, T0)).status).toBe(
       "bad_signature"
     );
@@ -138,19 +144,19 @@ describe("verifyLease", () => {
 });
 
 describe("saleWithinLeaseWindow", () => {
-  it("a sale made on day 6 still syncs on day 9", async () => {
+  it("a sale made on day 4 still syncs on day 9", async () => {
     // The regression that silently destroys a day's takings: bounding the window
     // by upload time instead of by when the sale happened.
     const { payload } = await lease();
-    const saleOnDay6 = new Date(T0.getTime() + 6 * DAY);
+    const saleOnDay4 = new Date(T0.getTime() + 4 * DAY);
     const uploadOnDay9 = new Date(T0.getTime() + 9 * DAY);
-    expect(saleWithinLeaseWindow(payload, saleOnDay6, uploadOnDay9)).toEqual({ ok: true });
+    expect(saleWithinLeaseWindow(payload, saleOnDay4, uploadOnDay9)).toEqual({ ok: true });
   });
 
   it("rejects a sale dated after the lease expired, however early it uploads", async () => {
     const { payload } = await lease();
-    const saleOnDay8 = new Date(T0.getTime() + 8 * DAY);
-    expect(saleWithinLeaseWindow(payload, saleOnDay8, new Date(T0.getTime() + 8.1 * DAY))).toEqual({
+    const saleOnDay6 = new Date(T0.getTime() + 6 * DAY);
+    expect(saleWithinLeaseWindow(payload, saleOnDay6, new Date(T0.getTime() + 8.1 * DAY))).toEqual({
       ok: false,
       reason: "sale_outside_lease",
     });
@@ -252,7 +258,7 @@ describe("verifyLeaseForSync with a configured key", () => {
     }
   }
 
-  it("derives the public key from the private key and accepts a day-6 sale on day 9", async () => {
+  it("derives the public key from the private key and accepts a day-4 sale on day 9", async () => {
     await withKey(async (mod) => {
       const spki = await mod.getOfflineLeasePublicKeyBase64();
       expect(spki).toBeTruthy();
@@ -274,7 +280,7 @@ describe("verifyLeaseForSync with a configured key", () => {
         {
           userId: "user-1",
           storeId: "store-1",
-          saleCreatedAt: new Date(T0.getTime() + 6 * DAY),
+          saleCreatedAt: new Date(T0.getTime() + 4 * DAY),
         },
         new Date(T0.getTime() + 9 * DAY)
       );

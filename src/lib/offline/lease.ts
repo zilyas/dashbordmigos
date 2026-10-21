@@ -16,8 +16,14 @@
  * All times in a lease payload are UNIX SECONDS (not milliseconds).
  */
 
-/** Lease lifetime: 7 days, in seconds. */
-export const LEASE_TTL_SECONDS = 7 * 24 * 60 * 60;
+/**
+ * Lease lifetime: 5 days, in seconds.
+ *
+ * Counted from issue, and a lease is re-issued on every online visit to the
+ * till, so the window only runs down on a device that never reconnects. A shop
+ * that comes online each morning never reaches day 5.
+ */
+export const LEASE_TTL_SECONDS = 5 * 24 * 60 * 60;
 
 /** Clock skew tolerated when judging a sale's own timestamp, in seconds. */
 export const CLOCK_SKEW_SECONDS = 5 * 60;

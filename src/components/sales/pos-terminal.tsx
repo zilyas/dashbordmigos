@@ -32,6 +32,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -42,7 +43,7 @@ import { Receipt } from "@/components/sales/receipt";
 import { ReceiptActions } from "@/components/sales/receipt-actions";
 import { createSale } from "@/actions/sales";
 import type { CachedProduct, CachedVariant } from "@/lib/offline/db";
-import { loadOfflineState, recordOfflineSale, syncNow } from "@/lib/offline/sync";
+import { loadOfflineState, recordOfflineSale, refreshSnapshot, syncNow } from "@/lib/offline/sync";
 import { evaluateCachedLease, pendingQuantities } from "@/lib/offline/recent-sales";
 import type { LeaseState, StockKey } from "@/lib/offline/recent-sales";
 import {
@@ -155,6 +156,7 @@ export function POSTerminal({
   sellerName,
   unitsEnabled = false,
   isManager = false,
+  cacheOnly = false,
 }: {
   products: POSProduct[];
   taxRate: number;
@@ -165,6 +167,17 @@ export function POSTerminal({
   unitsEnabled?: boolean;
   /** Manager session — may confirm an expired-stock override (Phase 5). */
   isManager?: boolean;
+  /**
+   * Render from the IndexedDB cache regardless of connectivity.
+   *
+   * Set only by /offline/pos, which the service worker serves from its
+   * precache and which therefore has NO server-fetched `products` -- it is
+   * mounted with `[]`. Without this flag, opening that page while the network
+   * happened to be up rendered the online grid against that empty array and
+   * showed "No products match your search" on a till holding a full cached
+   * catalogue. The live POS at /sales/new leaves it false and is unaffected.
+   */
+  cacheOnly?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -184,7 +197,44 @@ export function POSTerminal({
 
   // `experimental.useOffline` is on, so this also flips on a failed framework
   // fetch, not only on the browser's `offline` event.
-  const isOffline = useOffline();
+  const frameworkOffline = useOffline();
+
+  // ...but it cannot be the only signal here, and that cost us the feature.
+  //
+  // Per node_modules/next/dist/docs/.../useOffline.md the hook enters the
+  // offline state ONLY via the `offline` event or a framework fetch that
+  // rejects. The till reached from the service worker's precache does neither:
+  // the page is served from cache with no network request at all, and the
+  // `offline` event fired before this document existed. So the hook read
+  // `false` on a device with no network, the online grid rendered against an
+  // empty `products` prop, and the cashier saw "No products match your
+  // search" with a full cached catalogue sitting in IndexedDB.
+  //
+  // `navigator.onLine` is unreliable on its own -- it reports true behind a
+  // captive portal -- but it is never wrong about a hard disconnection, which
+  // is the case the hook misses. OR-ing the two covers both: the hook catches
+  // the portal, the flag catches the cold start.
+  const [navigatorOffline, setNavigatorOffline] = useState(false);
+  useEffect(() => {
+    const read = () => setNavigatorOffline(!navigator.onLine);
+    // Deferred for the same reason as the other effects here: this file's
+    // eslint config forbids a synchronous setState in an effect body.
+    const frame = requestAnimationFrame(read);
+    window.addEventListener("online", read);
+    window.addEventListener("offline", read);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("online", read);
+      window.removeEventListener("offline", read);
+    };
+  }, []);
+
+  const isOffline = frameworkOffline || navigatorOffline;
+
+  // What the GRID reads from. `cacheOnly` forces the cached catalogue even
+  // when connected, because on that page there is nothing else to show.
+  // Selling is still gated on `isOffline`/the lease, not on this.
+  const useCachedCatalogue = cacheOnly || isOffline;
   const [offlineData, setOfflineData] = useState<{
     products: CachedProduct[];
     held: Map<StockKey, number>;
@@ -219,6 +269,49 @@ export function POSTerminal({
     }
   }, []);
 
+  // Set when the server refuses to issue a lease (suspended account, offline
+  // mode unconfigured). Distinct from "expired": retrying will not help until
+  // somebody fixes the subscription, so the dialog must say so rather than
+  // inviting the cashier to press Retry forever.
+  const [leaseDenied, setLeaseDenied] = useState<string | null>(null);
+  // Lets the cashier step past the blocking dialog to LOOK at the queue. It
+  // does not unblock selling: the gate still refuses, so the sale button
+  // stays disabled underneath.
+  const [pendingPeek, setPendingPeek] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+
+  /**
+   * Reconnect and ask the server to re-authorise this device.
+   *
+   * The snapshot route is the authority: it re-checks eligibility and issues a
+   * fresh lease only if the account is still active. A renewal therefore
+   * cannot be faked locally, which is the whole point of the dialog having no
+   * dismiss button.
+   */
+  const retryConnection = useCallback(async () => {
+    setRenewing(true);
+    try {
+      const result = await refreshSnapshot();
+      if (!result.ok) {
+        toast.error("Still no connection. Check the network and try again.");
+        return;
+      }
+      setLeaseDenied(result.leaseDenied);
+      if (result.leaseDenied) {
+        toast.error("This store's offline access is not active. Contact the owner.");
+      } else {
+        toast.success("Offline access renewed.");
+      }
+    } catch {
+      toast.error("Could not reach the server. Check the network and try again.");
+    } finally {
+      setRenewing(false);
+      // Re-reads the lease from IndexedDB, which is what closes the dialog:
+      // the gate recomputes from the newly stored permit, not from a flag.
+      await readOffline();
+    }
+  }, [readOffline]);
+
   const runSync = useCallback(
     async (manual: boolean) => {
       setSyncing(true);
@@ -249,19 +342,60 @@ export function POSTerminal({
     return () => cancelAnimationFrame(frame);
   }, [readOffline, isOffline]);
 
+  // Prime the device WHILE IT STILL HAS A NETWORK.
+  //
+  // Nothing else fetches the snapshot on this screen: `drain` refreshes it
+  // after an upload, which only ever happens once sales are already queued.
+  // So a till that had never synced had no catalogue, no lease and no public
+  // key, and going offline showed the empty "never primed" till no matter how
+  // many times the cashier had opened the POS. Offline selling could not work
+  // on a fresh device at all.
+  //
+  // Runs on every online visit to the POS, so the cached catalogue and the
+  // 7-day lease both stay fresh for the next outage. Failure is deliberately
+  // silent: the online till is fully functional without any of this, and an
+  // error toast here would fire on every visit for a deployment that has not
+  // configured offline mode.
+  useEffect(() => {
+    if (isOffline) return;
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      void refreshSnapshot()
+        .then(() => {
+          if (!cancelled) return readOffline();
+        })
+        .catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [isOffline, readOffline]);
+
   // Auto-sync on reconnection. The browser `online` event and `useOffline`
   // flipping to false are different signals (the hook also clears after a
   // successful framework fetch), so both are wired rather than trusting one.
+  //
+  // `runSync` is held in a ref rather than listed as a dependency. It ends by
+  // calling readOffline(), which stores a freshly built Map, so its identity
+  // changes on every run -- as a dependency it re-ran this effect, which ran
+  // the sync, which changed the identity again. The till span-looped while
+  // online and never settled long enough to click a button in a dialog.
+  const runSyncRef = useRef(runSync);
+  useEffect(() => {
+    runSyncRef.current = runSync;
+  }, [runSync]);
+
   useEffect(() => {
     if (isOffline) return;
-    const frame = requestAnimationFrame(() => void runSync(false));
-    const onOnline = () => void runSync(false);
+    const frame = requestAnimationFrame(() => void runSyncRef.current(false));
+    const onOnline = () => void runSyncRef.current(false);
     window.addEventListener("online", onOnline);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("online", onOnline);
     };
-  }, [isOffline, runSync]);
+  }, [isOffline]);
 
   // While anything is queued, keep trying: an outage that ends without an
   // `online` event (captive portal, flaky upstream) would otherwise leave the
@@ -269,9 +403,9 @@ export function POSTerminal({
   useEffect(() => {
     const pending = offlineData?.pending ?? 0;
     if (pending === 0) return;
-    const id = window.setInterval(() => void runSync(false), 60_000);
+    const id = window.setInterval(() => void runSyncRef.current(false), 60_000);
     return () => window.clearInterval(id);
-  }, [offlineData?.pending, runSync]);
+  }, [offlineData?.pending]);
 
   const offlineRows = useMemo<OfflineProductRow[]>(() => {
     if (!offlineData) return [];
@@ -281,6 +415,15 @@ export function POSTerminal({
   const offlineGate = useMemo(
     () => (offlineData ? offlineSaleGate(offlineData.lease) : null),
     [offlineData]
+  );
+
+  // Derived once per decision change, not per render. Feeding the raw
+  // expression straight to <Dialog open> remounted the dialog on every
+  // render: Playwright never saw a stable button, and a cashier would have
+  // watched it flicker.
+  const leaseBlocked = useMemo(
+    () => isOffline && !!offlineGate && !offlineGate.allowed && !pendingPeek,
+    [isOffline, offlineGate, pendingPeek]
   );
 
   function addOfflineProduct(row: OfflineProductRow) {
@@ -604,13 +747,8 @@ export function POSTerminal({
           </Button>
         </div>
 
-        {isOffline && offlineGate && !offlineGate.allowed && (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            {offlineGate.message}
-          </p>
-        )}
 
-        {isOffline ? (
+        {useCachedCatalogue ? (
           offlineRows.length === 0 ? (
             <EmptyState
               icon={<CloudOff />}
@@ -950,6 +1088,56 @@ export function POSTerminal({
               );
             })}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/*
+        The five-day window has run out (or this device never had a permit).
+        Modal, and deliberately with no dismiss: the cashier must not be able
+        to click past it and keep ringing up sales the server will later
+        refuse. `onOpenChange` is a no-op for the same reason -- Escape and a
+        backdrop click do nothing.
+
+        It blocks NEW sales only. The queue underneath is untouched, sync
+        still runs, and "View pending sales" closes the dialog so the cashier
+        can see what is still waiting. Nothing here deletes anything.
+      */}
+      <Dialog open={leaseBlocked} onOpenChange={() => {}}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Internet connection required</DialogTitle>
+            <DialogDescription>
+              Your offline access period has expired. Connect to the internet to verify your
+              subscription and continue making sales. Your pending sales are saved on this device.
+            </DialogDescription>
+          </DialogHeader>
+
+          {leaseDenied ? (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              This store&apos;s offline access is not active. Reconnecting will not restore it until
+              the account is reactivated — contact the owner.
+            </p>
+          ) : offlineGate && !offlineGate.allowed ? (
+            <p className="text-xs text-muted-foreground">{offlineGate.message}</p>
+          ) : null}
+
+          {offlineData && offlineData.pending > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {offlineData.pending} sale(s) saved on this device, waiting to be sent. They are kept
+              until the server confirms them.
+            </p>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            {offlineData && offlineData.pending > 0 && (
+              <Button variant="outline" onClick={() => setPendingPeek(true)}>
+                View pending sales
+              </Button>
+            )}
+            <Button onClick={() => void retryConnection()} disabled={renewing}>
+              {renewing ? "Checking..." : "Retry connection"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
