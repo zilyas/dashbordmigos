@@ -58,7 +58,7 @@ export default function OfflinePOSPage() {
           gap: 0.5rem;
         }
         .pos-offline-root .pos-offline-note p { margin: 0; }
-        .pos-offline-root svg { width: 2.75rem; height: 2.75rem; color: #737373; }
+        .pos-offline-root svg { width: 1rem; height: 1rem; color: #737373; }
         @media (prefers-color-scheme: dark) {
           .pos-offline-root { background: #0a0a0a; color: #fafafa; }
           .pos-offline-root .pos-offline-note, .pos-offline-root svg { color: #a1a1a1; }

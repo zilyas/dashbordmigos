@@ -234,7 +234,9 @@ export function POSTerminal({
   // What the GRID reads from. `cacheOnly` forces the cached catalogue even
   // when connected, because on that page there is nothing else to show.
   // Selling is still gated on `isOffline`/the lease, not on this.
-  const useCachedCatalogue = cacheOnly || isOffline;
+  // NOTE: cacheOnly takes precedence over isOffline; /offline/pos always has
+  // no server data, so the cached grid must render regardless of connectivity.
+  const useCachedCatalogue = cacheOnly ? true : isOffline;
   const [offlineData, setOfflineData] = useState<{
     products: CachedProduct[];
     held: Map<StockKey, number>;
