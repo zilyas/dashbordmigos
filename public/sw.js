@@ -2,8 +2,8 @@
  * Service worker for the installed PWA.
  *
  * SCOPE, deliberately narrow: this worker caches ONLY immutable build assets
- * (/_next/static/**, which is content-hashed) and the two fully static offline
- * pages, /offline and /offline/pos.
+ * (/_next/static/**, which is content-hashed) and one fully static offline
+ * page, /offline/pos.
  *
  * It never caches any other HTML, any RSC payload, or anything under /api.
  * That is not an oversight — every dashboard page is rendered per-session and
@@ -26,18 +26,16 @@
 
 // Bump when the offline fallback or this file's caching rules change; the
 // activate handler deletes every cache that is not in KEEP.
-// v3: added the /offline/pos precache. Bumping this is not optional — the
-// activate handler only drops caches outside KEEP, so an unbumped version
-// leaves every already-installed till serving the previous deploy's shell
-// (and, before v3, no POS shell at all) until someone clears site data.
-const VERSION = "v4";
+// v5: dropped the separate /offline home shell. /offline/pos is now the only
+// offline page and the fallback for every failed navigation. Bumping this is
+// not optional — the activate handler only drops caches outside KEEP, so an
+// unbumped version leaves every already-installed till serving the previous
+// deploy's shell until someone clears site data.
+const VERSION = "v5";
 const STATIC_CACHE = `static-${VERSION}`;
 const OFFLINE_CACHE = `offline-${VERSION}`;
 const KEEP = [STATIC_CACHE, OFFLINE_CACHE];
-const OFFLINE_URL = "/offline";
 const OFFLINE_POS_URL = "/offline/pos";
-// Navigations we answer with the offline till instead of the generic fallback.
-const POS_URL = "/sales/new";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -45,11 +43,7 @@ self.addEventListener("install", (event) => {
       const cache = await caches.open(OFFLINE_CACHE);
       // `reload` bypasses the HTTP cache so an install always stores the
       // freshly deployed fallbacks, not whatever the browser had on hand.
-      await Promise.all(
-        [OFFLINE_URL, OFFLINE_POS_URL].map((url) =>
-          cache.add(new Request(url, { cache: "reload" }))
-        )
-      );
+      await cache.add(new Request(OFFLINE_POS_URL, { cache: "reload" }));
       // The till's own JS/CSS have to be here too. A navigation served from the
       // precache still asks for its /_next/static chunks, and on a cold offline
       // start nothing has ever fetched them, so the shell would hydrate into
@@ -85,7 +79,7 @@ async function precachePosAssets(offlineCache) {
       })
     );
   } catch {
-    // Same reasoning: the generic /offline fallback still works without this.
+    // Same reasoning: a failed precache here only costs styling, not selling.
   }
 }
 
@@ -140,15 +134,10 @@ self.addEventListener("fetch", (event) => {
           return await fetch(request);
         } catch {
           const cache = await caches.open(OFFLINE_CACHE);
-          // A till that loses signal mid-shift reloads /sales/new and must get
-          // the offline till, not the "you are offline" dead end: the sale in
-          // front of the cashier still has to be taken.
-          const fallback = url.pathname === POS_URL ? OFFLINE_POS_URL : OFFLINE_URL;
-          return (
-            (await cache.match(fallback)) ??
-            (await cache.match(OFFLINE_URL)) ??
-            Response.error()
-          );
+          // Any failed navigation — /sales/new mid-shift, a cold reload, a
+          // bookmark — lands on the till. It is the only offline shell left,
+          // and the sale in front of the cashier still has to be taken.
+          return (await cache.match(OFFLINE_POS_URL)) ?? Response.error();
         }
       })()
     );
