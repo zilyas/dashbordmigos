@@ -24,7 +24,7 @@ import { shouldNavigateToOfflineShell } from "@/lib/offline-route";
  * whole offline feature.
  */
 /**
- * Moves the user to the precached /offline shell the moment connectivity
+ * Moves the user to the precached /offline/pos till the moment connectivity
  * drops, before any server request is attempted.
  *
  * Dashboard pages are Server Components, so a navigation (or a cold reload)
@@ -42,8 +42,8 @@ import { shouldNavigateToOfflineShell } from "@/lib/offline-route";
  * here treats `online` as proof the server is reachable. Sync and lease
  * renewal keep verifying with GET /api/health and the snapshot route.
  *
- * Returning online deliberately navigates nowhere: a user reading pending
- * sales on /offline would lose the list under them. They choose when to leave.
+ * Returning online deliberately navigates nowhere: a cashier mid-sale on
+ * /offline/pos would lose the cart under them. They choose when to leave.
  */
 function OfflineRedirect() {
   const router = useRouter();
@@ -71,7 +71,7 @@ function OfflineRedirect() {
     if (!shouldNavigateToOfflineShell(pathname, isOffline)) return;
     // `replace`, not `push`: the page we are leaving cannot render without a
     // server, so leaving it on the back stack only sets up another 500.
-    router.replace("/offline");
+    router.replace("/offline/pos");
   }, [isOffline, pathname, router]);
 
   return null;

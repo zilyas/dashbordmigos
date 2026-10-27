@@ -17,9 +17,9 @@ describe("shouldNavigateToOfflineShell", () => {
     expect(shouldNavigateToOfflineShell("/offline/pos/", true)).toBe(false);
   });
 
-  it("never redirects /offline onto itself", () => {
-    expect(shouldNavigateToOfflineShell("/offline", true)).toBe(false);
-    expect(shouldNavigateToOfflineShell("/offline/", true)).toBe(false);
+  it("redirects a bare /offline, since the till is the only shell now", () => {
+    expect(shouldNavigateToOfflineShell("/offline", true)).toBe(true);
+    expect(shouldNavigateToOfflineShell("/offline/", true)).toBe(true);
   });
 
   it("does not treat a lookalike path as the shell", () => {

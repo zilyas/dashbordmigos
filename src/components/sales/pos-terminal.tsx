@@ -335,6 +335,25 @@ export function POSTerminal({
     [readOffline]
   );
 
+  // Cart length read via ref inside the timer below, not as an effect
+  // dependency: a cashier adding an item during the 10s wait must not reset
+  // the clock, only the check at the end.
+  const cartLengthRef = useRef(cart.length);
+  cartLengthRef.current = cart.length;
+
+  // 10s after the connection returns on /offline/pos, hand the cashier back to
+  // the live POS -- but only with an empty cart. A cart mid-sale must never be
+  // yanked out from under the cashier, so it stays on /offline/pos until the
+  // cart is cleared or the sale completes, same as shouldNavigateToOfflineShell's
+  // "they choose when to leave" rule for the offline-redirect direction.
+  useEffect(() => {
+    if (!cacheOnly || isOffline) return;
+    const timer = window.setTimeout(() => {
+      if (cartLengthRef.current === 0) router.push("/sales/new");
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [cacheOnly, isOffline, router]);
+
   // One read per connectivity flip: going dark needs the catalogue, coming back
   // needs the pending count the sync just changed. Deferred to an animation
   // frame so the till paints before IndexedDB is opened (same reason as
