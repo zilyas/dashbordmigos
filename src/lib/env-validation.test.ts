@@ -125,13 +125,13 @@ describe("validateEnv — feature-gated vars must NOT hard-fail", () => {
     expect(errors).toEqual([]);
   });
 
-  it("warns on a half-configured Redis pair without erroring", () => {
+  it("warns on a malformed Redis URL without erroring", () => {
     const { errors, warnings } = validateEnv({
       ...validEnv(),
-      RATE_LIMIT_REDIS_REST_URL: "https://redis.example.com",
+      RATE_LIMIT_REDIS_URL: "https://redis.example.com",
     });
     expect(errors).toEqual([]);
-    expect(names(warnings)).toContain("RATE_LIMIT_REDIS_REST_TOKEN");
+    expect(names(warnings)).toContain("RATE_LIMIT_REDIS_URL");
   });
 
   it("warns, never errors, on absent cron secrets (routes fail closed with 503)", () => {

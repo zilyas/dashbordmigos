@@ -150,9 +150,10 @@ EXPOSE 3000
 #     the ordering problem: by the time it discovers a migration is broken,
 #     Coolify has already scheduled this container and is waiting on its health
 #     check. The old container may already be gone.
-#  3. Migrations need the unpooled DIRECT_URL (Prisma's advisory lock is
-#     session-scoped and dies behind PgBouncer in transaction mode), which this
-#     container is not given — it runs on the pooled DATABASE_URL.
+#  3. Prisma Migrate's advisory lock is session-scoped, so migrations must
+#     run from a process with its own direct connection to Postgres — the
+#     app container runs behind a rolling deploy and its connection is not
+#     a stable place to hold that lock across a redeploy.
 #
 # Migrations therefore run in the `Deploy (Coolify)` job of
 # .github/workflows/ci.yml, BEFORE the deploy webhook is POSTed. See the long

@@ -39,9 +39,6 @@ jobs:
       #     rather than at build time. This was confirmed locally by pointing
       #     DATABASE_URL at an unreachable host/port and re-running the exact
       #     same build command with an identical result.
-      #   - DIRECT_URL is documented in .env.example but not referenced by
-      #     prisma.config.ts or any application code, so it is intentionally
-      #     omitted here.
       # Because of this, no Postgres service container is used in this
       # workflow — see the CI section of README.md for the full rationale.
       DATABASE_URL: "postgresql://user:pass@127.0.0.1:5432/nonexistent?sslmode=disable"
@@ -323,13 +320,15 @@ jobs:
       # point is to be slim — and it would wrap PID 1 in a shell, see the
       # SIGTERM note at Dockerfile:136.
       #
-      # DIRECT_URL, not DATABASE_URL. prisma.config.ts prefers DIRECT_URL, and
-      # that preference is load-bearing here: Prisma Migrate takes a Postgres
-      # *session-scoped* advisory lock, and Neon's pooled endpoint is PgBouncer
-      # in transaction mode, which hands the lock statement and the migration
-      # statements to different backends. The lock is then held by a session
-      # nobody can reach and the 10s acquire times out. Point this at the
-      # unpooled endpoint.
+      # DATABASE_URL points directly at the self-hosted Postgres instance, on
+      # a firewalled public port restricted to GitHub Actions' IP ranges —
+      # there is no pooler (e.g. PgBouncer) in front of it, so there is no
+      # separate unpooled endpoint to prefer. That matters because Prisma
+      # Migrate takes a Postgres *session-scoped* advisory lock: behind a
+      # transaction-mode pooler the lock statement and the migration
+      # statements can land on different backend sessions, and the lock is
+      # then held by a session nobody can reach until the 10s acquire times
+      # out. A direct connection has no such split.
       #
       # Concurrency: `prisma migrate deploy` takes that advisory lock precisely
       # so "multiple commands cannot run at the same time - for example, if you
@@ -349,14 +348,14 @@ jobs:
       - name: Apply pending database migrations
         if: steps.preflight.outputs.skipped == 'false'
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           set -euo pipefail
-          if [ -z "${DIRECT_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
-            echo "Neither DIRECT_URL nor DATABASE_URL is set, so pending migrations cannot be applied."
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "DATABASE_URL is not set, so pending migrations cannot be applied."
             echo "Refusing to deploy: shipping new code onto an unmigrated schema is the 2026-09-24 incident."
-            echo "Add DIRECT_URL (the unpooled Neon endpoint) under Settings > Secrets and variables > Actions."
+            echo "Add DATABASE_URL under Settings > Secrets and variables > Actions. It must point at the"
+            echo "self-hosted Postgres's firewalled public port, reachable from GitHub Actions' runners."
             exit 1
           fi
           npx prisma migrate status || true

@@ -168,16 +168,24 @@ export function validateEnv(env: EnvLike = process.env): EnvReport {
   }
 
   // Redis rate limiting is a documented multi-replica upgrade path; this
-  // project runs the in-memory limiter today. The pair must be set together.
-  const redisUrl = present(env.RATE_LIMIT_REDIS_REST_URL);
-  const redisToken = present(env.RATE_LIMIT_REDIS_REST_TOKEN);
-  if (redisUrl !== redisToken) {
-    warnings.push({
-      variable: redisUrl ? "RATE_LIMIT_REDIS_REST_TOKEN" : "RATE_LIMIT_REDIS_REST_URL",
-      message:
-        "Only one of RATE_LIMIT_REDIS_REST_URL / RATE_LIMIT_REDIS_REST_TOKEN is set, so the login rate limiter " +
-        "is still the in-memory one and is not shared across replicas. Set both to switch, or clear both.",
-    });
+  // project runs the in-memory limiter today.
+  const redisUrl = env.RATE_LIMIT_REDIS_URL;
+  if (present(redisUrl)) {
+    let scheme: string | null = null;
+    try {
+      scheme = new URL(redisUrl.trim()).protocol;
+    } catch {
+      scheme = null;
+    }
+    if (scheme !== "redis:" && scheme !== "rediss:") {
+      warnings.push({
+        variable: "RATE_LIMIT_REDIS_URL",
+        message:
+          "RATE_LIMIT_REDIS_URL is set but is not a redis:// or rediss:// URL, so the login rate limiter " +
+          "falls back to the in-memory one and is not shared across replicas. " +
+          "Format: redis://[:password@]host:port",
+      });
+    }
   }
 
   // The cron secrets fail CLOSED (both routes return 503 when unset), which is

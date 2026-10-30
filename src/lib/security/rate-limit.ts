@@ -5,12 +5,14 @@
 // That's an accepted tradeoff at this deployment's current (single-instance)
 // scale.
 //
-// Multi-replica upgrade path: set RATE_LIMIT_REDIS_REST_URL (+ _TOKEN) and the
-// limiter switches to a shared Upstash Redis backend — no call-site changes,
-// because the public API is already async. Leave the vars unset and behaviour
-// is byte-for-byte identical to before. See README "Rate limiting" and
-// .env.example for setup.
+// Multi-replica upgrade path: set RATE_LIMIT_REDIS_URL (a standard
+// redis://[:password@]host:port[/db] or rediss:// URL) and the limiter
+// switches to a shared Redis backend over plain TCP (ioredis) — no call-site
+// changes, because the public API is already async. Leave it unset and
+// behaviour is byte-for-byte identical to before. See README "Rate limiting"
+// and .env.example for setup.
 
+import Redis from "ioredis";
 import { scopedLogger } from "@/lib/logger";
 
 const rateLogger = scopedLogger("system");
@@ -76,7 +78,7 @@ class InMemoryRateLimiter implements RateLimiterBackend {
   }
 }
 
-// ── Upstash Redis (REST) backend (opt-in) ───────────────────────────────────
+// ── Redis (ioredis, plain TCP) backend (opt-in) ─────────────────────────────
 
 // Atomic fixed-window matching the in-memory semantics: INCR the counter, set
 // the expiry only on the first hit of the window, and read the remaining TTL to
@@ -87,40 +89,31 @@ if c == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
 return {c, redis.call('PTTL', KEYS[1])}
 `;
 
-class UpstashRateLimiter implements RateLimiterBackend {
-  constructor(
-    private readonly restUrl: string,
-    private readonly token: string,
-  ) {}
+class IoredisRateLimiter implements RateLimiterBackend {
+  private readonly client: Redis;
 
-  private async command<T>(body: unknown[]): Promise<T> {
-    const res = await fetch(this.restUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
+  constructor(url: string) {
+    this.client = new Redis(url, {
+      // A command that can't reach Redis must fail fast into this class's
+      // own try/catch (which fails OPEN, see below) rather than queue
+      // forever waiting on a reconnect.
+      maxRetriesPerRequest: 1,
+      lazyConnect: false,
     });
-    if (!res.ok) {
-      throw new Error(`Upstash REST ${res.status}: ${await res.text().catch(() => "")}`);
-    }
-    const json = (await res.json()) as { result?: T; error?: string };
-    if (json.error) throw new Error(`Upstash: ${json.error}`);
-    return json.result as T;
+    this.client.on("error", (err) => {
+      rateLogger.error({ err }, "rate limiter Redis connection error");
+    });
   }
 
   async limit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now();
     try {
-      const [count, pttl] = await this.command<[number, number]>([
-        "EVAL",
+      const [count, pttl] = (await this.client.eval(
         WINDOW_SCRIPT,
-        "1",
+        1,
         key,
-        String(config.windowMs),
-      ]);
+        String(config.windowMs)
+      )) as [number, number];
       const resetAt = pttl >= 0 ? now + pttl : now + config.windowMs;
       if (count > config.limit) {
         return { success: false, remaining: 0, resetAt };
@@ -137,7 +130,7 @@ class UpstashRateLimiter implements RateLimiterBackend {
 
   async reset(key: string): Promise<void> {
     try {
-      await this.command(["DEL", key]);
+      await this.client.del(key);
     } catch (err) {
       rateLogger.error({ err, key }, "rate limiter Redis reset error");
     }
@@ -147,11 +140,10 @@ class UpstashRateLimiter implements RateLimiterBackend {
 // ── Backend selection ───────────────────────────────────────────────────────
 
 function createBackend(): RateLimiterBackend {
-  const url = process.env.RATE_LIMIT_REDIS_REST_URL?.trim();
-  const token = process.env.RATE_LIMIT_REDIS_REST_TOKEN?.trim();
-  if (url && token) {
-    rateLogger.info("rate limiter using shared Upstash Redis backend");
-    return new UpstashRateLimiter(url, token);
+  const url = process.env.RATE_LIMIT_REDIS_URL?.trim();
+  if (url) {
+    rateLogger.info("rate limiter using shared Redis backend");
+    return new IoredisRateLimiter(url);
   }
   return new InMemoryRateLimiter();
 }

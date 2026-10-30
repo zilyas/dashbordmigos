@@ -10,8 +10,11 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    // Use DIRECT_URL (unpooled Neon endpoint) for migrations.
-    // Falls back to DATABASE_URL for environments without a separate direct URL.
-    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
+    // Self-hosted Postgres, direct connection — no pooler in front of it, so
+    // migrations and the app both use the same URL. Prisma Migrate's
+    // session-scoped advisory lock needs a direct connection; that is only
+    // a concern behind a transaction-mode pooler (e.g. PgBouncer), which
+    // this deployment does not run.
+    url: process.env["DATABASE_URL"],
   },
 });

@@ -1,7 +1,9 @@
-# Single-service compose file — the database is external (Neon), so there's
-# no local Postgres container to orchestrate. Useful for local Docker
-# smoke-testing and as a reference for Coolify's Docker Compose deployment
-# mode; Coolify's own UI is the source of truth for the running deployment.
+# Self-hosted stack: Postgres and Redis run as their own services (own Coolify
+# resources in production, not sidecars baked into the app image), so each can
+# be versioned, backed up, and restarted independently of the app. Useful for
+# local Docker smoke-testing and as a reference for Coolify's Docker Compose
+# deployment mode; Coolify's own UI is the source of truth for the running
+# deployment.
 services:
   app:
     build:
@@ -24,9 +26,14 @@ services:
       - "3000:3000"
     env_file:
       - .env
-    # Run at a single replica: the in-memory rate limiter
-    # (src/lib/security/rate-limit.ts) is per-instance, not shared across
-    # replicas. Scaling beyond 1 requires moving it to Redis/Upstash first.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Run at a single replica: scaling beyond 1 needs RATE_LIMIT_REDIS_URL set
+    # (see src/lib/security/rate-limit.ts) so the login/password-reset rate
+    # limiter is shared across replicas instead of per-instance.
     deploy:
       replicas: 1
     volumes:
@@ -41,6 +48,52 @@ services:
       retries: 3
       start_period: 15s
 
+  # Not reachable from the app via a `-pooler` or similar split: this is a
+  # direct connection, no PgBouncer-style pooler in front of it (see
+  # prisma.config.ts and src/lib/prisma.ts's own pool). In Coolify this runs
+  # as its own resource with its own backup schedule, not a sidecar container
+  # tied to the app's lifecycle.
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dashboard}
+      POSTGRES_USER: ${POSTGRES_USER:-dashboard}
+      # No default here on purpose: an empty/default password shipping to
+      # production is worse than a container that refuses to start without
+      # one set explicitly in .env.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dashboard} -d ${POSTGRES_DB:-dashboard}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Backs the login/password-reset rate limiter only (src/lib/security/rate-
+  # limit.ts) — no query caching, no sessions here. Persistence (AOF) means a
+  # restart doesn't silently reset every rate-limit counter to zero, and
+  # requirepass means this is not an open, unauthenticated instance (unlike
+  # the platform project's reference Redis, which ships with neither).
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   uploads:
   backups:
+  postgres-data:
+  redis-data:
