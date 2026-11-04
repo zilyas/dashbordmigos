@@ -2,12 +2,13 @@
 
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslations } from "next-intl";
 import { History } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { describeActivity } from "@/lib/activity-format";
 import { formatDateTime } from "@/lib/format";
-import { ROLE_LABELS } from "@/lib/labels";
+import { roleLabel } from "@/lib/labels";
 import type { ActivityLogRow } from "@/lib/queries/activity";
 
 export function ActivityTable({
@@ -17,16 +18,19 @@ export function ActivityTable({
   logs: ActivityLogRow[];
   showStore?: boolean;
 }) {
+  const tLabels = useTranslations("labels");
+  const t = useTranslations("activity.table");
+  const tActivity = useTranslations("activity");
   const columns = useMemo<ColumnDef<ActivityLogRow, unknown>[]>(() => {
     const cols: ColumnDef<ActivityLogRow, unknown>[] = [
       {
         id: "user",
         accessorFn: (row) => row.userName,
-        header: "User",
+        header: t("columns.user"),
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <span className="font-medium">{row.original.userName}</span>
-            <StatusBadge variant="neutral">{ROLE_LABELS[row.original.userRole]}</StatusBadge>
+            <StatusBadge variant="neutral">{roleLabel(tLabels, row.original.userRole)}</StatusBadge>
           </div>
         ),
       },
@@ -36,7 +40,7 @@ export function ActivityTable({
       cols.push({
         id: "store",
         accessorFn: (row) => row.storeName ?? "",
-        header: "Store",
+        header: t("columns.store"),
         cell: ({ row }) => (
           <span className="text-muted-foreground">{row.original.storeName ?? "—"}</span>
         ),
@@ -46,23 +50,23 @@ export function ActivityTable({
     cols.push(
       {
         id: "action",
-        accessorFn: (row) => describeActivity(row.action, row.entity, row.metadata),
-        header: "Action",
+        accessorFn: (row) => describeActivity(tActivity, tLabels, row.action, row.entity, row.metadata),
+        header: t("columns.action"),
         cell: ({ row }) => (
           <span className="text-muted-foreground">
-            {describeActivity(row.original.action, row.original.entity, row.original.metadata)}
+            {describeActivity(tActivity, tLabels, row.original.action, row.original.entity, row.original.metadata)}
           </span>
         ),
       },
       {
         id: "entity",
         accessorFn: (row) => row.entity,
-        header: "Entity",
+        header: t("columns.entity"),
       },
       {
         id: "createdAt",
         accessorFn: (row) => row.createdAt,
-        header: "Date",
+        header: t("columns.date"),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">{formatDateTime(row.original.createdAt)}</span>
         ),
@@ -70,15 +74,15 @@ export function ActivityTable({
     );
 
     return cols;
-  }, [showStore]);
+  }, [showStore, tLabels, t, tActivity]);
 
   return (
     <DataTable
       columns={columns}
       data={logs}
-      searchPlaceholder="Search activity..."
+      searchPlaceholder={t("searchPlaceholder")}
       emptyIcon={<History />}
-      emptyTitle="No activity yet"
+      emptyTitle={t("emptyTitle")}
       pageSize={20}
     />
   );

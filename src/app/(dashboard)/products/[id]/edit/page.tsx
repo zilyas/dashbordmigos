@@ -12,6 +12,8 @@ import { getColors } from "@/lib/queries/colors";
 import { getVariantAxes } from "@/lib/queries/variant-axes";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
+import { getTranslations } from "next-intl/server";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Edit Product" };
 
@@ -22,6 +24,7 @@ export default async function EditProductPage({
 }) {
   const { id } = await params;
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context!.locale), namespace: "products.editPage" });
   const storeId = requireStoreId(context!);
 
   const [product, categories, features] = await Promise.all([
@@ -49,7 +52,7 @@ export default async function EditProductPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Edit product" description={product.name} />
+      <PageHeader title={t("title")} description={product.name} />
       <ProductForm
         categories={categories}
         productId={product.id}

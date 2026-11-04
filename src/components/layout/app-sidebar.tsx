@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, Sparkles } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +31,7 @@ export function AppSidebar({
   features?: StoreFeatures;
 }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
   const items = navItemsForRole(role, features);
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -52,7 +54,7 @@ export function AppSidebar({
           <Button asChild size="sm" className="justify-start gap-2 group-data-[collapsible=icon]:justify-center">
             <Link href="/sales/new" onClick={closeOnMobile}>
               <Plus className="size-4" />
-              <span className="group-data-[collapsible=icon]:hidden">New Sale</span>
+              <span className="group-data-[collapsible=icon]:hidden">{t("newSale")}</span>
             </Link>
           </Button>
         )}
@@ -65,12 +67,13 @@ export function AppSidebar({
               {items.map((item) => {
                 const isActive =
                   pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const title = t(item.titleKey);
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={title}>
                       <Link href={item.href} onClick={closeOnMobile}>
                         <item.icon />
-                        <span>{item.title}</span>
+                        <span>{title}</span>
                         {item.href === "/messages" && unreadMessageCount > 0 && (
                           <span className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground group-data-[collapsible=icon]:hidden">
                             {unreadMessageCount > 99 ? "99+" : unreadMessageCount}

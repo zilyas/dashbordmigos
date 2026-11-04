@@ -1,0 +1,51 @@
+{
+  "table": {
+    "searchPlaceholder": "Rechercher une activité...",
+    "emptyTitle": "Aucune activité pour le moment",
+    "columns": {
+      "user": "Utilisateur",
+      "store": "Boutique",
+      "action": "Action",
+      "entity": "Entité",
+      "date": "Date"
+    }
+  },
+  "page": {
+    "title": "Journal d'activité",
+    "descriptionStore": "Un registre des actions clés dans votre boutique.",
+    "descriptionPlatform": "Un registre des actions clés sur toutes les boutiques."
+  },
+  "describe": {
+    "productCreated": "a ajouté le produit « {name} » ({sku})",
+    "productUpdated": "a mis à jour le produit « {name} » ({sku})",
+    "saleCreatedWithTotal": "a finalisé la vente {invoiceNumber} — {total}",
+    "saleCreated": "a finalisé la vente {invoiceNumber}",
+    "userCreated": "a créé un compte {role} pour {name}",
+    "managerCreated": "a créé un compte gérant pour {name} à {storeName}",
+    "managerTransferred": "a transféré le gérant {name} à {storeName}",
+    "accountUpdated": "a mis à jour le compte {name}",
+    "accountStatusChanged": "a défini {name} sur {status}",
+    "accountDeleted": "a supprimé le compte « {name} »",
+    "accountDeactivated": "a désactivé le compte « {name} » (avait des enregistrements liés)",
+    "passwordReset": "a réinitialisé le mot de passe de « {name} »",
+    "storeCreated": "a créé la boutique « {name} » ({code})",
+    "storeUpdated": "a mis à jour la boutique « {name} »",
+    "storeStatusChanged": "a défini la boutique « {name} » sur {status}",
+    "storeDeleted": "a supprimé la boutique « {name} » ({code})",
+    "storeDeactivated": "a désactivé la boutique « {name} » (avait des enregistrements liés)",
+    "productDeleted": "a supprimé le produit « {name} » ({sku})",
+    "productArchived": "a archivé le produit « {name} » (avait des enregistrements liés)",
+    "productBulkStatusChanged": "a défini {count} produit(s) sur {status}",
+    "settingsUpdated": "a mis à jour les paramètres de la boutique « {storeName} »",
+    "userLogin": "s'est connecté(e)",
+    "userLogout": "s'est déconnecté(e)",
+    "passwordChanged": "a changé son mot de passe",
+    "passwordResetSelf": "a réinitialisé son mot de passe via le lien reçu par e-mail",
+    "sessionTerminated": "a déconnecté une session",
+    "allSessionsTerminated": "s'est déconnecté(e) de toutes les autres sessions",
+    "twoFactorEnabled": "a activé l'authentification à deux facteurs",
+    "twoFactorDisabled": "a désactivé l'authentification à deux facteurs",
+    "reportExported": "a exporté un rapport {period}",
+    "fallback": "{action} {entity}"
+  }
+}

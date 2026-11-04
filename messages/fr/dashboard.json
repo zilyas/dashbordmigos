@@ -1,0 +1,78 @@
+{
+  "superAdmin": {
+    "title": "Vue d'ensemble de la plateforme",
+    "description": "Chiffre d'affaires, profit et activité sur toutes les boutiques.",
+    "manageStores": "Gérer les boutiques",
+    "stats": {
+      "activeStores": "Boutiques actives",
+      "totalUsers": "Utilisateurs totaux",
+      "todaysRevenue": "Chiffre d'affaires du jour",
+      "todaysOrders": "Commandes du jour",
+      "monthlyRevenue": "Chiffre d'affaires mensuel",
+      "monthlyProfit": "Profit mensuel",
+      "monthlyOrders": "Commandes mensuelles",
+      "vsLastMonth": "vs mois dernier"
+    },
+    "topStoresTitle": "Meilleures boutiques ce mois-ci",
+    "topStoresDescription": "Par chiffre d'affaires",
+    "noSalesYet": "Aucune vente pour le moment",
+    "recentActivityTitle": "Activité récente",
+    "recentActivityDescriptionPlatform": "Dernières actions sur la plateforme"
+  },
+  "seller": {
+    "title": "Content de vous revoir",
+    "description": "Voici un aperçu de vos ventes.",
+    "newSale": "Nouvelle vente",
+    "lowStockWarning": "{count, plural, one {# produit a} other {# produits ont}} un stock faible dans toute la boutique.",
+    "stats": {
+      "todaysSales": "Ventes du jour",
+      "todaysOrders": "Commandes du jour",
+      "monthlySales": "Ventes de ce mois",
+      "monthlyOrders": "Commandes de ce mois"
+    },
+    "recentSalesTitle": "Mes ventes récentes",
+    "recentSalesDescription": "Vos 8 dernières ventes terminées",
+    "viewAll": "Voir tout",
+    "noSalesYet": "Aucune vente pour le moment — démarrez-en une depuis le menu latéral.",
+    "walkInCustomer": "Client de passage"
+  },
+  "manager": {
+    "description": "Aperçu de {storeName}",
+    "newSale": "Nouvelle vente",
+    "stats": {
+      "todaysRevenue": "Chiffre d'affaires du jour",
+      "todaysProfit": "Profit du jour",
+      "todaysOrders": "Commandes du jour",
+      "monthlyRevenue": "Chiffre d'affaires mensuel",
+      "monthlyProfit": "Profit mensuel",
+      "unitsInStock": "Unités en stock",
+      "lowStockItems": "Articles en stock faible",
+      "topSeller": "Meilleure vente",
+      "averageOrder": "Commande moyenne",
+      "vsLastMonth": "vs mois dernier"
+    },
+    "revenueProfitTitle": "Chiffre d'affaires et profit",
+    "revenueProfitDescription": "14 derniers jours",
+    "salesByCategoryTitle": "Ventes par catégorie",
+    "salesByCategoryDescription": "30 derniers jours",
+    "bestSellersTitle": "Produits les plus vendus",
+    "bestSellersDescription": "Par unités vendues, 30 derniers jours",
+    "recentActivityTitle": "Activité récente",
+    "recentActivityDescriptionStore": "Dernières actions dans la boutique"
+  },
+  "announcements": {
+    "unreadCount": "{count, plural, one {# annonce non lue} other {# annonces non lues}}",
+    "viewAll": "Voir tout",
+    "platform": "Plateforme",
+    "store": "Boutique"
+  },
+  "activityFeed": {
+    "noActivityYet": "Aucune activité pour le moment"
+  },
+  "charts": {
+    "revenue": "Chiffre d'affaires",
+    "profit": "Profit",
+    "unitsSold": "Unités vendues",
+    "noSalesYet": "Aucune vente pour le moment"
+  }
+}

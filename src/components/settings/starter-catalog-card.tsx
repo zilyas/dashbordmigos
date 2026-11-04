@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Loader2, Check, RotateCcw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,41 +23,48 @@ import {
 } from "@/lib/catalog-templates";
 import type { StoreFeatures } from "@/lib/features";
 
-const FEATURE_LABELS: Record<keyof StoreFeatures, string> = {
-  units_enabled: "Units of measure",
-  category_attributes_enabled: "Category attributes",
-  custom_variant_axes_enabled: "Custom variant axes",
-  expiry_batch_enabled: "Expiry & batch tracking",
-  storefront_api_enabled: "Storefront API",
+const FEATURE_I18N_KEYS: Record<keyof StoreFeatures, string> = {
+  units_enabled: "units",
+  category_attributes_enabled: "categoryAttributes",
+  custom_variant_axes_enabled: "customVariantAxes",
+  expiry_batch_enabled: "expiryBatch",
+  storefront_api_enabled: "storefrontApi",
 };
 
-function countLine(label: string, created: number, reused: number) {
+function countLine(
+  t: (key: string, values?: Record<string, string | number>) => string,
+  label: string,
+  created: number,
+  reused: number
+) {
   if (created === 0 && reused === 0) return null;
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className="font-medium">{label}:</span>
-      <span className="text-emerald-600 dark:text-emerald-400">{created} added</span>
-      {reused > 0 && <span className="text-muted-foreground">· {reused} reused</span>}
+      <span className="text-emerald-600 dark:text-emerald-400">{t("countAdded", { count: created })}</span>
+      {reused > 0 && <span className="text-muted-foreground">· {t("countReused", { count: reused })}</span>}
     </li>
   );
 }
 
 function TemplatePreview({ template, features }: { template: CatalogTemplate; features: StoreFeatures }) {
+  const t = useTranslations("settings.starterCatalog");
+  const tFeatures = useTranslations("settings.storeDetails.features");
   const newFlags = featuresNewlyEnabled(features, template.features);
   return (
     <div className="flex flex-col gap-4 text-sm">
       {newFlags.length > 0 && (
         <section>
-          <h4 className="mb-1 font-medium">Features that will be enabled</h4>
+          <h4 className="mb-1 font-medium">{t("previewFeaturesTitle")}</h4>
           <ul className="list-disc pl-5 text-muted-foreground">
             {newFlags.map((f) => (
-              <li key={f}>{FEATURE_LABELS[f]}</li>
+              <li key={f}>{tFeatures(`${FEATURE_I18N_KEYS[f]}.label`)}</li>
             ))}
           </ul>
         </section>
       )}
       <section>
-        <h4 className="mb-1 font-medium">Categories</h4>
+        <h4 className="mb-1 font-medium">{t("previewCategoriesTitle")}</h4>
         <ul className="space-y-1 text-muted-foreground">
           {template.categories.map((c) => (
             <li key={c.name} className={c.parent ? "pl-4" : ""}>
@@ -70,25 +78,24 @@ function TemplatePreview({ template, features }: { template: CatalogTemplate; fe
       </section>
       {template.axes && template.axes.length > 0 && (
         <section>
-          <h4 className="mb-1 font-medium">Variant axes</h4>
+          <h4 className="mb-1 font-medium">{t("previewAxesTitle")}</h4>
           <p className="text-muted-foreground">{template.axes.join(", ")}</p>
         </section>
       )}
       {template.sizes && template.sizes.length > 0 && (
         <section>
-          <h4 className="mb-1 font-medium">Sizes</h4>
+          <h4 className="mb-1 font-medium">{t("previewSizesTitle")}</h4>
           <p className="text-muted-foreground">{template.sizes.join(", ")}</p>
         </section>
       )}
       {template.colors && template.colors.length > 0 && (
         <section>
-          <h4 className="mb-1 font-medium">Colors</h4>
+          <h4 className="mb-1 font-medium">{t("previewColorsTitle")}</h4>
           <p className="text-muted-foreground">{template.colors.map((c) => c.name).join(", ")}</p>
         </section>
       )}
       <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-        This only sets up catalog structure. It does <strong>not</strong> create any products,
-        stock, or sales, and it never overwrites what you already have.
+        {t("previewFooter")}
       </p>
     </div>
   );
@@ -101,6 +108,8 @@ export function StarterCatalogCard({
   features: StoreFeatures;
   catalogConfigured: boolean;
 }) {
+  const t = useTranslations("settings.starterCatalog");
+  const tFeatures = useTranslations("settings.storeDetails.features");
   const [selected, setSelected] = useState<CatalogTemplate | null>(null);
   const [result, setResult] = useState<ApplyTemplateResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -119,7 +128,7 @@ export function StarterCatalogCard({
         return;
       }
       setResult(res.result);
-      toast.success(`Applied the ${res.result.templateName} starter catalog.`);
+      toast.success(t("toastApplied", { templateName: res.result.templateName }));
     });
   }
 
@@ -143,18 +152,17 @@ export function StarterCatalogCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles className="size-4" /> Starter catalog
+          <Sparkles className="size-4" /> {t("title")}
         </CardTitle>
         <CardDescription>
-          Optional. Set up categories, attributes and variant options for a common store type in
-          one click. It never creates products or stock, and never overwrites existing data.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {catalogConfigured ? (
           <details>
             <summary className="cursor-pointer text-sm text-muted-foreground select-none">
-              Your catalog is already set up — open to apply another starter template
+              {t("alreadySetUp")}
             </summary>
             <div className="mt-3">{templateGrid}</div>
           </details>
@@ -182,11 +190,11 @@ export function StarterCatalogCard({
               <TemplatePreview template={selected} features={features} />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setSelected(null)} disabled={isPending}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button onClick={apply} disabled={isPending}>
                   {isPending && <Loader2 className="size-4 animate-spin" />}
-                  Apply template
+                  {t("applyButton")}
                 </Button>
               </DialogFooter>
             </>
@@ -195,25 +203,28 @@ export function StarterCatalogCard({
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Check className="size-5 text-emerald-500" /> {result.templateName} applied
+                  <Check className="size-5 text-emerald-500" /> {t("appliedTitle", { templateName: result.templateName })}
                 </DialogTitle>
-                <DialogDescription>Here is what changed for your store.</DialogDescription>
+                <DialogDescription>{t("appliedDescription")}</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 text-sm">
                 {result.featuresEnabled.length > 0 && (
                   <p>
-                    <span className="font-medium">Features enabled: </span>
+                    <span className="font-medium">{t("featuresEnabledPrefix")}</span>
                     {result.featuresEnabled
-                      .map((f) => FEATURE_LABELS[f as keyof StoreFeatures] ?? f)
+                      .map((f) => {
+                        const i18nKey = FEATURE_I18N_KEYS[f as keyof StoreFeatures];
+                        return i18nKey ? tFeatures(`${i18nKey}.label`) : f;
+                      })
                       .join(", ")}
                   </p>
                 )}
                 <ul className="space-y-1">
-                  {countLine("Categories", result.created.categories, result.reused.categories)}
-                  {countLine("Attributes", result.created.attributes, result.reused.attributes)}
-                  {countLine("Variant axes", result.created.axes, result.reused.axes)}
-                  {countLine("Sizes", result.created.sizes, result.reused.sizes)}
-                  {countLine("Colors", result.created.colors, result.reused.colors)}
+                  {countLine(t, t("countCategories"), result.created.categories, result.reused.categories)}
+                  {countLine(t, t("countAttributes"), result.created.attributes, result.reused.attributes)}
+                  {countLine(t, t("countAxes"), result.created.axes, result.reused.axes)}
+                  {countLine(t, t("countSizes"), result.created.sizes, result.reused.sizes)}
+                  {countLine(t, t("countColors"), result.created.colors, result.reused.colors)}
                 </ul>
                 {(() => {
                   const anyCreated =
@@ -222,8 +233,7 @@ export function StarterCatalogCard({
                   if (!anyCreated && anyReused) {
                     return (
                       <p className="flex items-center gap-2 text-muted-foreground">
-                        <RotateCcw className="size-4" /> Everything was already set up — nothing was
-                        changed.
+                        <RotateCcw className="size-4" /> {t("nothingChanged")}
                       </p>
                     );
                   }
@@ -237,7 +247,7 @@ export function StarterCatalogCard({
                     setResult(null);
                   }}
                 >
-                  Done
+                  {t("done")}
                 </Button>
               </DialogFooter>
             </>

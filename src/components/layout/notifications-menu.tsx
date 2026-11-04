@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
@@ -50,6 +51,7 @@ export type NotificationItem = {
 };
 
 export function NotificationsMenu({ notifications }: { notifications: NotificationItem[] }) {
+  const t = useTranslations("topbar.notifications");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -74,18 +76,18 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className="relative" aria-label="Notifications">
+        <Button variant="ghost" size="icon-sm" className="relative" aria-label={t("ariaLabel")}>
           <Bell className="size-4" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {unreadCount > 9 ? t("overflowCount") : unreadCount}
             </span>
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[calc(100vw-2rem)] p-0 sm:w-80">
         <div className="flex items-center justify-between border-b px-3 py-2.5">
-          <span className="text-sm font-medium">Notifications</span>
+          <span className="text-sm font-medium">{t("title")}</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -95,7 +97,7 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
               onClick={handleMarkAllRead}
             >
               <CheckCheck className="size-3.5" />
-              Mark all read
+              {t("markAllRead")}
             </Button>
           )}
         </div>
@@ -103,7 +105,7 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
               <PackageX className="size-6 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">You&apos;re all caught up.</p>
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
             </div>
           ) : (
             <div className="flex flex-col">
@@ -143,7 +145,7 @@ export function NotificationsMenu({ notifications }: { notifications: Notificati
         </div>
         <div className="border-t p-2">
           <Button asChild variant="ghost" size="sm" className="w-full text-xs" onClick={() => setOpen(false)}>
-            <Link href="/notifications">View all notifications</Link>
+            <Link href="/notifications">{t("viewAll")}</Link>
           </Button>
         </div>
       </PopoverContent>

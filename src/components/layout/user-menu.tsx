@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { LogOut, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logoutAction } from "@/actions/auth";
-import { ROLE_LABELS } from "@/lib/labels";
+import { roleLabel } from "@/lib/labels";
 import { initials } from "@/lib/utils";
 import type { Role } from "@/generated/prisma/enums";
 
@@ -31,6 +32,7 @@ export function UserMenu({
   avatar?: string | null;
 }) {
   const router = useRouter();
+  const tLabels = useTranslations("labels");
   const [isPending, startTransition] = useTransition();
 
   function handleSignOut() {
@@ -60,7 +62,7 @@ export function UserMenu({
           <span className="text-sm font-medium">{name}</span>
           <span className="text-xs font-normal text-muted-foreground">{email}</span>
           <span className="mt-1 w-fit rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
-            {ROLE_LABELS[role]}
+            {roleLabel(tLabels, role)}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

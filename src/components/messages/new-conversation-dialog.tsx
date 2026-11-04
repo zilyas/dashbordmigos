@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Building2, Loader2, ShieldCheck, Store } from "lucide-react";
 import {
   CommandDialog,
@@ -15,7 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { ROLE_LABELS } from "@/lib/labels";
+import { roleLabel } from "@/lib/labels";
 import { initials } from "@/lib/utils";
 import { startDirectConversation, startGroupConversation, type BroadcastTarget } from "@/actions/messages";
 import type { MessageableUser } from "@/lib/messaging-permissions";
@@ -33,6 +34,8 @@ export function NewConversationDialog({
   currentUserStoreId: string | null;
   onCreated: (conversationId: string) => void;
 }) {
+  const tLabels = useTranslations("labels");
+  const t = useTranslations("messaging.newConversationDialog");
   const [groupMode, setGroupMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -102,48 +105,48 @@ export function NewConversationDialog({
     <CommandDialog
       open={open}
       onOpenChange={handleOpenChange}
-      title="New message"
-      description="Start a direct message or a group conversation"
+      title={t("title")}
+      description={t("description")}
     >
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">
-          {groupMode ? `${selected.size} selected` : "Select a person to message"}
+          {groupMode ? t("selectedCount", { count: selected.size }) : t("selectPersonPrompt")}
         </span>
         <div className="flex items-center gap-2">
           {groupMode && (
             <Button size="sm" disabled={selected.size === 0 || isPending} onClick={handleStartGroup}>
               {isPending && <Loader2 className="size-3.5 animate-spin" />}
-              Start group
+              {t("startGroup")}
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={() => setGroupMode((v) => !v)}>
-            {groupMode ? "Cancel" : "New group"}
+            {groupMode ? t("cancel") : t("newGroup")}
           </Button>
         </div>
       </div>
-      <CommandInput placeholder="Search people..." />
+      <CommandInput placeholder={t("searchPlaceholder")} />
       <CommandList>
-        <CommandEmpty>No one found.</CommandEmpty>
+        <CommandEmpty>{t("noOneFound")}</CommandEmpty>
 
         {!groupMode && (
           <>
-            <CommandGroup heading="Broadcast">
+            <CommandGroup heading={t("broadcastHeading")}>
               {storeMates.length > 0 && (
                 <CommandItem onSelect={() => handleBroadcast("store", "Entire store")} disabled={isPending}>
                   <Store className="size-4" />
-                  Entire store ({storeMates.length})
+                  {t("entireStore", { count: storeMates.length })}
                 </CommandItem>
               )}
               {managers.length > 0 && (
                 <CommandItem onSelect={() => handleBroadcast("managers", "All managers")} disabled={isPending}>
                   <ShieldCheck className="size-4" />
-                  All managers ({managers.length})
+                  {t("allManagers", { count: managers.length })}
                 </CommandItem>
               )}
               {sellers.length > 0 && (
                 <CommandItem onSelect={() => handleBroadcast("sellers", "All sellers")} disabled={isPending}>
                   <Building2 className="size-4" />
-                  All sellers ({sellers.length})
+                  {t("allSellers", { count: sellers.length })}
                 </CommandItem>
               )}
             </CommandGroup>
@@ -151,7 +154,7 @@ export function NewConversationDialog({
           </>
         )}
 
-        <CommandGroup heading={groupMode ? "Select people" : "People"}>
+        <CommandGroup heading={groupMode ? t("selectPeopleHeading") : t("peopleHeading")}>
           {messageableUsers.map((user) => (
             <CommandItem
               key={user.id}
@@ -173,7 +176,7 @@ export function NewConversationDialog({
                 </AvatarFallback>
               </Avatar>
               <span className="min-w-0 flex-1 truncate">{user.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{roleLabel(tLabels, user.role)}</span>
             </CommandItem>
           ))}
         </CommandGroup>

@@ -38,7 +38,8 @@ import { parseAxisValues, axisValueList } from "@/lib/variant-axes";
 import { hashSaleBody } from "@/lib/api/idempotency";
 import { logActivity } from "@/lib/audit";
 import { scopedLogger } from "@/lib/logger";
-import { saleSchema, type SaleInput } from "@/lib/validations/sale";
+import { buildSaleSchema, type SaleInput } from "@/lib/validations/sale";
+import type { ValidationT } from "@/lib/validations/types";
 
 const salesLogger = scopedLogger("app");
 
@@ -209,11 +210,16 @@ function replayConflict(storedHash: string | null, bodyHash: string): CreateSale
 export async function createSaleCore(
   context: CreateSaleContext,
   input: SaleInput,
-  options: CreateSaleOptions = {}
+  options: CreateSaleOptions = {},
+  /** Resolved via getTranslations("validation") by the caller -- a Server
+   * Action has a session to read locale from; the offline sync route
+   * (src/app/api/pos/offline/sales/route.ts) has none and passes a fixed
+   * identity translator, same as the pre-auth flows in src/lib/auth.ts. */
+  tValidation: ValidationT = (key) => key
 ): Promise<CreateSaleResult> {
   const { storeId } = context;
 
-  const parsed = saleSchema.safeParse(input);
+  const parsed = buildSaleSchema(tValidation).safeParse(input);
   if (!parsed.success) return fail("invalid_input", "Invalid sale data");
   const data = parsed.data;
 

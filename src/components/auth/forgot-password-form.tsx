@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { ArrowLeft, KeyRound, Loader2, Sparkles } from "lucide-react";
 
@@ -11,12 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { requestPasswordReset } from "@/actions/password-reset";
-import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations/password";
+import { buildForgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations/password";
 
 export function ForgotPasswordForm() {
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<{ message: string; resetLink?: string } | null>(null);
+  const tValidation = useTranslations("validation");
+  const forgotPasswordSchema = useMemo(
+    () => buildForgotPasswordSchema(tValidation),
+    [tValidation]
+  );
 
   const form = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),

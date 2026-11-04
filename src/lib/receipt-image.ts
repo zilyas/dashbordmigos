@@ -1,6 +1,24 @@
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
 import type { SaleListItem, SaleReceipt } from "@/lib/queries/sales";
+
+/**
+ * Every label this canvas draws, pre-resolved by the caller via
+ * useTranslations("receipt") + useTranslations("labels") -- this file has no
+ * hooks/JSX, so it cannot call next-intl itself. Keys match receipt.json 1:1;
+ * this is the same receipt shown on-screen (receipt.tsx), just drawn to a
+ * canvas instead of the DOM, so the two must never show different languages.
+ */
+export type ReceiptImageLabels = {
+  invoice: string;
+  servedBy: string;
+  customer: string;
+  subtotal: string;
+  discount: string;
+  tax: string;
+  total: string;
+  paymentMethod: string;
+  thankYou: string;
+};
 
 /**
  * Draws the receipt onto a canvas and returns a PNG blob.
@@ -43,7 +61,11 @@ export function wrap(ctx: Ctx, text: string, max: number) {
   return lines;
 }
 
-export function renderReceiptImage(receipt: NonNullable<SaleReceipt>): Promise<Blob> {
+export function renderReceiptImage(
+  receipt: NonNullable<SaleReceipt>,
+  paymentMethodLabel: string,
+  labels: ReceiptImageLabels
+): Promise<Blob> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return Promise.reject(new Error("Canvas is not available in this browser."));
@@ -90,9 +112,9 @@ export function renderReceiptImage(receipt: NonNullable<SaleReceipt>): Promise<B
     center(formatDateTime(receipt.createdAt), 18, "normal", "#666");
     y += GAP / 2;
 
-    row("Invoice", receipt.invoiceNumber, 18, "normal", "#666");
-    row("Served by", receipt.sellerName, 18, "normal", "#666");
-    if (receipt.customerName) row("Customer", receipt.customerName, 18, "normal", "#666");
+    row(labels.invoice, receipt.invoiceNumber, 18, "normal", "#666");
+    row(labels.servedBy, receipt.sellerName, 18, "normal", "#666");
+    if (receipt.customerName) row(labels.customer, receipt.customerName, 18, "normal", "#666");
 
     rule(true);
 
@@ -110,19 +132,19 @@ export function renderReceiptImage(receipt: NonNullable<SaleReceipt>): Promise<B
 
     rule(true);
 
-    row("Subtotal", formatCurrency(receipt.subtotal, receipt.currency));
+    row(labels.subtotal, formatCurrency(receipt.subtotal, receipt.currency));
     if (receipt.discount > 0) {
-      row("Discount", `-${formatCurrency(receipt.discount, receipt.currency)}`);
+      row(labels.discount, `-${formatCurrency(receipt.discount, receipt.currency)}`);
     }
-    row("Tax", formatCurrency(receipt.tax, receipt.currency));
+    row(labels.tax, formatCurrency(receipt.tax, receipt.currency));
     rule(false);
-    row("Total", formatCurrency(receipt.total, receipt.currency), 26, "bold");
+    row(labels.total, formatCurrency(receipt.total, receipt.currency), 26, "bold");
 
     rule(true);
 
-    row("Payment method", PAYMENT_METHOD_LABELS[receipt.paymentMethod], 18, "normal", "#666");
+    row(labels.paymentMethod, paymentMethodLabel, 18, "normal", "#666");
     y += GAP / 2;
-    center("Thank you for your purchase!", 18, "normal", "#666");
+    center(labels.thankYou, 18, "normal", "#666");
 
     return y + PAD;
   };

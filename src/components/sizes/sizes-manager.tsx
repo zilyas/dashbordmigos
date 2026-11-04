@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Plus, Ruler, Pencil, Trash2, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +22,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createSize, deleteSize, updateSize } from "@/actions/sizes";
-import { sizeSchema, type SizeInput } from "@/lib/validations/size";
+import { buildSizeSchema, type SizeInput } from "@/lib/validations/size";
 import { matchesAny } from "@/lib/text";
 import type { SizeListItem } from "@/lib/queries/sizes";
 import { cn } from "@/lib/utils";
@@ -34,15 +35,17 @@ import { useMemo } from "react";
  * ponytail: fixed list — add a store-level scale only if a store asks for one.
  */
 const SIZE_SCALES = [
-  { label: "Letter", names: ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL"] },
-  { label: "Numeric (EU)", names: ["34", "36", "38", "40", "42", "44", "46", "48", "50"] },
-  { label: "Waist (in)", names: ["28", "29", "30", "31", "32", "33", "34", "36", "38"] },
-  { label: "Shoes (EU)", names: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"] },
-  { label: "Kids (years)", names: ["2Y", "3Y", "4Y", "5Y", "6Y", "8Y", "10Y", "12Y", "14Y"] },
-  { label: "One size", names: ["One Size"] },
+  { key: "letter", names: ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL"] },
+  { key: "numericEu", names: ["34", "36", "38", "40", "42", "44", "46", "48", "50"] },
+  { key: "waistIn", names: ["28", "29", "30", "31", "32", "33", "34", "36", "38"] },
+  { key: "shoesEu", names: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"] },
+  { key: "kidsYears", names: ["2Y", "3Y", "4Y", "5Y", "6Y", "8Y", "10Y", "12Y", "14Y"] },
+  { key: "oneSize", names: ["One Size"] },
 ] as const;
 
 export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
+  const t = useTranslations("catalog.sizes");
+  const tCommon = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SizeListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SizeListItem | null>(null);
@@ -63,29 +66,29 @@ export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search sizes..."
+            placeholder={t("searchPlaceholder")}
             className="pl-9"
           />
         </div>
         <Button onClick={openCreate} className="gap-1.5">
           <Plus className="size-4" />
-          New Size
+          {t("newSize")}
         </Button>
       </div>
 
       {sizes.length === 0 ? (
         <EmptyState
           icon={<Ruler />}
-          title="No sizes yet"
-          description="Add sizes (S, M, L, …) to use them on clothing product variants."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <Button onClick={openCreate} size="sm">
-              New Size
+              {t("newSize")}
             </Button>
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<Search />} title="No sizes match your search" />
+        <EmptyState icon={<Search />} title={t("emptySearchTitle")} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((size) => (
@@ -93,7 +96,7 @@ export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
               <div>
                 <p className="font-medium">{size.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {size.variantCount} variant{size.variantCount === 1 ? "" : "s"}
+                  {t("variantCount", { count: size.variantCount })}
                 </p>
               </div>
               <div className="flex gap-1">
@@ -120,18 +123,18 @@ export function SizesManager({ sizes }: { sizes: SizeListItem[] }) {
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
+          title={t("deleteTitle", { name: deleteTarget.name })}
           description={
             deleteTarget.variantCount > 0
-              ? `This size is used by ${deleteTarget.variantCount} variant(s). Those variants will lose their size.`
-              : "This action cannot be undone."
+              ? t("deleteDescriptionWithVariants", { count: deleteTarget.variantCount })
+              : t("deleteDescriptionEmpty")
           }
-          confirmLabel="Delete"
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteSize(deleteTarget.id);
             if (result?.error) toast.error(result.error);
-            else toast.success("Size deleted");
+            else toast.success(t("toastDeleted"));
           }}
         />
       )}
@@ -151,6 +154,11 @@ function SizeDialog({
   sizes: SizeListItem[];
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("catalog.sizes.dialog");
+  const tScales = useTranslations("catalog.sizes.scales");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const sizeSchema = useMemo(() => buildSizeSchema(tValidation), [tValidation]);
   const form = useForm<SizeInput>({
     resolver: zodResolver(sizeSchema),
     values: { name: size?.name ?? "", position: size?.position ?? 0 },
@@ -180,7 +188,7 @@ function SizeDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(size ? "Size updated" : "Size created");
+      toast.success(size ? t("toastUpdated") : t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -190,27 +198,27 @@ function SizeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{size ? "Edit size" : "New size"}</DialogTitle>
-          <DialogDescription>Sizes are shared across this store&apos;s variant products.</DialogDescription>
+          <DialogTitle>{size ? t("editTitle") : t("newTitle")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel>Pick a size</FieldLabel>
+              <FieldLabel>{t("pickLabel")}</FieldLabel>
               <div className="flex flex-col gap-3">
                 {SIZE_SCALES.map((scale) => (
-                  <div key={scale.label} className="flex flex-col gap-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">{scale.label}</p>
+                  <div key={scale.key} className="flex flex-col gap-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{tScales(scale.key)}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {scale.names.map((preset, index) => {
                         const isTaken = taken.has(preset.toLowerCase());
                         const selected = name.toLowerCase() === preset.toLowerCase();
                         return (
                           <button
-                            key={`${scale.label}-${preset}`}
+                            key={`${scale.key}-${preset}`}
                             type="button"
                             disabled={isTaken}
-                            title={isTaken ? `${preset} already exists` : preset}
+                            title={isTaken ? t("alreadyExists", { name: preset }) : preset}
                             aria-pressed={selected}
                             onClick={() => pickPreset(preset, index)}
                             className={cn(
@@ -231,22 +239,22 @@ function SizeDialog({
               </div>
             </Field>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="size-name">Name</FieldLabel>
-              <Input id="size-name" placeholder="e.g. M" {...form.register("name")} />
+              <FieldLabel htmlFor="size-name">{t("nameLabel")}</FieldLabel>
+              <Input id="size-name" placeholder={t("namePlaceholder")} {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field>
-              <FieldLabel htmlFor="size-position">Sort order</FieldLabel>
+              <FieldLabel htmlFor="size-position">{t("sortOrderLabel")}</FieldLabel>
               <Input id="size-position" type="number" {...form.register("position", { valueAsNumber: true })} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              {size ? "Save changes" : "Create size"}
+              {size ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </form>

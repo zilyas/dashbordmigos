@@ -1,0 +1,52 @@
+{
+  "app": {
+    "title": "Messages",
+    "description": "Direct messages across your team.",
+    "newMessage": "New message",
+    "searchPlaceholder": "Search conversations"
+  },
+  "conversationList": {
+    "emptyTitle": "No conversations yet",
+    "you": "You: ",
+    "noMessagesYet": "No messages yet",
+    "unreadOverflow": "9+"
+  },
+  "threadView": {
+    "selectConversation": "Select a conversation",
+    "backAriaLabel": "Back to conversations",
+    "members": "{count, plural, one {# member} other {# members}}",
+    "noMessagesYet": "No messages yet — say hello",
+    "seen": "Seen",
+    "sent": "Sent",
+    "composerPlaceholder": "Write a message..."
+  },
+  "newConversationDialog": {
+    "title": "New message",
+    "description": "Start a direct message or a group conversation",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "selectPersonPrompt": "Select a person to message",
+    "startGroup": "Start group",
+    "newGroup": "New group",
+    "cancel": "Cancel",
+    "searchPlaceholder": "Search people...",
+    "noOneFound": "No one found.",
+    "broadcastHeading": "Broadcast",
+    "entireStore": "Entire store ({count})",
+    "allManagers": "All managers ({count})",
+    "allSellers": "All sellers ({count})",
+    "peopleHeading": "People",
+    "selectPeopleHeading": "Select people",
+    "entireStoreTitle": "Entire store",
+    "allManagersTitle": "All managers",
+    "allSellersTitle": "All sellers"
+  },
+  "actions": {
+    "notAuthorized": "Not authorized",
+    "conversationNotFound": "Conversation not found.",
+    "cantMessagePerson": "You can't message this person.",
+    "selectAtLeastOneRecipient": "Select at least one recipient.",
+    "cantMessageSomeRecipients": "You can't message one or more of the selected recipients.",
+    "messageEmpty": "Message can't be empty.",
+    "messageTooLong": "Message is too long."
+  }
+}

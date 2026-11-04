@@ -1,0 +1,52 @@
+{
+  "app": {
+    "title": "Messages",
+    "description": "Messages directs avec votre équipe.",
+    "newMessage": "Nouveau message",
+    "searchPlaceholder": "Rechercher des conversations"
+  },
+  "conversationList": {
+    "emptyTitle": "Aucune conversation pour le moment",
+    "you": "Vous : ",
+    "noMessagesYet": "Aucun message pour le moment",
+    "unreadOverflow": "9+"
+  },
+  "threadView": {
+    "selectConversation": "Sélectionnez une conversation",
+    "backAriaLabel": "Retour aux conversations",
+    "members": "{count, plural, one {# membre} other {# membres}}",
+    "noMessagesYet": "Aucun message pour le moment — dites bonjour",
+    "seen": "Vu",
+    "sent": "Envoyé",
+    "composerPlaceholder": "Écrivez un message..."
+  },
+  "newConversationDialog": {
+    "title": "Nouveau message",
+    "description": "Démarrez un message direct ou une conversation de groupe",
+    "selectedCount": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
+    "selectPersonPrompt": "Sélectionnez une personne à qui écrire",
+    "startGroup": "Démarrer le groupe",
+    "newGroup": "Nouveau groupe",
+    "cancel": "Annuler",
+    "searchPlaceholder": "Rechercher des personnes...",
+    "noOneFound": "Personne trouvé.",
+    "broadcastHeading": "Diffusion",
+    "entireStore": "Toute la boutique ({count})",
+    "allManagers": "Tous les gérants ({count})",
+    "allSellers": "Tous les vendeurs ({count})",
+    "peopleHeading": "Personnes",
+    "selectPeopleHeading": "Sélectionner des personnes",
+    "entireStoreTitle": "Toute la boutique",
+    "allManagersTitle": "Tous les gérants",
+    "allSellersTitle": "Tous les vendeurs"
+  },
+  "actions": {
+    "notAuthorized": "Non autorisé",
+    "conversationNotFound": "Conversation introuvable.",
+    "cantMessagePerson": "Vous ne pouvez pas écrire à cette personne.",
+    "selectAtLeastOneRecipient": "Sélectionnez au moins un destinataire.",
+    "cantMessageSomeRecipients": "Vous ne pouvez pas écrire à un ou plusieurs des destinataires sélectionnés.",
+    "messageEmpty": "Le message ne peut pas être vide.",
+    "messageTooLong": "Le message est trop long."
+  }
+}

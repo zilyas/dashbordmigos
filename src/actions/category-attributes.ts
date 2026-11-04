@@ -1,13 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
 import { slugify } from "@/lib/utils";
 import {
-  attributeDefinitionSchema,
+  buildAttributeDefinitionSchema,
   type AttributeDefinitionInput,
 } from "@/lib/validations/category-attribute";
+import { toAppLocale } from "@/i18n/messages";
 import { Prisma } from "@/generated/prisma/client";
 
 // Attribute definitions are catalog configuration, managed by the store's Manager.
@@ -27,12 +29,15 @@ export async function createAttributeDefinition(
   input: AttributeDefinitionInput
 ) {
   const session = await requireAttributeManager();
-  const parsed = attributeDefinitionSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid attribute data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "catalog.actions.attributes" });
+  const parsed = buildAttributeDefinitionSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
   const data = parsed.data;
 
   if (!(await assertCategoryInStore(categoryId, session.storeId))) {
-    return { error: "Category not found" };
+    return { error: t("notFound") };
   }
 
   const key = slugify(data.label) || "attribute";
@@ -55,7 +60,7 @@ export async function createAttributeDefinition(
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "An attribute with that label already exists in this category." };
+      return { error: t("labelExists") };
     }
     throw error;
   }
@@ -63,14 +68,17 @@ export async function createAttributeDefinition(
 
 export async function updateAttributeDefinition(id: string, input: AttributeDefinitionInput) {
   const session = await requireAttributeManager();
-  const parsed = attributeDefinitionSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid attribute data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "catalog.actions.attributes" });
+  const parsed = buildAttributeDefinitionSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
   const data = parsed.data;
 
   const existing = await prisma.categoryAttributeDefinition.findFirst({
     where: { id, storeId: session.storeId },
   });
-  if (!existing) return { error: "Attribute not found" };
+  if (!existing) return { error: t("notFound") };
 
   const key = slugify(data.label) || "attribute";
 
@@ -91,7 +99,7 @@ export async function updateAttributeDefinition(id: string, input: AttributeDefi
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "An attribute with that label already exists in this category." };
+      return { error: t("labelExists") };
     }
     throw error;
   }
@@ -99,11 +107,12 @@ export async function updateAttributeDefinition(id: string, input: AttributeDefi
 
 export async function deleteAttributeDefinition(id: string) {
   const session = await requireAttributeManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "catalog.actions.attributes" });
   const existing = await prisma.categoryAttributeDefinition.findFirst({
     where: { id, storeId: session.storeId },
     select: { id: true },
   });
-  if (!existing) return { error: "Attribute not found" };
+  if (!existing) return { error: t("notFound") };
 
   // Product values cascade with the definition.
   await prisma.categoryAttributeDefinition.delete({ where: { id } });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Cell, Pie, PieChart } from "recharts";
 import {
   ChartContainer,
@@ -15,8 +16,9 @@ import { PieChart as PieChartIcon } from "lucide-react";
 const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
 export function CategoryChart({ data }: { data: { name: string; value: number }[] }) {
+  const t = useTranslations("dashboard.charts");
   if (data.length === 0) {
-    return <EmptyState icon={<PieChartIcon />} title="No sales yet" className="h-72 border-none" />;
+    return <EmptyState icon={<PieChartIcon />} title={t("noSalesYet")} className="h-72 border-none" />;
   }
 
   const chartConfig = data.reduce((acc, item, i) => {

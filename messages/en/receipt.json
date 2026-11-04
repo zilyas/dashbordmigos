@@ -1,0 +1,24 @@
+{
+  "invoice": "Invoice",
+  "servedBy": "Served by",
+  "customer": "Customer",
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "tax": "Tax",
+  "total": "Total",
+  "paymentMethod": "Payment method",
+  "thankYou": "Thank you for your purchase!",
+  "dialog": {
+    "title": "Receipt {invoiceNumber}",
+    "description": "Print it, save it as an image, or send it to the customer."
+  },
+  "actions": {
+    "print": "Print",
+    "download": "Download",
+    "whatsapp": "WhatsApp",
+    "toastPrepareFailed": "Could not prepare the receipt.",
+    "toastAllowPopups": "Allow pop-ups for this site to print the receipt.",
+    "toastSavedForWhatsapp": "Receipt saved. Attach it in WhatsApp."
+  },
+  "viewReceiptAriaLabel": "View receipt for {invoiceNumber}"
+}

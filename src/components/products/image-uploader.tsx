@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export function ImageUploader({
@@ -15,6 +16,7 @@ export function ImageUploader({
   onChange: (urls: string[]) => void;
   max?: number;
 }) {
+  const t = useTranslations("products.imageUploader");
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -32,7 +34,7 @@ export function ImageUploader({
         const res = await fetch("/api/uploads", { method: "POST", body: formData });
         const json = await res.json();
         if (!res.ok) {
-          toast.error(json.error ?? "Upload failed");
+          toast.error(json.error ?? t("toastUploadFailed"));
           continue;
         }
         uploaded.push(json.url);
@@ -44,7 +46,7 @@ export function ImageUploader({
       // A dropped connection rejects the fetch, and a proxy returning HTML for
       // a 413/502 makes res.json() throw before the !res.ok branch is reached.
       // Without this the upload just stops with no sign anything went wrong.
-      toast.error("Upload failed. Check your connection and try again.");
+      toast.error(t("toastUploadFailedRetry"));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -59,10 +61,10 @@ export function ImageUploader({
     <div className="flex flex-wrap gap-3">
       {value.map((url, i) => (
         <div key={url} className="group relative size-24 overflow-hidden rounded-lg border bg-muted">
-          <Image src={url} alt={`Product image ${i + 1}`} fill className="object-cover" sizes="96px" />
+          <Image src={url} alt={t("altText", { index: i + 1 })} fill className="object-cover" sizes="96px" />
           <button
             type="button"
-            aria-label={`Remove image ${i + 1}`}
+            aria-label={t("removeImage", { index: i + 1 })}
             onClick={() => removeAt(i)}
             className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
           >
@@ -86,7 +88,7 @@ export function ImageUploader({
           ) : (
             <>
               <ImagePlus className="size-5" />
-              <span className="text-[11px]">Add image</span>
+              <span className="text-[11px]">{t("addImage")}</span>
             </>
           )}
         </button>

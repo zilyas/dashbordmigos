@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ReceiptText } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { ReceiptDialog } from "@/components/sales/receipt-dialog";
@@ -16,13 +17,14 @@ export function SaleReceiptButton({
   currency: string;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("receipt");
 
   return (
     <>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`View receipt for ${sale.invoiceNumber}`}
+        aria-label={t("viewReceiptAriaLabel", { invoiceNumber: sale.invoiceNumber })}
         onClick={() => setOpen(true)}
       >
         <ReceiptText className="size-4" />

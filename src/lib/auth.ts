@@ -4,7 +4,13 @@ import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { logActivity } from "@/lib/audit";
-import { loginSchema } from "@/lib/validations/auth";
+import { buildLoginSchema } from "@/lib/validations/auth";
+
+// No signed-in user yet during authorize() -- there is nothing to resolve a
+// locale from. A failed parse here returns null (NextAuth's generic "invalid
+// credentials" outcome) without ever surfacing this schema's own messages, so
+// a fixed identity translator is correct, not a placeholder shortcut.
+const loginSchema = buildLoginSchema((key) => key);
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/security/password";
 import { extractRequestInfo, type RequestInfo } from "@/lib/security/request-info";
 import { RATE_LIMITS, rateLimit, resetRateLimit } from "@/lib/security/rate-limit";

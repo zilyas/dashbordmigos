@@ -1,0 +1,51 @@
+{
+  "table": {
+    "searchPlaceholder": "Search activity...",
+    "emptyTitle": "No activity yet",
+    "columns": {
+      "user": "User",
+      "store": "Store",
+      "action": "Action",
+      "entity": "Entity",
+      "date": "Date"
+    }
+  },
+  "page": {
+    "title": "Activity log",
+    "descriptionStore": "A record of key actions across your store.",
+    "descriptionPlatform": "A record of key actions across every store."
+  },
+  "describe": {
+    "productCreated": "added product \"{name}\" ({sku})",
+    "productUpdated": "updated product \"{name}\" ({sku})",
+    "saleCreatedWithTotal": "completed sale {invoiceNumber} — {total}",
+    "saleCreated": "completed sale {invoiceNumber}",
+    "userCreated": "created a {role} account for {name}",
+    "managerCreated": "created manager account for {name} at {storeName}",
+    "managerTransferred": "transferred manager {name} to {storeName}",
+    "accountUpdated": "updated {name} account",
+    "accountStatusChanged": "set {name} to {status}",
+    "accountDeleted": "deleted account \"{name}\"",
+    "accountDeactivated": "deactivated account \"{name}\" (had dependent records)",
+    "passwordReset": "reset the password for \"{name}\"",
+    "storeCreated": "created store \"{name}\" ({code})",
+    "storeUpdated": "updated store \"{name}\"",
+    "storeStatusChanged": "set store \"{name}\" to {status}",
+    "storeDeleted": "deleted store \"{name}\" ({code})",
+    "storeDeactivated": "deactivated store \"{name}\" (had dependent records)",
+    "productDeleted": "deleted product \"{name}\" ({sku})",
+    "productArchived": "archived product \"{name}\" (had dependent records)",
+    "productBulkStatusChanged": "set {count} product(s) to {status}",
+    "settingsUpdated": "updated store settings for \"{storeName}\"",
+    "userLogin": "signed in",
+    "userLogout": "signed out",
+    "passwordChanged": "changed their password",
+    "passwordResetSelf": "reset their password via email link",
+    "sessionTerminated": "signed out a session",
+    "allSessionsTerminated": "signed out of all other sessions",
+    "twoFactorEnabled": "enabled two-factor authentication",
+    "twoFactorDisabled": "disabled two-factor authentication",
+    "reportExported": "exported a {period} report",
+    "fallback": "{action} {entity}"
+  }
+}

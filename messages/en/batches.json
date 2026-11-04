@@ -1,0 +1,155 @@
+{
+  "expiryBadge": {
+    "valid": "Valid",
+    "expires_today": "Expires today",
+    "expired": "Expired",
+    "missing_date": "No date"
+  },
+  "enableCard": {
+    "title": "Batch & lot tracking",
+    "description": "Track stock as dated lots/batches with automatic oldest-first (FIFO) allocation on sales.",
+    "body": "Enabling this captures the product's current stock{variantSuffix} as an <strong>Opening</strong> batch, then all future stock changes go through batch receiving and adjustments. Aggregate stock is preserved.",
+    "bodyVariantSuffix": " (per variant)",
+    "cannotDisable": "Tracking <strong>cannot be turned off</strong> in this release, so enable it deliberately.",
+    "enableButton": "Enable batch tracking…",
+    "dialog": {
+      "title": "Enable batch tracking?",
+      "description": "Current stock becomes an Opening batch. This can't be undone in this release.",
+      "confirm": "Enable"
+    },
+    "toastAlreadyEnabled": "Batch tracking already enabled.",
+    "toastEnabled": "Batch tracking enabled — opening stock captured."
+  },
+  "adjustDialog": {
+    "button": "Adjust",
+    "title": "Adjust counted stock — {batchCode}",
+    "description": "Enter the counted quantity; the difference is logged.",
+    "countedStockLabel": "Counted stock ({unit})",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "e.g. stock count correction",
+    "save": "Save adjustment",
+    "errorInvalidQuantity": "Enter a valid non-negative quantity.",
+    "errorReasonRequired": "A reason is required.",
+    "toastAdjusted": "Batch stock adjusted."
+  },
+  "receiveForm": {
+    "title": "Receive stock",
+    "needVariantFirst": "Add at least one variant above before receiving stock — every batch belongs to a variant.",
+    "variantLabel": "Variant",
+    "variantPlaceholder": "Choose variant",
+    "batchCodeLabel": "Batch code",
+    "batchCodePlaceholder": "e.g. LOT-2026-01",
+    "quantityLabel": "Quantity ({unit})",
+    "costPriceLabel": "Cost price (optional)",
+    "expiryDateLabel": "Expiry date",
+    "receiveButton": "Receive",
+    "errorBatchCodeRequired": "Enter a batch code.",
+    "errorQuantityPositive": "Quantity must be greater than zero.",
+    "errorChooseVariant": "Choose a variant.",
+    "errorExpiryRequired": "Enter an expiry date.",
+    "toastReused": "Stock added to existing batch.",
+    "toastReceived": "New batch received."
+  },
+  "expiryEditDialog": {
+    "button": "Date",
+    "title": "Correct expiry date — {batchCode}",
+    "description": "A batch with stock cannot be set to a past date.",
+    "dateLabel": "Expiry date",
+    "save": "Save",
+    "errorDateRequired": "Enter a date.",
+    "toastUpdated": "Expiry date updated."
+  },
+  "enableExpiryCard": {
+    "title": "Expiry tracking",
+    "description": "Track a use-by date per batch and block selling expired stock.",
+    "bullet1": "Every current batch with stock needs an expiry date.",
+    "bullet2": "Expired batches can't be sold; a batch expiring today is sellable all day.",
+    "bullet3": "Expiry tracking <strong>cannot be disabled</strong> in this release.",
+    "enableButton": "Enable expiry tracking…",
+    "dialog": {
+      "title": "Assign expiry dates",
+      "description": "Set a date for each batch that currently has stock.",
+      "noneNeeded": "No batches with stock — you can enable directly.",
+      "confirm": "Enable"
+    },
+    "errorAllDatesRequired": "Give every batch an expiry date.",
+    "toastAlreadyOn": "Expiry tracking already on.",
+    "toastEnabled": "Expiry tracking enabled."
+  },
+  "archiveDialog": {
+    "button": "Archive",
+    "title": "Archive batch {batchCode}?",
+    "description": "Archiving retires this batch so it can no longer be sold or received. It <strong>does not change its stock</strong> — if you mean to write off {quantity} unit(s), adjust the batch to 0 first. This can't be undone.",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "e.g. damaged / recalled",
+    "confirm": "Archive",
+    "errorReasonRequired": "A reason is required.",
+    "toastArchived": "Batch archived."
+  },
+  "disableTrackingCard": {
+    "title": "Disable batch tracking",
+    "description": "Turns this back into a simple product. Existing batches are archived (kept for history, no longer sellable), current total stock is preserved as a plain number, and you can edit stock directly again. You can re-enable tracking later (a new Opening batch is captured).",
+    "button": "Disable batch tracking…",
+    "dialog": {
+      "title": "Disable batch tracking?",
+      "description": "Existing batches will be archived and this product reverts to a simple product with its current total stock preserved. Tracking can be re-enabled later.",
+      "confirm": "Disable tracking"
+    },
+    "toastDisabled": "Batch tracking disabled — product is now a simple product."
+  },
+  "manager": {
+    "title": "Batch inventory",
+    "descriptionExpiry": "Stock is tracked per batch. Sales allocate the earliest-expiring batch first automatically.",
+    "descriptionFifo": "Stock is tracked per batch. Sales allocate the oldest batch first automatically.",
+    "reconciled": "Aggregate stock reconciles with batch totals.",
+    "mismatchPrefix": "Reconciliation mismatch:",
+    "mismatchLine": "{label} (agg {aggregate} vs batches {batchTotal})",
+    "noBatchesYet": "No batches yet. Receive stock to create one.",
+    "table": {
+      "batch": "Batch",
+      "variant": "Variant",
+      "received": "Received",
+      "expiry": "Expiry",
+      "stock": "Stock",
+      "cost": "Cost",
+      "status": "Status"
+    }
+  },
+  "cancel": "Cancel",
+  "actions": {
+    "notEnabled": "Batch tracking is not enabled for this store.",
+    "invalidRequest": "Invalid request",
+    "invalidBatchData": "Invalid batch data",
+    "invalidAdjustmentData": "Invalid adjustment data",
+    "productNotFound": "Product not found",
+    "expiryNotSupportedYet": "Expiry tracking is not supported yet.",
+    "reconciliationFailed": "Could not enable tracking: stock reconciliation failed.",
+    "notBatchTracked": "This product is not batch-tracked.",
+    "chooseVariantToReceive": "Choose a variant to receive into.",
+    "noVariants": "This product has no variants.",
+    "variantNotFound": "Variant not found for this product.",
+    "quantityWholeNumber": "Quantity must be a whole number for this product.",
+    "expiryRequired": "An expiry date is required for this product.",
+    "expiryInPast": "Expiry date cannot be in the past.",
+    "batchArchivedCannotReceive": "That batch is archived and cannot receive stock.",
+    "batchCodeDifferentExpiry": "That batch code already exists with a different expiry date.",
+    "reconciliationErrorReceiving": "Receiving failed: stock reconciliation error.",
+    "batchCodeRetry": "That batch code was just created — please try again.",
+    "batchNotFound": "Batch not found",
+    "productNoExpiryTracking": "This product does not use expiry tracking.",
+    "archivedCannotAdjust": "Archived batches cannot be adjusted.",
+    "stockWholeNumber": "Stock must be a whole number for this product.",
+    "assignExpiryBeforeStock": "Assign an expiry date to this batch before adding stock.",
+    "conflictReload": "The batch changed while you were editing — reload and try again.",
+    "negativeStock": "That adjustment would make aggregate stock negative.",
+    "reconciliationErrorAdjustment": "Adjustment failed: stock reconciliation error.",
+    "enableBatchFirst": "Enable batch tracking first.",
+    "invalidDate": "Invalid date.",
+    "pastExpiryWithStock": "A batch with stock cannot be given a past expiry date.",
+    "reconciliationDriftBeforeDisable": "Stock doesn't reconcile with batches — resolve the discrepancy before disabling."
+  },
+  "refreshButton": {
+    "label": "Refresh expiry status",
+    "toastSummary": "Expiry refreshed — {statuses} status change(s), {notifications} new alert(s)."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "page": {
+    "title": "Announcements",
+    "description": "Updates from your platform and store leadership."
+  },
+  "list": {
+    "emptyTitle": "No announcements yet",
+    "platform": "Platform",
+    "store": "Store"
+  },
+  "createDialog": {
+    "newAnnouncement": "New announcement",
+    "descriptionPlatform": "This will be sent to everyone in the entire platform.",
+    "descriptionStore": "This will be sent to everyone in your store.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. Holiday hours",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Write your announcement...",
+    "postButton": "Post announcement",
+    "toastPosted": "Announcement posted"
+  },
+  "actions": {
+    "notAuthorized": "Not authorized",
+    "invalidTitle": "Enter a valid title.",
+    "invalidBody": "Enter a valid message.",
+    "newAnnouncementNotificationTitle": "New announcement"
+  }
+}

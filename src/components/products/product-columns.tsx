@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge, type StatusBadgeVariant } from "@/components/shared/status-badge";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { PRODUCT_STATUS_LABELS } from "@/lib/labels";
+import { productStatusLabel } from "@/lib/labels";
 import type { ProductListItem } from "@/lib/queries/products";
 
 const STATUS_VARIANT: Record<string, StatusBadgeVariant> = {
@@ -29,18 +29,24 @@ export function buildProductColumns({
   canViewCost,
   onArchiveToggle,
   onDelete,
+  tLabels,
+  t,
 }: {
   currency: string;
   canEdit: boolean;
   canViewCost: boolean;
   onArchiveToggle: (product: ProductListItem) => void;
   onDelete: (product: ProductListItem) => void;
+  /** Resolved via useTranslations("labels") in the caller (products-table.tsx). */
+  tLabels: (key: string) => string;
+  /** Resolved via useTranslations("products.columns") in the caller. */
+  t: (key: string, values?: Record<string, string | number>) => string;
 }): ColumnDef<ProductListItem, unknown>[] {
   const columns: ColumnDef<ProductListItem, unknown>[] = [
     {
       id: "product",
       accessorFn: (row) => `${row.name} ${row.sku}`,
-      header: "Product",
+      header: t("product"),
       cell: ({ row }) => {
         const p = row.original;
         return (
@@ -65,7 +71,7 @@ export function buildProductColumns({
     {
       id: "category",
       accessorFn: (row) => row.categoryName ?? "",
-      header: "Category",
+      header: t("category"),
       cell: ({ row }) =>
         row.original.categoryName ? (
           <StatusBadge variant="neutral">{row.original.categoryName}</StatusBadge>
@@ -75,7 +81,7 @@ export function buildProductColumns({
     },
     {
       id: "variant",
-      header: "Variant",
+      header: t("variant"),
       cell: ({ row }) => {
         const p = row.original;
         const parts = [p.type, p.size, p.color].filter(Boolean);
@@ -85,7 +91,7 @@ export function buildProductColumns({
     {
       id: "sellingPrice",
       accessorFn: (row) => row.sellingPrice,
-      header: "Price",
+      header: t("price"),
       cell: ({ row }) => (
         <span className="tabular-nums">{formatCurrency(row.original.sellingPrice, currency)}</span>
       ),
@@ -93,7 +99,7 @@ export function buildProductColumns({
     {
       id: "stock",
       accessorFn: (row) => row.stock,
-      header: "Stock",
+      header: t("stock"),
       cell: ({ row }) => {
         const p = row.original;
         const variant: StatusBadgeVariant =
@@ -101,7 +107,7 @@ export function buildProductColumns({
         return (
           <div className="flex flex-col gap-0.5">
             <StatusBadge variant={variant}>
-              {p.stock} unit{p.stock === 1 ? "" : "s"}
+              {t("stockUnits", { count: p.stock })}
             </StatusBadge>
             {/* For a variant product this figure is the sum of its live
                 variants, not an editable field on the product — the form hides
@@ -109,7 +115,7 @@ export function buildProductColumns({
                 hunting for a product-level box that does not exist. */}
             {p.hasVariants && (
               <span className="text-[11px] text-muted-foreground">
-                across {p.variantCount} variant{p.variantCount === 1 ? "" : "s"}
+                {t("acrossVariants", { count: p.variantCount })}
               </span>
             )}
           </div>
@@ -119,10 +125,10 @@ export function buildProductColumns({
     {
       id: "status",
       accessorFn: (row) => row.status,
-      header: "Status",
+      header: t("status"),
       cell: ({ row }) => (
         <StatusBadge variant={STATUS_VARIANT[row.original.status]}>
-          {PRODUCT_STATUS_LABELS[row.original.status]}
+          {productStatusLabel(tLabels, row.original.status)}
         </StatusBadge>
       ),
     },
@@ -132,7 +138,7 @@ export function buildProductColumns({
     columns.splice(4, 0, {
       id: "profitMargin",
       accessorFn: (row) => row.profitMargin,
-      header: "Margin",
+      header: t("margin"),
       cell: ({ row }) => (
         <StatusBadge variant={row.original.profitMargin >= 30 ? "success" : "neutral"}>
           {formatPercent(row.original.profitMargin)}
@@ -155,7 +161,7 @@ export function buildProductColumns({
                 variant="ghost"
                 size="icon-sm"
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Product actions"
+                aria-label={t("actionsLabel")}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
@@ -164,17 +170,17 @@ export function buildProductColumns({
               <DropdownMenuItem asChild>
                 <Link href={`/products/${p.id}/edit`}>
                   <Pencil />
-                  Edit
+                  {t("edit")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onArchiveToggle(p)}>
                 {p.status === "ARCHIVED" ? <ArchiveRestore /> : <Archive />}
-                {p.status === "ARCHIVED" ? "Activate" : "Archive"}
+                {p.status === "ARCHIVED" ? t("activate") : t("archive")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => onDelete(p)}>
                 <Trash2 />
-                Delete
+                {t("delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

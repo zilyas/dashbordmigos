@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,31 +16,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUploader } from "@/components/products/image-uploader";
 import { updateStoreSettings } from "@/actions/settings";
 import { COMMON_TIMEZONES } from "@/lib/timezone";
-import { storeSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
+import { buildStoreSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
 import type { StoreSettings } from "@/lib/queries/settings";
 import type { StoreFeaturesInput } from "@/lib/validations/settings";
 
-const FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string; description: string }[] = [
-  {
-    key: "units_enabled",
-    label: "Units of measure",
-    description: "Sell by piece, kg, g, L or pack. Adds a unit field on products.",
-  },
-  {
-    key: "category_attributes_enabled",
-    label: "Category attributes",
-    description: "Add structured specs per category (brand, warranty, weight…). Coming in a later update.",
-  },
-  {
-    key: "custom_variant_axes_enabled",
-    label: "Custom variant axes",
-    description: "Define your own variant axes beyond Size/Color (Storage, Voltage…). Coming in a later update.",
-  },
-  {
-    key: "expiry_batch_enabled",
-    label: "Expiry & batch tracking",
-    description: "Track expiry dates and batches for perishable goods. Coming in a later update.",
-  },
+const FEATURE_KEYS: { key: keyof StoreFeaturesInput; i18nKey: string }[] = [
+  { key: "units_enabled", i18nKey: "units" },
+  { key: "category_attributes_enabled", i18nKey: "categoryAttributes" },
+  { key: "custom_variant_axes_enabled", i18nKey: "customVariantAxes" },
+  { key: "expiry_batch_enabled", i18nKey: "expiryBatch" },
 ];
 
 // storefront_api_enabled is deliberately absent: only the owner grants a store
@@ -48,6 +33,12 @@ const FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string; descripti
 
 export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("settings.storeDetails");
+  const tValidation = useTranslations("validation");
+  const storeSettingsSchema = useMemo(
+    () => buildStoreSettingsSchema(tValidation),
+    [tValidation]
+  );
 
   // Curated list, plus the store's current value if it isn't in the list.
   const timezoneOptions = Array.from(new Set<string>([...COMMON_TIMEZONES, settings.timezone]));
@@ -77,21 +68,21 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Settings saved");
+      toast.success(t("toastSaved"));
     });
   }
 
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Store details</CardTitle>
-        <CardDescription>Shown on receipts, invoices and exported reports.</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <FieldGroup>
             <Field>
-              <FieldLabel>Logo</FieldLabel>
+              <FieldLabel>{t("logoLabel")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="logo"
@@ -107,14 +98,14 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.storeName}>
-                <FieldLabel htmlFor="storeName">Store name</FieldLabel>
+                <FieldLabel htmlFor="storeName">{t("storeNameLabel")}</FieldLabel>
                 <Input id="storeName" {...form.register("storeName")} />
                 {form.formState.errors.storeName && (
                   <FieldError>{form.formState.errors.storeName.message}</FieldError>
                 )}
               </Field>
               <Field data-invalid={!!form.formState.errors.currency}>
-                <FieldLabel htmlFor="currency">Currency code</FieldLabel>
+                <FieldLabel htmlFor="currency">{t("currencyCodeLabel")}</FieldLabel>
                 <Input id="currency" placeholder="MAD" maxLength={3} {...form.register("currency")} />
                 {form.formState.errors.currency && (
                   <FieldError>{form.formState.errors.currency.message}</FieldError>
@@ -123,13 +114,13 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
             </div>
 
             <Field data-invalid={!!form.formState.errors.timezone}>
-              <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+              <FieldLabel htmlFor="timezone">{t("timezoneLabel")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="timezone"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="timezone"><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                    <SelectTrigger id="timezone"><SelectValue placeholder={t("timezonePlaceholder")} /></SelectTrigger>
                     <SelectContent>
                       {timezoneOptions.map((tz) => (
                         <SelectItem key={tz} value={tz}>{tz}</SelectItem>
@@ -138,7 +129,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
                   </Select>
                 )}
               />
-              <FieldDescription>Used for date-based rules like batch expiry.</FieldDescription>
+              <FieldDescription>{t("timezoneHint")}</FieldDescription>
               {form.formState.errors.timezone && (
                 <FieldError>{form.formState.errors.timezone.message}</FieldError>
               )}
@@ -146,7 +137,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.taxRate}>
-                <FieldLabel htmlFor="taxRate">Tax rate (%)</FieldLabel>
+                <FieldLabel htmlFor="taxRate">{t("taxRateLabel")}</FieldLabel>
                 <Input
                   id="taxRate"
                   type="number"
@@ -158,29 +149,29 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
                 )}
               </Field>
               <Field>
-                <FieldLabel htmlFor="phone">Phone</FieldLabel>
+                <FieldLabel htmlFor="phone">{t("phoneLabel")}</FieldLabel>
                 <Input id="phone" {...form.register("phone")} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="city">City</FieldLabel>
+                <FieldLabel htmlFor="city">{t("cityLabel")}</FieldLabel>
                 <Input id="city" {...form.register("city")} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="country">Country</FieldLabel>
+                <FieldLabel htmlFor="country">{t("countryLabel")}</FieldLabel>
                 <Input id="country" {...form.register("country")} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="address">Address</FieldLabel>
+                <FieldLabel htmlFor="address">{t("addressLabel")}</FieldLabel>
                 <Input id="address" {...form.register("address")} />
               </Field>
               <Field data-invalid={!!form.formState.errors.email}>
-                <FieldLabel htmlFor="email">Store email</FieldLabel>
+                <FieldLabel htmlFor="email">{t("emailLabel")}</FieldLabel>
                 <Input id="email" type="email" {...form.register("email")} />
                 {form.formState.errors.email && (
                   <FieldError>{form.formState.errors.email.message}</FieldError>
@@ -190,9 +181,9 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
 
             <Field orientation="responsive" className="justify-between gap-3 rounded-lg border p-3">
               <div>
-                <FieldLabel htmlFor="allowSellerViewCost">Sellers can see fabrication cost</FieldLabel>
+                <FieldLabel htmlFor="allowSellerViewCost">{t("allowSellerViewCostLabel")}</FieldLabel>
                 <FieldDescription>
-                  When on, sellers see the cost price alongside selling price in Products.
+                  {t("allowSellerViewCostHint")}
                 </FieldDescription>
               </div>
               <Controller
@@ -211,20 +202,20 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <div>
-              <p className="text-sm font-medium">Advanced features</p>
+              <p className="text-sm font-medium">{t("advancedFeaturesTitle")}</p>
               <p className="text-xs text-muted-foreground">
-                Off by default. Turn on only what your store needs — simple stores can ignore these.
+                {t("advancedFeaturesHint")}
               </p>
             </div>
-            {FEATURE_TOGGLES.map((f) => (
+            {FEATURE_KEYS.map((f) => (
               <Field
                 key={f.key}
                 orientation="responsive"
                 className="justify-between gap-3 border-t pt-3 first:border-t-0 first:pt-0"
               >
                 <div>
-                  <FieldLabel htmlFor={f.key}>{f.label}</FieldLabel>
-                  <FieldDescription>{f.description}</FieldDescription>
+                  <FieldLabel htmlFor={f.key}>{t(`features.${f.i18nKey}.label`)}</FieldLabel>
+                  <FieldDescription>{t(`features.${f.i18nKey}.description`)}</FieldDescription>
                 </div>
                 <Controller
                   control={form.control}
@@ -240,7 +231,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
           <div className="flex justify-end">
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Save changes
+              {t("saveChanges")}
             </Button>
           </div>
         </form>

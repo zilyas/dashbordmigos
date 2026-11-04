@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -9,11 +10,6 @@ import {
 } from "@/components/ui/chart";
 import { DEFAULT_CURRENCY, formatCurrency, formatNumber } from "@/lib/format";
 
-const chartConfig = {
-  revenue: { label: "Revenue", color: "var(--chart-1)" },
-  profit: { label: "Profit", color: "var(--chart-2)" },
-} satisfies ChartConfig;
-
 export function RevenueChart({
   data,
   currency = DEFAULT_CURRENCY,
@@ -21,6 +17,12 @@ export function RevenueChart({
   data: { date: string; revenue: number; profit: number }[];
   currency?: string;
 }) {
+  const t = useTranslations("dashboard.charts");
+  const chartConfig = {
+    revenue: { label: t("revenue"), color: "var(--chart-1)" },
+    profit: { label: t("profit"), color: "var(--chart-2)" },
+  } satisfies ChartConfig;
+
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
       <AreaChart data={data} margin={{ left: 0, right: 12, top: 12 }}>

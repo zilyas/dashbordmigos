@@ -1,0 +1,37 @@
+{
+  "page": {
+    "title": "Sauvegardes",
+    "description": "Créez, téléchargez et restaurez des sauvegardes complètes de la plateforme."
+  },
+  "create": {
+    "title": "Créer une sauvegarde",
+    "description": "Exporte chaque table vers un fichier JSON téléchargeable. Contient des données sensibles — conservez-le en lieu sûr.",
+    "createButton": "Créer une sauvegarde",
+    "restoreFromFileButton": "Restaurer depuis un fichier",
+    "toastCreated": "Sauvegarde créée"
+  },
+  "history": {
+    "title": "Historique des sauvegardes",
+    "description": "Toutes les sauvegardes créées sur cette plateforme.",
+    "emptyTitle": "Aucune sauvegarde pour le moment",
+    "completed": "Terminée",
+    "failed": "Échouée",
+    "byLine": "{size} · par {name} · {date}",
+    "never": "Jamais",
+    "download": "Télécharger"
+  },
+  "restoreDialog": {
+    "title": "Restaurer depuis « {filename} » ?",
+    "description": "Ceci remplace définitivement chaque boutique, produit, vente, utilisateur et paramètre de toute la plateforme par le contenu de ce fichier. Cette action est irréversible. Tapez <strong>{confirmText}</strong> pour confirmer.",
+    "cancel": "Annuler",
+    "confirmButton": "Restaurer et tout remplacer",
+    "toastRestored": "Restauration terminée. Vous devrez peut-être vous reconnecter."
+  },
+  "actions": {
+    "typeToConfirm": "Tapez « {confirmText} » pour confirmer.",
+    "invalidJson": "Ce fichier n'est pas un JSON valide.",
+    "unrecognizedBackup": "Ce fichier n'est pas une sauvegarde reconnue.",
+    "restoreFailed": "Échec de la restauration : {message}",
+    "restoreFailedGeneric": "Échec de la restauration."
+  }
+}

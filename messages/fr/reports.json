@@ -1,0 +1,79 @@
+{
+  "page": {
+    "title": "Rapports",
+    "descriptionSuperAdmin": "Répartition du chiffre d'affaires et des profits sur toutes les boutiques.",
+    "descriptionStore": "Répartition du chiffre d'affaires et des profits pour votre boutique.",
+    "expiryReportButton": "Rapport d'expiration",
+    "exportCsv": "Exporter en CSV",
+    "periods": {
+      "daily": "Aujourd'hui",
+      "weekly": "Cette semaine",
+      "monthly": "Ce mois",
+      "yearly": "Cette année"
+    },
+    "stats": {
+      "revenue": "Chiffre d'affaires",
+      "profit": "Profit",
+      "orders": "Commandes",
+      "averageOrder": "Commande moyenne"
+    },
+    "trendTitle": "Tendance",
+    "trendDescription": "Chiffre d'affaires et profit pour {period}",
+    "noSalesInPeriod": "Aucune vente sur cette période",
+    "breakdownTitle": "Répartition",
+    "table": {
+      "period": "Période",
+      "orders": "Commandes",
+      "revenue": "Chiffre d'affaires",
+      "profit": "Profit"
+    }
+  },
+  "expiry": {
+    "title": "Rapport d'expiration",
+    "description": "Stock de lots à risque · aujourd'hui (heure locale de la boutique) {today}",
+    "featureOffPageDescription": "Suivi des lots et expirations.",
+    "exportCsv": "Exporter en CSV",
+    "featureOffTitle": "Le suivi des lots et expirations est désactivé",
+    "featureOffDescription": "Activez-le dans Paramètres, puis activez le suivi d'expiration par produit pour voir ce rapport.",
+    "stats": {
+      "expired": "Expirés",
+      "today": "Aujourd'hui",
+      "within7": "≤7 jours",
+      "within30": "≤30 jours",
+      "atRiskValue": "Valeur à risque"
+    },
+    "missingDateWarning": "{count} lot(s) ont du stock mais aucune date d'expiration — corrigez-les depuis la page produit.",
+    "filters": {
+      "all": "Tous à risque",
+      "expired": "Expirés",
+      "today": "Aujourd'hui",
+      "within7": "≤7 jours",
+      "within30": "≤30 jours",
+      "within60": "≤60 jours",
+      "missingDate": "Date manquante"
+    },
+    "batchesCardTitle": "Lots",
+    "emptyNoStockTitle": "Aucun stock suivi par expiration pour le moment",
+    "emptyNoStockDescription": "Activez le suivi d'expiration pour un produit et recevez des lots datés pour alimenter ce rapport.",
+    "emptyNothingInWindow": "Rien dans cette période",
+    "table": {
+      "product": "Produit",
+      "batch": "Lot",
+      "expiry": "Expiration",
+      "days": "Jours",
+      "qty": "Qté",
+      "value": "Valeur",
+      "status": "Statut"
+    },
+    "edit": "Modifier",
+    "buckets": {
+      "expired": "Expiré",
+      "today": "Expire aujourd'hui",
+      "7": "≤7 jours",
+      "30": "≤30 jours",
+      "60": "≤60 jours",
+      "later": "Plus tard",
+      "missing": "Date manquante"
+    }
+  }
+}

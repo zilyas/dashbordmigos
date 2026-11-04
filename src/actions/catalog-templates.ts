@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
+import { toAppLocale } from "@/i18n/messages";
 import { logActivity } from "@/lib/audit";
 import { parseFeatures } from "@/lib/features";
 import {
@@ -52,9 +54,10 @@ export type ApplyTemplateResult = {
 export async function applyCatalogTemplate(templateKey: string) {
   const session = await requireCatalogManager();
   const { storeId, userId } = session;
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "settings.actions" });
 
   const template = getCatalogTemplate(templateKey);
-  if (!template) return { error: "Unknown template." };
+  if (!template) return { error: t("unknownTemplate") };
 
   const created = zeroCounts();
   const reused = zeroCounts();

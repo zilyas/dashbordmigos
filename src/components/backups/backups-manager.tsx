@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { DatabaseBackup, Download, Loader2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export type BackupRow = {
 };
 
 export function BackupsManager({ records }: { records: BackupRow[] }) {
+  const t = useTranslations("backups");
   const [isCreating, startCreate] = useTransition();
   const [isRestoring, startRestore] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +55,7 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Backup created");
+      toast.success(t("create.toastCreated"));
     });
   }
 
@@ -77,7 +79,7 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
         setRestoreError(result.error);
         return;
       }
-      toast.success("Restore complete. You may need to sign in again.");
+      toast.success(t("restoreDialog.toastRestored"));
       setPendingFile(null);
       setConfirmText("");
     });
@@ -87,21 +89,20 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Create a backup</CardTitle>
+          <CardTitle>{t("create.title")}</CardTitle>
           <CardDescription>
-            Exports every table to a downloadable JSON file. Contains sensitive data — store it
-            securely.
+            {t("create.description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2 pt-4">
           <Button onClick={handleCreate} disabled={isCreating}>
             {isCreating && <Loader2 className="size-4 animate-spin" />}
             <DatabaseBackup className="size-4" />
-            Create backup
+            {t("create.createButton")}
           </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="size-4" />
-            Restore from file
+            {t("create.restoreFromFileButton")}
           </Button>
           <input
             ref={fileInputRef}
@@ -115,12 +116,12 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Backup history</CardTitle>
-          <CardDescription>Every backup created on this platform.</CardDescription>
+          <CardTitle>{t("history.title")}</CardTitle>
+          <CardDescription>{t("history.description")}</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {records.length === 0 ? (
-            <EmptyState icon={<DatabaseBackup />} title="No backups yet" className="border-none py-10" />
+            <EmptyState icon={<DatabaseBackup />} title={t("history.emptyTitle")} className="border-none py-10" />
           ) : (
             <div className="flex flex-col divide-y">
               {records.map((record) => (
@@ -132,19 +133,22 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
                         variant={record.status === "COMPLETED" ? "success" : "destructive"}
                         className="shrink-0"
                       >
-                        {record.status === "COMPLETED" ? "Completed" : "Failed"}
+                        {record.status === "COMPLETED" ? t("history.completed") : t("history.failed")}
                       </StatusBadge>
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {formatBytes(record.sizeBytes)} · by {record.createdBy.name} ·{" "}
-                      {formatDateTime(record.createdAt)}
+                      {t("history.byLine", {
+                        size: formatBytes(record.sizeBytes),
+                        name: record.createdBy.name,
+                        date: formatDateTime(record.createdAt),
+                      })}
                     </p>
                   </div>
                   {record.status === "COMPLETED" && (
                     <Button variant="ghost" size="sm" className="shrink-0" asChild>
                       <a href={`/api/backups/${record.id}/download`} download>
                         <Download className="size-4" />
-                        <span className="hidden sm:inline">Download</span>
+                        <span className="hidden sm:inline">{t("history.download")}</span>
                       </a>
                     </Button>
                   )}
@@ -158,11 +162,12 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
       <AlertDialog open={!!pendingFile} onOpenChange={(open) => !open && setPendingFile(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore from &quot;{pendingFile?.name}&quot;?</AlertDialogTitle>
+            <AlertDialogTitle>{t("restoreDialog.title", { filename: pendingFile?.name ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently replaces every store, product, sale, user and setting on the entire
-              platform with the contents of this file. This cannot be undone. Type{" "}
-              <strong>{RESTORE_CONFIRMATION_TEXT}</strong> to confirm.
+              {t.rich("restoreDialog.description", {
+                confirmText: RESTORE_CONFIRMATION_TEXT,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
@@ -174,7 +179,7 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
           {restoreError && <p className="text-sm text-destructive">{restoreError}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRestoring} onClick={() => setPendingFile(null)}>
-              Cancel
+              {t("restoreDialog.cancel")}
             </AlertDialogCancel>
             <Button
               variant="destructive"
@@ -182,7 +187,7 @@ export function BackupsManager({ records }: { records: BackupRow[] }) {
               disabled={isRestoring || confirmText !== RESTORE_CONFIRMATION_TEXT}
             >
               {isRestoring && <Loader2 className="size-4 animate-spin" />}
-              Restore and replace everything
+              {t("restoreDialog.confirmButton")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

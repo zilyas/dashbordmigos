@@ -1,0 +1,181 @@
+{
+  "categories": {
+    "page": { "title": "Categories", "description": "Organize your products into categories." },
+    "newCategory": "New Category",
+    "clothingBadge": "Clothing",
+    "emptyTitle": "No categories yet",
+    "emptyDescription": "Create your first category to start organizing products.",
+    "productCount": "{count, plural, one {# product} other {# products}}",
+    "attributesButton": "Attributes",
+    "deleteTitle": "Delete \"{name}\"?",
+    "deleteDescriptionWithProducts": "This category has {count} product(s). They will become uncategorized.",
+    "deleteDescriptionEmpty": "This action cannot be undone.",
+    "toastDeleted": "Category deleted",
+    "dialog": {
+      "editTitle": "Edit category",
+      "newTitle": "New category",
+      "editDescription": "Update this category's details.",
+      "newDescription": "Add a new product category.",
+      "nameLabel": "Name",
+      "descriptionLabel": "Description",
+      "parentLabel": "Parent category",
+      "noParent": "No parent",
+      "clothingLabel": "Clothing category",
+      "clothingHint": "Enables size/color variants for its products.",
+      "saveChanges": "Save changes",
+      "create": "Create category",
+      "toastUpdated": "Category updated",
+      "toastCreated": "Category created"
+    },
+    "attributesDialog": {
+      "title": "Attributes · {name}",
+      "description": "Define specification fields (brand, warranty, weight…) for products in this category.",
+      "noAttributes": "No attributes defined yet.",
+      "optionsCount": "{count} option(s)",
+      "addAttribute": "Add attribute",
+      "deleteTitle": "Delete \"{label}\"?",
+      "deleteDescription": "Any product values stored for this attribute will be removed.",
+      "toastDeleted": "Attribute deleted",
+      "form": {
+        "labelLabel": "Label",
+        "labelPlaceholder": "e.g. Brand",
+        "typeLabel": "Type",
+        "optionsLabel": "Options (one per line)",
+        "requiredLabel": "Required",
+        "orderLabel": "Order",
+        "save": "Save",
+        "add": "Add",
+        "toastUpdated": "Attribute updated",
+        "toastAdded": "Attribute added"
+      },
+      "types": {
+        "TEXT": "Text",
+        "NUMBER": "Number",
+        "BOOLEAN": "Yes / No",
+        "SELECT": "Select (list)"
+      }
+    }
+  },
+  "sizes": {
+    "page": { "title": "Sizes", "description": "Store-wide sizes for clothing product variants." },
+    "searchPlaceholder": "Search sizes...",
+    "newSize": "New Size",
+    "emptyTitle": "No sizes yet",
+    "emptyDescription": "Add sizes (S, M, L, …) to use them on clothing product variants.",
+    "emptySearchTitle": "No sizes match your search",
+    "variantCount": "{count, plural, one {# variant} other {# variants}}",
+    "deleteTitle": "Delete \"{name}\"?",
+    "deleteDescriptionWithVariants": "This size is used by {count} variant(s). Those variants will lose their size.",
+    "deleteDescriptionEmpty": "This action cannot be undone.",
+    "toastDeleted": "Size deleted",
+    "dialog": {
+      "editTitle": "Edit size",
+      "newTitle": "New size",
+      "description": "Sizes are shared across this store's variant products.",
+      "pickLabel": "Pick a size",
+      "alreadyExists": "{name} already exists",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. M",
+      "sortOrderLabel": "Sort order",
+      "saveChanges": "Save changes",
+      "create": "Create size",
+      "toastUpdated": "Size updated",
+      "toastCreated": "Size created"
+    },
+    "scales": {
+      "letter": "Letter",
+      "numericEu": "Numeric (EU)",
+      "waistIn": "Waist (in)",
+      "shoesEu": "Shoes (EU)",
+      "kidsYears": "Kids (years)",
+      "oneSize": "One size"
+    }
+  },
+  "colors": {
+    "page": { "title": "Colors", "description": "Store-wide colors for clothing product variants." },
+    "searchPlaceholder": "Search colors...",
+    "newColor": "New Color",
+    "emptyTitle": "No colors yet",
+    "emptyDescription": "Add colors to use them on clothing product variants.",
+    "emptySearchTitle": "No colors match your search",
+    "noSwatch": "no swatch",
+    "variantCount": "{count, plural, one {# variant} other {# variants}}",
+    "deleteTitle": "Delete \"{name}\"?",
+    "deleteDescriptionWithVariants": "This color is used by {count} variant(s). Those variants will lose their color.",
+    "deleteDescriptionEmpty": "This action cannot be undone.",
+    "toastDeleted": "Color deleted",
+    "dialog": {
+      "editTitle": "Edit color",
+      "newTitle": "New color",
+      "description": "Colors are shared across this store's variant products.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Noir",
+      "swatchLabel": "Swatch (optional)",
+      "customPickerLabel": "Pick a custom color",
+      "hexPlaceholder": "#1A2B3C",
+      "clear": "Clear",
+      "sortOrderLabel": "Sort order",
+      "saveChanges": "Save changes",
+      "create": "Create color",
+      "toastUpdated": "Color updated",
+      "toastCreated": "Color created"
+    }
+  },
+  "variantAxes": {
+    "page": { "title": "Variant axes", "description": "Custom axes (Storage, Voltage, Flavor…) for variant products." },
+    "searchPlaceholder": "Search axes...",
+    "newAxis": "New Axis",
+    "emptyTitle": "No variant axes yet",
+    "emptyDescription": "Define custom axes (Storage, Voltage, Flavor…) for variant products.",
+    "emptySearchTitle": "No axes match your search",
+    "keyPrefix": "key: {key}",
+    "deleteTitle": "Delete \"{label}\"?",
+    "deleteDescription": "Existing variant values under this axis will simply stop being shown.",
+    "toastDeleted": "Axis deleted",
+    "dialog": {
+      "editTitle": "Edit axis",
+      "newTitle": "New axis",
+      "description": "Axes are shared across this store's variant products.",
+      "labelLabel": "Label",
+      "labelPlaceholder": "e.g. Storage",
+      "activeLabel": "Active",
+      "sortOrderLabel": "Sort order",
+      "saveChanges": "Save changes",
+      "create": "Create axis",
+      "toastUpdated": "Axis updated",
+      "toastCreated": "Axis created"
+    }
+  },
+  "actions": {
+    "categories": {
+      "cannotBeOwnParent": "A category cannot be its own parent",
+      "parentNotFound": "Parent category not found",
+      "invalidData": "Invalid category data",
+      "notFound": "Category not found",
+      "nameExists": "A category with that name already exists.",
+      "deleteFailed": "Failed to delete category."
+    },
+    "sizes": {
+      "invalidData": "Invalid size data",
+      "nameExists": "A size with that name already exists.",
+      "notFound": "Size not found",
+      "deleteFailed": "Failed to delete size."
+    },
+    "colors": {
+      "invalidData": "Invalid color data",
+      "nameExists": "A color with that name already exists.",
+      "notFound": "Color not found",
+      "deleteFailed": "Failed to delete color."
+    },
+    "variantAxes": {
+      "invalidData": "Invalid axis data",
+      "labelExists": "An axis with that label already exists.",
+      "notFound": "Axis not found"
+    },
+    "attributes": {
+      "invalidData": "Invalid attribute data",
+      "labelExists": "An attribute with that label already exists in this category.",
+      "notFound": "Attribute not found"
+    }
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Loader2, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { resetStoreData } from "@/actions/stores";
 const RESET_CONFIRMATION_TEXT = "RESET";
 
 export function StoreDangerZone({ storeId, storeName }: { storeId: string; storeName: string }) {
+  const t = useTranslations("storeDetail.dangerZone");
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -31,10 +33,10 @@ export function StoreDangerZone({ storeId, storeName }: { storeId: string; store
     startTransition(async () => {
       const result = await resetStoreData(storeId, confirmText);
       if (!result || "error" in result) {
-        toast.error(result?.error ?? "Failed to reset the store");
+        toast.error(result?.error ?? t("resetButton"));
         return;
       }
-      toast.success(`${storeName} reset — ${result.sales} sale(s) cleared`);
+      toast.success(t("toastReset", { storeName, count: result.sales }));
       setOpen(false);
       setConfirmText("");
     });
@@ -45,16 +47,15 @@ export function StoreDangerZone({ storeId, storeName }: { storeId: string; store
       <CardHeader className="border-b pb-4">
         <CardTitle className="flex items-center gap-2 text-destructive">
           <TriangleAlert className="size-4" />
-          Danger zone
+          {t("title")}
         </CardTitle>
         <CardDescription>
-          Clears this store&apos;s trading history — sales, inventory movements and expenses.
-          Products, categories, staff and settings are kept.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <Button variant="destructive" className="w-full sm:w-auto" onClick={() => setOpen(true)}>
-          Reset store data
+          {t("resetButton")}
         </Button>
       </CardContent>
 
@@ -67,12 +68,12 @@ export function StoreDangerZone({ storeId, storeName }: { storeId: string; store
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset &quot;{storeName}&quot;?</AlertDialogTitle>
+            <AlertDialogTitle>{t("resetTitle", { storeName })}</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes every sale, inventory movement and expense for this store.
-              Products, categories, staff and settings survive. Stock levels stay where they are —
-              adjust them afterwards if needed. This cannot be undone. Type{" "}
-              <strong>{RESET_CONFIRMATION_TEXT}</strong> to confirm.
+              {t.rich("resetDescription", {
+                confirmText: RESET_CONFIRMATION_TEXT,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
@@ -82,14 +83,14 @@ export function StoreDangerZone({ storeId, storeName }: { storeId: string; store
             autoFocus
           />
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isPending}>{t("cancel")}</AlertDialogCancel>
             <Button
               variant="destructive"
               disabled={isPending || confirmText !== RESET_CONFIRMATION_TEXT}
               onClick={handleReset}
             >
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Reset store data
+              {t("resetButton")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

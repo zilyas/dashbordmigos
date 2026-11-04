@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -36,6 +37,8 @@ export function TransferManagerDialog({
   manager: ManagerListItem;
   stores: StoreOption[];
 }) {
+  const t = useTranslations("people.managers.transferDialog");
+  const tCommon = useTranslations("common");
   const [storeId, setStoreId] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -43,7 +46,7 @@ export function TransferManagerDialog({
 
   function handleTransfer() {
     if (!storeId) {
-      toast.error("Select a destination store");
+      toast.error(t("errorSelectStore"));
       return;
     }
     startTransition(async () => {
@@ -52,7 +55,7 @@ export function TransferManagerDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(`${manager.name} transferred`);
+      toast.success(t("toastTransferred", { name: manager.name }));
       onOpenChange(false);
       setStoreId("");
     });
@@ -62,16 +65,16 @@ export function TransferManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Transfer manager</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Move {manager.name} from {manager.storeName ?? "their current store"} to a different store.
+            {t("description", { name: manager.name, storeName: manager.storeName ?? t("currentStoreFallback") })}
           </DialogDescription>
         </DialogHeader>
         <Field>
-          <FieldLabel>Destination store</FieldLabel>
+          <FieldLabel>{t("destinationLabel")}</FieldLabel>
           <Select value={storeId} onValueChange={setStoreId}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a store" />
+              <SelectValue placeholder={t("storePlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {otherStores.map((s) => (
@@ -84,11 +87,11 @@ export function TransferManagerDialog({
         </Field>
         <DialogFooter className="mt-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon("cancel")}
           </Button>
           <Button onClick={handleTransfer} disabled={isPending}>
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            Transfer
+            {t("transfer")}
           </Button>
         </DialogFooter>
       </DialogContent>

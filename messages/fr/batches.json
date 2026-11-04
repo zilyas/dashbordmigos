@@ -1,0 +1,155 @@
+{
+  "expiryBadge": {
+    "valid": "Valide",
+    "expires_today": "Expire aujourd'hui",
+    "expired": "Expiré",
+    "missing_date": "Pas de date"
+  },
+  "enableCard": {
+    "title": "Suivi des lots et numéros de série",
+    "description": "Suivez le stock sous forme de lots datés avec allocation automatique premier-entré-premier-sorti (FIFO) lors des ventes.",
+    "body": "Activer ceci capture le stock actuel du produit{variantSuffix} en tant que lot <strong>Ouverture</strong>, puis tous les futurs changements de stock passent par la réception et les ajustements de lots. Le stock global est préservé.",
+    "bodyVariantSuffix": " (par variante)",
+    "cannotDisable": "Le suivi <strong>ne peut pas être désactivé</strong> dans cette version, activez-le donc délibérément.",
+    "enableButton": "Activer le suivi des lots…",
+    "dialog": {
+      "title": "Activer le suivi des lots ?",
+      "description": "Le stock actuel devient un lot Ouverture. Ceci ne peut pas être annulé dans cette version.",
+      "confirm": "Activer"
+    },
+    "toastAlreadyEnabled": "Le suivi des lots est déjà activé.",
+    "toastEnabled": "Suivi des lots activé — stock d'ouverture capturé."
+  },
+  "adjustDialog": {
+    "button": "Ajuster",
+    "title": "Ajuster le stock compté — {batchCode}",
+    "description": "Entrez la quantité comptée ; la différence est enregistrée.",
+    "countedStockLabel": "Stock compté ({unit})",
+    "reasonLabel": "Raison",
+    "reasonPlaceholder": "ex. correction d'inventaire",
+    "save": "Enregistrer l'ajustement",
+    "errorInvalidQuantity": "Entrez une quantité valide et non négative.",
+    "errorReasonRequired": "Une raison est requise.",
+    "toastAdjusted": "Stock du lot ajusté."
+  },
+  "receiveForm": {
+    "title": "Réceptionner du stock",
+    "needVariantFirst": "Ajoutez au moins une variante ci-dessus avant de réceptionner du stock — chaque lot appartient à une variante.",
+    "variantLabel": "Variante",
+    "variantPlaceholder": "Choisir une variante",
+    "batchCodeLabel": "Code du lot",
+    "batchCodePlaceholder": "ex. LOT-2026-01",
+    "quantityLabel": "Quantité ({unit})",
+    "costPriceLabel": "Prix de revient (optionnel)",
+    "expiryDateLabel": "Date d'expiration",
+    "receiveButton": "Réceptionner",
+    "errorBatchCodeRequired": "Entrez un code de lot.",
+    "errorQuantityPositive": "La quantité doit être supérieure à zéro.",
+    "errorChooseVariant": "Choisissez une variante.",
+    "errorExpiryRequired": "Entrez une date d'expiration.",
+    "toastReused": "Stock ajouté au lot existant.",
+    "toastReceived": "Nouveau lot réceptionné."
+  },
+  "expiryEditDialog": {
+    "button": "Date",
+    "title": "Corriger la date d'expiration — {batchCode}",
+    "description": "Un lot avec du stock ne peut pas être réglé à une date passée.",
+    "dateLabel": "Date d'expiration",
+    "save": "Enregistrer",
+    "errorDateRequired": "Entrez une date.",
+    "toastUpdated": "Date d'expiration mise à jour."
+  },
+  "enableExpiryCard": {
+    "title": "Suivi d'expiration",
+    "description": "Suivez une date limite par lot et bloquez la vente de stock expiré.",
+    "bullet1": "Chaque lot actuel avec du stock a besoin d'une date d'expiration.",
+    "bullet2": "Les lots expirés ne peuvent pas être vendus ; un lot expirant aujourd'hui reste vendable toute la journée.",
+    "bullet3": "Le suivi d'expiration <strong>ne peut pas être désactivé</strong> dans cette version.",
+    "enableButton": "Activer le suivi d'expiration…",
+    "dialog": {
+      "title": "Attribuer des dates d'expiration",
+      "description": "Définissez une date pour chaque lot ayant actuellement du stock.",
+      "noneNeeded": "Aucun lot avec du stock — vous pouvez activer directement.",
+      "confirm": "Activer"
+    },
+    "errorAllDatesRequired": "Donnez une date d'expiration à chaque lot.",
+    "toastAlreadyOn": "Le suivi d'expiration est déjà activé.",
+    "toastEnabled": "Suivi d'expiration activé."
+  },
+  "archiveDialog": {
+    "button": "Archiver",
+    "title": "Archiver le lot {batchCode} ?",
+    "description": "Archiver retire ce lot afin qu'il ne puisse plus être vendu ni réceptionné. Cela <strong>ne change pas son stock</strong> — si vous souhaitez passer {quantity} unité(s) en perte, ajustez d'abord le lot à 0. Ceci ne peut pas être annulé.",
+    "reasonLabel": "Raison",
+    "reasonPlaceholder": "ex. endommagé / rappelé",
+    "confirm": "Archiver",
+    "errorReasonRequired": "Une raison est requise.",
+    "toastArchived": "Lot archivé."
+  },
+  "disableTrackingCard": {
+    "title": "Désactiver le suivi des lots",
+    "description": "Reconvertit ce produit en produit simple. Les lots existants sont archivés (conservés pour l'historique, plus vendables), le stock total actuel est préservé en tant que nombre simple, et vous pouvez à nouveau modifier le stock directement. Vous pourrez réactiver le suivi plus tard (un nouveau lot Ouverture sera capturé).",
+    "button": "Désactiver le suivi des lots…",
+    "dialog": {
+      "title": "Désactiver le suivi des lots ?",
+      "description": "Les lots existants seront archivés et ce produit redeviendra un produit simple avec son stock total actuel préservé. Le suivi peut être réactivé plus tard.",
+      "confirm": "Désactiver le suivi"
+    },
+    "toastDisabled": "Suivi des lots désactivé — le produit est maintenant un produit simple."
+  },
+  "manager": {
+    "title": "Inventaire des lots",
+    "descriptionExpiry": "Le stock est suivi par lot. Les ventes allouent automatiquement le lot expirant le plus tôt en premier.",
+    "descriptionFifo": "Le stock est suivi par lot. Les ventes allouent automatiquement le lot le plus ancien en premier.",
+    "reconciled": "Le stock global correspond aux totaux des lots.",
+    "mismatchPrefix": "Écart de réconciliation :",
+    "mismatchLine": "{label} (global {aggregate} vs lots {batchTotal})",
+    "noBatchesYet": "Aucun lot pour le moment. Réceptionnez du stock pour en créer un.",
+    "table": {
+      "batch": "Lot",
+      "variant": "Variante",
+      "received": "Reçu",
+      "expiry": "Expiration",
+      "stock": "Stock",
+      "cost": "Coût",
+      "status": "Statut"
+    }
+  },
+  "cancel": "Annuler",
+  "actions": {
+    "notEnabled": "Le suivi des lots n'est pas activé pour cette boutique.",
+    "invalidRequest": "Requête invalide",
+    "invalidBatchData": "Données de lot invalides",
+    "invalidAdjustmentData": "Données d'ajustement invalides",
+    "productNotFound": "Produit introuvable",
+    "expiryNotSupportedYet": "Le suivi d'expiration n'est pas encore pris en charge.",
+    "reconciliationFailed": "Impossible d'activer le suivi : la réconciliation du stock a échoué.",
+    "notBatchTracked": "Ce produit n'est pas suivi par lot.",
+    "chooseVariantToReceive": "Choisissez une variante pour la réception.",
+    "noVariants": "Ce produit n'a pas de variantes.",
+    "variantNotFound": "Variante introuvable pour ce produit.",
+    "quantityWholeNumber": "La quantité doit être un nombre entier pour ce produit.",
+    "expiryRequired": "Une date d'expiration est requise pour ce produit.",
+    "expiryInPast": "La date d'expiration ne peut pas être dans le passé.",
+    "batchArchivedCannotReceive": "Ce lot est archivé et ne peut pas recevoir de stock.",
+    "batchCodeDifferentExpiry": "Ce code de lot existe déjà avec une date d'expiration différente.",
+    "reconciliationErrorReceiving": "Réception échouée : erreur de réconciliation du stock.",
+    "batchCodeRetry": "Ce code de lot vient d'être créé — veuillez réessayer.",
+    "batchNotFound": "Lot introuvable",
+    "productNoExpiryTracking": "Ce produit n'utilise pas le suivi d'expiration.",
+    "archivedCannotAdjust": "Les lots archivés ne peuvent pas être ajustés.",
+    "stockWholeNumber": "Le stock doit être un nombre entier pour ce produit.",
+    "assignExpiryBeforeStock": "Attribuez une date d'expiration à ce lot avant d'ajouter du stock.",
+    "conflictReload": "Le lot a changé pendant que vous l'éditiez — rechargez et réessayez.",
+    "negativeStock": "Cet ajustement rendrait le stock global négatif.",
+    "reconciliationErrorAdjustment": "Ajustement échoué : erreur de réconciliation du stock.",
+    "enableBatchFirst": "Activez d'abord le suivi des lots.",
+    "invalidDate": "Date invalide.",
+    "pastExpiryWithStock": "Un lot avec du stock ne peut pas recevoir une date d'expiration passée.",
+    "reconciliationDriftBeforeDisable": "Le stock ne correspond pas aux lots — résolvez l'écart avant de désactiver."
+  },
+  "refreshButton": {
+    "label": "Actualiser le statut d'expiration",
+    "toastSummary": "Expiration actualisée — {statuses} changement(s) de statut, {notifications} nouvelle(s) alerte(s)."
+  }
+}

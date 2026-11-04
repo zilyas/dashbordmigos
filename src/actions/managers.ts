@@ -1,16 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac-guards";
 import { generateTempPassword, hashPassword } from "@/lib/security/password";
 import { logActivity } from "@/lib/audit";
 import {
-  createManagerSchema,
-  updateManagerSchema,
+  buildCreateManagerSchema,
+  buildUpdateManagerSchema,
   type CreateManagerInput,
   type UpdateManagerInput,
 } from "@/lib/validations/manager";
+import { toAppLocale } from "@/i18n/messages";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 
@@ -22,12 +24,15 @@ async function requireManagerRow(id: string) {
 
 export async function createManager(input: CreateManagerInput) {
   const session = await requirePlatformAdmin();
-  const parsed = createManagerSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid manager data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildCreateManagerSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidManagerData") };
   const data = parsed.data;
 
   const store = await prisma.store.findUnique({ where: { id: data.storeId } });
-  if (!store) return { error: "Store not found" };
+  if (!store) return { error: t("storeNotFound") };
 
   try {
     const passwordHash = await hashPassword(data.password);
@@ -57,8 +62,8 @@ export async function createManager(input: CreateManagerInput) {
         storeId: data.storeId,
         userId: manager.id,
         type: "MANAGER_ASSIGNED",
-        title: "You've been assigned a store",
-        message: `You're now managing ${store.name}. Sign in to get started.`,
+        title: t("assignedNotificationTitle"),
+        message: t("assignedNotificationMessage", { storeName: store.name }),
       },
     });
 
@@ -67,7 +72,7 @@ export async function createManager(input: CreateManagerInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A user with that email already exists." };
+      return { error: t("managerEmailExists") };
     }
     throw error;
   }
@@ -75,12 +80,15 @@ export async function createManager(input: CreateManagerInput) {
 
 export async function updateManager(id: string, input: UpdateManagerInput) {
   const session = await requirePlatformAdmin();
-  const parsed = updateManagerSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid manager data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildUpdateManagerSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidManagerData") };
   const data = parsed.data;
 
   const manager = await requireManagerRow(id);
-  if (!manager) return { error: "Manager not found" };
+  if (!manager) return { error: t("managerNotFound") };
 
   try {
     await prisma.user.update({
@@ -101,7 +109,7 @@ export async function updateManager(id: string, input: UpdateManagerInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A user with that email already exists." };
+      return { error: t("managerEmailExists") };
     }
     throw error;
   }
@@ -109,8 +117,9 @@ export async function updateManager(id: string, input: UpdateManagerInput) {
 
 export async function toggleManagerStatus(id: string) {
   const session = await requirePlatformAdmin();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const manager = await requireManagerRow(id);
-  if (!manager) return { error: "Manager not found" };
+  if (!manager) return { error: t("managerNotFound") };
 
   const nextStatus = manager.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
   await prisma.user.update({ where: { id }, data: { status: nextStatus } });
@@ -130,8 +139,9 @@ export async function toggleManagerStatus(id: string) {
 
 export async function deleteManager(id: string) {
   const session = await requirePlatformAdmin();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const manager = await requireManagerRow(id);
-  if (!manager) return { error: "Manager not found" };
+  if (!manager) return { error: t("managerNotFound") };
 
   try {
     await prisma.user.delete({ where: { id } });
@@ -169,8 +179,9 @@ export async function deleteManager(id: string) {
 
 export async function resetManagerPassword(id: string) {
   const session = await requirePlatformAdmin();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const manager = await requireManagerRow(id);
-  if (!manager) return { error: "Manager not found" };
+  if (!manager) return { error: t("managerNotFound") };
 
   const tempPassword = generateTempPassword();
   const passwordHash = await hashPassword(tempPassword);
@@ -191,11 +202,12 @@ export async function resetManagerPassword(id: string) {
 
 export async function transferManager(id: string, newStoreId: string) {
   const session = await requirePlatformAdmin();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const manager = await requireManagerRow(id);
-  if (!manager) return { error: "Manager not found" };
+  if (!manager) return { error: t("managerNotFound") };
 
   const store = await prisma.store.findUnique({ where: { id: newStoreId } });
-  if (!store) return { error: "Store not found" };
+  if (!store) return { error: t("storeNotFound") };
 
   await prisma.user.update({ where: { id }, data: { storeId: newStoreId } });
 
@@ -213,8 +225,8 @@ export async function transferManager(id: string, newStoreId: string) {
       storeId: newStoreId,
       userId: id,
       type: "MANAGER_ASSIGNED",
-      title: "You've been transferred",
-      message: `You're now managing ${store.name}.`,
+      title: t("transferredNotificationTitle"),
+      message: t("transferredNotificationMessage", { storeName: store.name }),
     },
   });
 

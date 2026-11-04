@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext } from "@/lib/store-context";
 import { canMessageUser, canMessageUsers, getMessageableUsers } from "@/lib/messaging-permissions";
 import { findDirectConversation, getConversationList, getConversationMessages } from "@/lib/queries/messages";
+import { toAppLocale } from "@/i18n/messages";
 import type { Role } from "@/generated/prisma/enums";
 
 const MESSAGE_MAX_LENGTH = 4000;
@@ -36,7 +38,10 @@ export type ParticipantSummary = {
 /** Read-side wrapper so client components can poll for updates without a WebSocket. */
 export async function fetchConversations() {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "messaging.actions" });
+    return { error: t("notAuthorized") };
+  }
   const conversations = await getConversationList(context.userId);
   const result: ConversationSummary[] = conversations.map((c) => ({
     id: c.id,
@@ -60,9 +65,10 @@ export async function fetchConversations() {
 /** Read-side wrapper so client components can poll a thread for new messages. */
 export async function fetchConversationMessages(conversationId: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "messaging.actions" });
+  if (!context) return { error: t("notAuthorized") };
   const data = await getConversationMessages(conversationId, context.userId);
-  if (!data) return { error: "Conversation not found." };
+  if (!data) return { error: t("conversationNotFound") };
 
   const messages: MessageItem[] = data.messages.map((m) => ({
     id: m.id,
@@ -82,10 +88,11 @@ export async function fetchConversationMessages(conversationId: string) {
 
 export async function startDirectConversation(targetUserId: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "messaging.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const allowed = await canMessageUser(context, targetUserId);
-  if (!allowed) return { error: "You can't message this person." };
+  if (!allowed) return { error: t("cantMessagePerson") };
 
   const existing = await findDirectConversation(context.userId, targetUserId);
   if (existing) return { success: true as const, conversationId: existing.id };
@@ -112,7 +119,8 @@ export async function startGroupConversation(input: {
   selectedUserIds?: string[];
 }) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "messaging.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   let recipientIds: string[];
   if (input.target === "selected") {
@@ -129,11 +137,11 @@ export async function startGroupConversation(input: {
   }
 
   if (recipientIds.length === 0) {
-    return { error: "Select at least one recipient." };
+    return { error: t("selectAtLeastOneRecipient") };
   }
 
   const allowed = await canMessageUsers(context, recipientIds);
-  if (!allowed) return { error: "You can't message one or more of the selected recipients." };
+  if (!allowed) return { error: t("cantMessageSomeRecipients") };
 
   const conversation = await prisma.conversation.create({
     data: {
@@ -154,16 +162,17 @@ export async function startGroupConversation(input: {
 
 export async function sendMessage(conversationId: string, body: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "messaging.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const trimmed = body.trim();
-  if (!trimmed) return { error: "Message can't be empty." };
-  if (trimmed.length > MESSAGE_MAX_LENGTH) return { error: "Message is too long." };
+  if (!trimmed) return { error: t("messageEmpty") };
+  if (trimmed.length > MESSAGE_MAX_LENGTH) return { error: t("messageTooLong") };
 
   const participant = await prisma.conversationParticipant.findUnique({
     where: { conversationId_userId: { conversationId, userId: context.userId } },
   });
-  if (!participant) return { error: "Conversation not found." };
+  if (!participant) return { error: t("conversationNotFound") };
 
   const [message] = await prisma.$transaction([
     prisma.message.create({
@@ -200,7 +209,10 @@ export async function sendMessage(conversationId: string, body: string) {
 
 export async function markConversationRead(conversationId: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "messaging.actions" });
+    return { error: t("notAuthorized") };
+  }
 
   await prisma.conversationParticipant.updateMany({
     where: { conversationId, userId: context.userId },

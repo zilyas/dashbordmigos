@@ -1,0 +1,73 @@
+{
+  "page": {
+    "title": "Settings",
+    "description": "Store configuration and preferences."
+  },
+  "storeDetails": {
+    "title": "Store details",
+    "description": "Shown on receipts, invoices and exported reports.",
+    "logoLabel": "Logo",
+    "storeNameLabel": "Store name",
+    "currencyCodeLabel": "Currency code",
+    "timezoneLabel": "Timezone",
+    "timezonePlaceholder": "Select timezone",
+    "timezoneHint": "Used for date-based rules like batch expiry.",
+    "taxRateLabel": "Tax rate (%)",
+    "phoneLabel": "Phone",
+    "cityLabel": "City",
+    "countryLabel": "Country",
+    "addressLabel": "Address",
+    "emailLabel": "Store email",
+    "allowSellerViewCostLabel": "Sellers can see fabrication cost",
+    "allowSellerViewCostHint": "When on, sellers see the cost price alongside selling price in Products.",
+    "advancedFeaturesTitle": "Advanced features",
+    "advancedFeaturesHint": "Off by default. Turn on only what your store needs — simple stores can ignore these.",
+    "features": {
+      "units": { "label": "Units of measure", "description": "Sell by piece, kg, g, L or pack. Adds a unit field on products." },
+      "categoryAttributes": { "label": "Category attributes", "description": "Add structured specs per category (brand, warranty, weight…). Coming in a later update." },
+      "customVariantAxes": { "label": "Custom variant axes", "description": "Define your own variant axes beyond Size/Color (Storage, Voltage…). Coming in a later update." },
+      "expiryBatch": { "label": "Expiry & batch tracking", "description": "Track expiry dates and batches for perishable goods. Coming in a later update." },
+      "storefrontApi": { "label": "Storefront API" }
+    },
+    "saveChanges": "Save changes",
+    "toastSaved": "Settings saved"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose how the dashboard looks on this device.",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "starterCatalog": {
+    "title": "Starter catalog",
+    "description": "Optional. Set up categories, attributes and variant options for a common store type in one click. It never creates products or stock, and never overwrites existing data.",
+    "alreadySetUp": "Your catalog is already set up — open to apply another starter template",
+    "cancel": "Cancel",
+    "applyButton": "Apply template",
+    "done": "Done",
+    "appliedTitle": "{templateName} applied",
+    "appliedDescription": "Here is what changed for your store.",
+    "featuresEnabledPrefix": "Features enabled: ",
+    "nothingChanged": "Everything was already set up — nothing was changed.",
+    "countCategories": "Categories",
+    "countAttributes": "Attributes",
+    "countAxes": "Variant axes",
+    "countSizes": "Sizes",
+    "countColors": "Colors",
+    "countAdded": "{count} added",
+    "countReused": "{count} reused",
+    "toastApplied": "Applied the {templateName} starter catalog.",
+    "previewFeaturesTitle": "Features that will be enabled",
+    "previewCategoriesTitle": "Categories",
+    "previewAxesTitle": "Variant axes",
+    "previewSizesTitle": "Sizes",
+    "previewColorsTitle": "Colors",
+    "previewFooter": "This only sets up catalog structure. It does not create any products, stock, or sales, and it never overwrites what you already have."
+  },
+  "actions": {
+    "notAuthorized": "Not authorized",
+    "invalidSettingsData": "Invalid settings data",
+    "unknownTemplate": "Unknown template."
+  }
+}

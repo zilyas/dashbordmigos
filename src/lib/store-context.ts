@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role, Locale } from "@/generated/prisma/enums";
 
 export type SessionContext = {
   userId: string;
   role: Role;
   storeId: string | null;
   sid: string;
+  locale: Locale;
 };
 
 /**
@@ -35,7 +36,7 @@ export async function getStorelessSessionContext(): Promise<SessionContext | nul
     }),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { status: true },
+      select: { status: true, locale: true },
     }),
   ]);
 
@@ -54,6 +55,7 @@ export async function getStorelessSessionContext(): Promise<SessionContext | nul
     role: session.user.role,
     storeId: session.user.storeId,
     sid: session.sid,
+    locale: user.locale,
   };
 }
 

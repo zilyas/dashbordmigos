@@ -1,0 +1,79 @@
+{
+  "page": {
+    "title": "Reports",
+    "descriptionSuperAdmin": "Revenue and profit breakdown across every store.",
+    "descriptionStore": "Revenue and profit breakdown for your store.",
+    "expiryReportButton": "Expiry report",
+    "exportCsv": "Export CSV",
+    "periods": {
+      "daily": "Today",
+      "weekly": "This Week",
+      "monthly": "This Month",
+      "yearly": "This Year"
+    },
+    "stats": {
+      "revenue": "Revenue",
+      "profit": "Profit",
+      "orders": "Orders",
+      "averageOrder": "Average Order"
+    },
+    "trendTitle": "Trend",
+    "trendDescription": "Revenue and profit for {period}",
+    "noSalesInPeriod": "No sales in this period",
+    "breakdownTitle": "Breakdown",
+    "table": {
+      "period": "Period",
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "profit": "Profit"
+    }
+  },
+  "expiry": {
+    "title": "Expiry report",
+    "description": "At-risk batch inventory · store-local today {today}",
+    "featureOffPageDescription": "Batch & expiry inventory.",
+    "exportCsv": "Export CSV",
+    "featureOffTitle": "Batch & expiry tracking is off",
+    "featureOffDescription": "Enable it in Settings, then turn on expiry tracking per product to see this report.",
+    "stats": {
+      "expired": "Expired",
+      "today": "Today",
+      "within7": "≤7 days",
+      "within30": "≤30 days",
+      "atRiskValue": "At-risk value"
+    },
+    "missingDateWarning": "{count} batch(es) have stock but no expiry date — fix them from the product page.",
+    "filters": {
+      "all": "All at risk",
+      "expired": "Expired",
+      "today": "Today",
+      "within7": "≤7 days",
+      "within30": "≤30 days",
+      "within60": "≤60 days",
+      "missingDate": "Missing date"
+    },
+    "batchesCardTitle": "Batches",
+    "emptyNoStockTitle": "No expiry-tracked stock yet",
+    "emptyNoStockDescription": "Turn on expiry tracking for a product and receive dated batches to populate this report.",
+    "emptyNothingInWindow": "Nothing in this window",
+    "table": {
+      "product": "Product",
+      "batch": "Batch",
+      "expiry": "Expiry",
+      "days": "Days",
+      "qty": "Qty",
+      "value": "Value",
+      "status": "Status"
+    },
+    "edit": "Edit",
+    "buckets": {
+      "expired": "Expired",
+      "today": "Expires today",
+      "7": "≤7 days",
+      "30": "≤30 days",
+      "60": "≤60 days",
+      "later": "Later",
+      "missing": "Missing date"
+    }
+  }
+}

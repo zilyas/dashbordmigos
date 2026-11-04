@@ -1,10 +1,14 @@
 import { z } from "zod";
 
-export const loginSchema = z.object({
-  email: z.email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-  code: z.string().optional(),
-  rememberMe: z.boolean().optional(),
-});
+import type { ValidationT } from "@/lib/validations/types";
 
-export type LoginInput = z.infer<typeof loginSchema>;
+export function buildLoginSchema(t: ValidationT) {
+  return z.object({
+    email: z.email(t("email.invalid")),
+    password: z.string().min(1, t("password.required")),
+    code: z.string().optional(),
+    rememberMe: z.boolean().optional(),
+  });
+}
+
+export type LoginInput = z.infer<ReturnType<typeof buildLoginSchema>>;

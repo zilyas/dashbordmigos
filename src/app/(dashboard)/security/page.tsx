@@ -5,10 +5,16 @@ import { SystemHealthCard } from "@/components/security/system-health-card";
 import { LockedAccountsCard } from "@/components/security/locked-accounts-card";
 import { RecentLoginAttempts } from "@/components/security/recent-login-attempts";
 import { getLockedAccounts, getRecentLoginAttempts, getSystemHealth } from "@/lib/queries/security";
+import { getSessionContext } from "@/lib/store-context";
+import { toAppLocale } from "@/i18n/messages";
+import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = { title: "Security" };
 
 export default async function SecurityPage() {
+  const context = await getSessionContext();
+  const locale = toAppLocale(context?.locale);
+  const t = await getTranslations({ locale, namespace: "security.page" });
   const [health, lockedAccounts, recentAttempts] = await Promise.all([
     getSystemHealth(),
     getLockedAccounts(),
@@ -17,13 +23,13 @@ export default async function SecurityPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Security" description="Platform-wide security posture, at a glance." />
-      <SystemHealthCard health={health} />
+      <PageHeader title={t("title")} description={t("description")} />
+      <SystemHealthCard health={health} locale={locale} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <LockedAccountsCard accounts={lockedAccounts} />
-        <RecentLoginAttempts attempts={recentAttempts} />
+        <LockedAccountsCard accounts={lockedAccounts} locale={locale} />
+        <RecentLoginAttempts attempts={recentAttempts} locale={locale} />
       </div>
-      <PermissionMatrix />
+      <PermissionMatrix locale={locale} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Loader2, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +21,11 @@ import { createAnnouncement } from "@/actions/announcements";
 import type { Role } from "@/generated/prisma/enums";
 
 export function CreateAnnouncementDialog({ role }: { role: Role }) {
+  const t = useTranslations("announcements.createDialog");
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  const scopeLabel = role === "SUPER_ADMIN" ? "the entire platform" : "your store";
 
   function handleSubmit() {
     startTransition(async () => {
@@ -34,7 +34,7 @@ export function CreateAnnouncementDialog({ role }: { role: Role }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Announcement posted");
+      toast.success(t("toastPosted"));
       setTitle("");
       setBody("");
       setOpen(false);
@@ -46,32 +46,32 @@ export function CreateAnnouncementDialog({ role }: { role: Role }) {
       <DialogTrigger asChild>
         <Button>
           <Megaphone className="size-4" />
-          New announcement
+          {t("newAnnouncement")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New announcement</DialogTitle>
-          <DialogDescription>This will be sent to everyone in {scopeLabel}.</DialogDescription>
+          <DialogTitle>{t("newAnnouncement")}</DialogTitle>
+          <DialogDescription>{role === "SUPER_ADMIN" ? t("descriptionPlatform") : t("descriptionStore")}</DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="announcement-title">Title</FieldLabel>
+            <FieldLabel htmlFor="announcement-title">{t("titleLabel")}</FieldLabel>
             <Input
               id="announcement-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Holiday hours"
+              placeholder={t("titlePlaceholder")}
               maxLength={200}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="announcement-body">Message</FieldLabel>
+            <FieldLabel htmlFor="announcement-body">{t("messageLabel")}</FieldLabel>
             <Textarea
               id="announcement-body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your announcement..."
+              placeholder={t("messagePlaceholder")}
               rows={5}
               maxLength={4000}
             />
@@ -80,7 +80,7 @@ export function CreateAnnouncementDialog({ role }: { role: Role }) {
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={isPending || !title.trim() || !body.trim()}>
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            Post announcement
+            {t("postButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

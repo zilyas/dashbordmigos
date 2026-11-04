@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Plus, Users as UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
@@ -22,6 +23,11 @@ export function ManagersTable({
   managers: ManagerListItem[];
   stores: StoreOption[];
 }) {
+  const t = useTranslations("people.managers");
+  const tTable = useTranslations("people.managers.table");
+  const tColumns = useTranslations("people.managers.columns");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagerListItem | null>(null);
   const [transferring, setTransferring] = useState<ManagerListItem | null>(null);
@@ -33,7 +39,7 @@ export function ManagersTable({
     if (result?.error) {
       toast.error(result.error);
     } else {
-      toast.success(result?.status === "ACTIVE" ? "Manager activated" : "Manager deactivated");
+      toast.success(result?.status === "ACTIVE" ? t("toastActivated") : t("toastDeactivated"));
     }
   }
 
@@ -45,8 +51,10 @@ export function ManagersTable({
         onResetPassword: setResetting,
         onToggleStatus: handleToggleStatus,
         onDelete: setDeleteTarget,
+        t: tColumns,
+        tLabels,
       }),
-    []
+    [tColumns, tLabels]
   );
 
   return (
@@ -54,13 +62,13 @@ export function ManagersTable({
       <DataTable
         columns={columns}
         data={managers}
-        searchPlaceholder="Search by name or email..."
+        searchPlaceholder={tTable("searchPlaceholder")}
         emptyIcon={<UsersIcon />}
-        emptyTitle="No managers yet"
+        emptyTitle={tTable("emptyTitle")}
         toolbar={
           <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New Manager
+            {tTable("newManager")}
           </Button>
         }
       />
@@ -89,18 +97,18 @@ export function ManagersTable({
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
-          description="If this manager has related store history, they will be deactivated instead of deleted to preserve records."
-          confirmLabel="Delete"
+          title={t("deleteDialog.title", { name: deleteTarget.name })}
+          description={t("deleteDialog.description")}
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteManager(deleteTarget.id);
             if (result?.error) {
               toast.error(result.error);
             } else if (result?.deactivated) {
-              toast.success("Manager deactivated (has related history)");
+              toast.success(t("deleteDialog.toastDeactivated"));
             } else {
-              toast.success("Manager deleted");
+              toast.success(t("deleteDialog.toastDeleted"));
             }
           }}
         />

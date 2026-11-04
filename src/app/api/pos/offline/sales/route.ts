@@ -15,7 +15,12 @@ import { can } from "@/lib/rbac";
 import { getSessionContext } from "@/lib/store-context";
 import { verifyLeaseForSync } from "@/lib/offline/lease-server";
 import { createSaleCore, type CreateSaleFailureCode } from "@/lib/sales/create-sale";
-import { saleSchema } from "@/lib/validations/sale";
+import { buildSaleSchema } from "@/lib/validations/sale";
+
+// This sync endpoint has no signed-in session to read a locale from (see
+// createSaleCore's own note) -- stays English, same as the rest of the
+// offline sync surface, per the Phase 3 plan's explicit decision.
+const saleSchema = buildSaleSchema((key) => key);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

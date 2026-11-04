@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Plus, Tags, Pencil, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +31,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createCategory, deleteCategory, updateCategory } from "@/actions/categories";
-import { categorySchema, type CategoryInput } from "@/lib/validations/category";
+import { buildCategorySchema, type CategoryInput } from "@/lib/validations/category";
 import { CategoryAttributesDialog } from "@/components/categories/category-attributes-dialog";
 import type { CategoryListItem } from "@/lib/queries/categories";
 
@@ -46,6 +47,9 @@ export function CategoriesManager({
   const [editing, setEditing] = useState<CategoryListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryListItem | null>(null);
   const [attrTargetId, setAttrTargetId] = useState<string | null>(null);
+  const t = useTranslations("catalog.categories");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
   // Derive the live category from props so the dialog reflects refreshes.
   const attrTarget = categories.find((c) => c.id === attrTargetId) ?? null;
 
@@ -64,18 +68,18 @@ export function CategoriesManager({
       <div className="flex justify-end">
         <Button onClick={openCreate} className="gap-1.5">
           <Plus className="size-4" />
-          New Category
+          {t("newCategory")}
         </Button>
       </div>
 
       {categories.length === 0 ? (
         <EmptyState
           icon={<Tags />}
-          title="No categories yet"
-          description="Create your first category to start organizing products."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <Button onClick={openCreate} size="sm">
-              New Category
+              {t("newCategory")}
             </Button>
           }
         />
@@ -87,12 +91,12 @@ export function CategoriesManager({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium">{category.name}</p>
-                    {!category.isActive && <StatusBadge variant="neutral">Inactive</StatusBadge>}
-                    {category.isClothing && <StatusBadge variant="info">Clothing</StatusBadge>}
+                    {!category.isActive && <StatusBadge variant="neutral">{tLabels("userStatus.INACTIVE")}</StatusBadge>}
+                    {category.isClothing && <StatusBadge variant="info">{t("clothingBadge")}</StatusBadge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {category.parentName ? `${category.parentName} · ` : ""}
-                    {category.productCount} product{category.productCount === 1 ? "" : "s"}
+                    {t("productCount", { count: category.productCount })}
                   </p>
                 </div>
                 <div className="flex gap-1">
@@ -120,7 +124,7 @@ export function CategoriesManager({
                   onClick={() => setAttrTargetId(category.id)}
                 >
                   <SlidersHorizontal className="size-3.5" />
-                  Attributes
+                  {t("attributesButton")}
                   {category.attributes.length > 0 && (
                     <span className="text-xs text-muted-foreground">({category.attributes.length})</span>
                   )}
@@ -151,20 +155,20 @@ export function CategoriesManager({
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
+          title={t("deleteTitle", { name: deleteTarget.name })}
           description={
             deleteTarget.productCount > 0
-              ? `This category has ${deleteTarget.productCount} product(s). They will become uncategorized.`
-              : "This action cannot be undone."
+              ? t("deleteDescriptionWithProducts", { count: deleteTarget.productCount })
+              : t("deleteDescriptionEmpty")
           }
-          confirmLabel="Delete"
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteCategory(deleteTarget.id);
             if (result?.error) {
               toast.error(result.error);
             } else {
-              toast.success("Category deleted");
+              toast.success(t("toastDeleted"));
             }
           }}
         />
@@ -187,6 +191,11 @@ function CategoryDialog({
   categories: CategoryListItem[];
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("catalog.categories.dialog");
+  const tCommon = useTranslations("common");
+  const tLabels = useTranslations("labels");
+  const tValidation = useTranslations("validation");
+  const categorySchema = useMemo(() => buildCategorySchema(tValidation), [tValidation]);
   const form = useForm<CategoryInput>({
     resolver: zodResolver(categorySchema),
     values: {
@@ -211,7 +220,7 @@ function CategoryDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(category ? "Category updated" : "Category created");
+      toast.success(category ? t("toastUpdated") : t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -221,26 +230,26 @@ function CategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{category ? "Edit category" : "New category"}</DialogTitle>
+          <DialogTitle>{category ? t("editTitle") : t("newTitle")}</DialogTitle>
           <DialogDescription>
-            {category ? "Update this category's details." : "Add a new product category."}
+            {category ? t("editDescription") : t("newDescription")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="cat-name">Name</FieldLabel>
+              <FieldLabel htmlFor="cat-name">{t("nameLabel")}</FieldLabel>
               <Input id="cat-name" {...form.register("name")} />
               {form.formState.errors.name && (
                 <FieldError>{form.formState.errors.name.message}</FieldError>
               )}
             </Field>
             <Field>
-              <FieldLabel htmlFor="cat-description">Description</FieldLabel>
+              <FieldLabel htmlFor="cat-description">{t("descriptionLabel")}</FieldLabel>
               <Textarea id="cat-description" rows={3} {...form.register("description")} />
             </Field>
             <Field>
-              <FieldLabel>Parent category</FieldLabel>
+              <FieldLabel>{t("parentLabel")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="parentId"
@@ -250,10 +259,10 @@ function CategoryDialog({
                     onValueChange={(v) => field.onChange(v === NO_PARENT ? "" : v)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="No parent" />
+                      <SelectValue placeholder={t("noParent")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_PARENT}>No parent</SelectItem>
+                      <SelectItem value={NO_PARENT}>{t("noParent")}</SelectItem>
                       {parentOptions.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}
@@ -270,8 +279,8 @@ function CategoryDialog({
               render={({ field }) => (
                 <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5">
                   <div>
-                    <p className="text-sm font-medium">Clothing category</p>
-                    <p className="text-xs text-muted-foreground">Enables size/color variants for its products.</p>
+                    <p className="text-sm font-medium">{t("clothingLabel")}</p>
+                    <p className="text-xs text-muted-foreground">{t("clothingHint")}</p>
                   </div>
                   <Switch checked={!!field.value} onCheckedChange={field.onChange} />
                 </div>
@@ -282,7 +291,7 @@ function CategoryDialog({
               name="isActive"
               render={({ field }) => (
                 <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5">
-                  <span className="text-sm font-medium">Active</span>
+                  <span className="text-sm font-medium">{tLabels("userStatus.ACTIVE")}</span>
                   <Switch checked={field.value ?? true} onCheckedChange={field.onChange} />
                 </div>
               )}
@@ -290,11 +299,11 @@ function CategoryDialog({
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              {category ? "Save changes" : "Create category"}
+              {category ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </form>

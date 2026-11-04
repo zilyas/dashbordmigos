@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   destructive = false,
   onConfirm,
 }: {
@@ -30,6 +31,7 @@ export function ConfirmDialog({
   destructive?: boolean;
   onConfirm: () => Promise<void> | void;
 }) {
+  const t = useTranslations("common");
   const [isPending, setIsPending] = useState(false);
 
   async function handleConfirm() {
@@ -50,7 +52,7 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>{t("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -60,7 +62,7 @@ export function ConfirmDialog({
             className={destructive ? "bg-destructive text-white hover:bg-destructive/90" : undefined}
           >
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            {confirmLabel}
+            {confirmLabel ?? t("confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Plus, SlidersHorizontal, Pencil, Trash2, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,11 +23,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createVariantAxis, deleteVariantAxis, updateVariantAxis } from "@/actions/variant-axes";
-import { variantAxisSchema, type VariantAxisInput } from "@/lib/validations/variant-axis";
+import { buildVariantAxisSchema, type VariantAxisInput } from "@/lib/validations/variant-axis";
 import { matchesAny } from "@/lib/text";
 import type { VariantAxisItem } from "@/lib/queries/variant-axes";
 
 export function VariantAxesManager({ axes }: { axes: VariantAxisItem[] }) {
+  const t = useTranslations("catalog.variantAxes");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<VariantAxisItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VariantAxisItem | null>(null);
@@ -50,29 +54,29 @@ export function VariantAxesManager({ axes }: { axes: VariantAxisItem[] }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search axes..."
+            placeholder={t("searchPlaceholder")}
             className="pl-9"
           />
         </div>
         <Button onClick={openCreate} className="gap-1.5">
           <Plus className="size-4" />
-          New Axis
+          {t("newAxis")}
         </Button>
       </div>
 
       {axes.length === 0 ? (
         <EmptyState
           icon={<SlidersHorizontal />}
-          title="No variant axes yet"
-          description="Define custom axes (Storage, Voltage, Flavor…) for variant products."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <Button onClick={openCreate} size="sm">
-              New Axis
+              {t("newAxis")}
             </Button>
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<Search />} title="No axes match your search" />
+        <EmptyState icon={<Search />} title={t("emptySearchTitle")} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((axis) => (
@@ -80,9 +84,9 @@ export function VariantAxesManager({ axes }: { axes: VariantAxisItem[] }) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="font-medium">{axis.label}</p>
-                  {!axis.isActive && <StatusBadge variant="neutral">Inactive</StatusBadge>}
+                  {!axis.isActive && <StatusBadge variant="neutral">{tLabels("userStatus.INACTIVE")}</StatusBadge>}
                 </div>
-                <p className="text-xs text-muted-foreground">key: {axis.key}</p>
+                <p className="text-xs text-muted-foreground">{t("keyPrefix", { key: axis.key })}</p>
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon-sm" onClick={() => { setEditing(axis); setDialogOpen(true); }}>
@@ -108,14 +112,14 @@ export function VariantAxesManager({ axes }: { axes: VariantAxisItem[] }) {
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.label}"?`}
-          description="Existing variant values under this axis will simply stop being shown."
-          confirmLabel="Delete"
+          title={t("deleteTitle", { label: deleteTarget.label })}
+          description={t("deleteDescription")}
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteVariantAxis(deleteTarget.id);
             if (result?.error) toast.error(result.error);
-            else toast.success("Axis deleted");
+            else toast.success(t("toastDeleted"));
           }}
         />
       )}
@@ -133,6 +137,11 @@ function AxisDialog({
   axis: VariantAxisItem | null;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("catalog.variantAxes.dialog");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const variantAxisSchema = useMemo(() => buildVariantAxisSchema(tValidation), [tValidation]);
   const form = useForm<VariantAxisInput>({
     resolver: zodResolver(variantAxisSchema),
     values: {
@@ -149,7 +158,7 @@ function AxisDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(axis ? "Axis updated" : "Axis created");
+      toast.success(axis ? t("toastUpdated") : t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -159,14 +168,14 @@ function AxisDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{axis ? "Edit axis" : "New axis"}</DialogTitle>
-          <DialogDescription>Axes are shared across this store&apos;s variant products.</DialogDescription>
+          <DialogTitle>{axis ? t("editTitle") : t("newTitle")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.label}>
-              <FieldLabel htmlFor="axis-label">Label</FieldLabel>
-              <Input id="axis-label" placeholder="e.g. Storage" {...form.register("label")} />
+              <FieldLabel htmlFor="axis-label">{t("labelLabel")}</FieldLabel>
+              <Input id="axis-label" placeholder={t("labelPlaceholder")} {...form.register("label")} />
               {form.formState.errors.label && <FieldError>{form.formState.errors.label.message}</FieldError>}
             </Field>
             <div className="flex items-center justify-between gap-4">
@@ -176,23 +185,23 @@ function AxisDialog({
                 render={({ field }) => (
                   <label className="flex items-center gap-2 text-sm font-medium">
                     <Switch checked={field.value ?? true} onCheckedChange={field.onChange} />
-                    Active
+                    {tLabels("userStatus.ACTIVE")}
                   </label>
                 )}
               />
               <Field className="w-28">
-                <FieldLabel htmlFor="axis-position">Sort order</FieldLabel>
+                <FieldLabel htmlFor="axis-position">{t("sortOrderLabel")}</FieldLabel>
                 <Input id="axis-position" type="number" {...form.register("position", { valueAsNumber: true })} />
               </Field>
             </div>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              {axis ? "Save changes" : "Create axis"}
+              {axis ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </form>

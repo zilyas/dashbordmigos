@@ -34,12 +34,20 @@ vi.mock("@/lib/rbac-guards", () => ({
     role: "MANAGER",
     storeId: "s1",
     sid: "sid1",
+    locale: "EN",
   }),
 }));
 
 vi.mock("@/lib/features", () => ({ isStorefrontApiEnabled: isStorefrontApiEnabledMock }));
 vi.mock("@/lib/audit", () => ({ logActivity: logActivityMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+// getTranslations needs a real Next.js server runtime (RSC export
+// conditions) that this plain-node vitest environment doesn't provide --
+// identity translator is correct here since no test in this file asserts on
+// message text, only on behavior (key passed straight through as the "message").
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
+}));
 
 // @/lib/api/keys is deliberately NOT mocked: the real mintApiKey must run or the
 // key-format and no-raw-key-persisted assertions below prove nothing.

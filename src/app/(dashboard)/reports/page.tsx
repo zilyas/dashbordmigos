@@ -14,27 +14,30 @@ import { getSessionContext } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
 import { DEFAULT_CURRENCY, formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Reports" };
-
-const PERIOD_LABELS: Record<ReportPeriod, string> = {
-  daily: "Today",
-  weekly: "This Week",
-  monthly: "This Month",
-  yearly: "This Year",
-};
 
 export default async function ReportsPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
+  const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context!.locale), namespace: "reports.page" });
+  const PERIOD_LABELS: Record<ReportPeriod, string> = {
+    daily: t("periods.daily"),
+    weekly: t("periods.weekly"),
+    monthly: t("periods.monthly"),
+    yearly: t("periods.yearly"),
+  };
+
   const { period: periodParam } = await searchParams;
   const period: ReportPeriod = (REPORT_PERIODS as readonly string[]).includes(periodParam ?? "")
     ? (periodParam as ReportPeriod)
     : "monthly";
 
-  const context = await getSessionContext();
   const isSuperAdmin = context!.role === "SUPER_ADMIN";
   const storeId = isSuperAdmin ? null : context!.storeId;
 
@@ -49,26 +52,22 @@ export default async function ReportsPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Reports"
-        description={
-          isSuperAdmin
-            ? "Revenue and profit breakdown across every store."
-            : "Revenue and profit breakdown for your store."
-        }
+        title={t("title")}
+        description={isSuperAdmin ? t("descriptionSuperAdmin") : t("descriptionStore")}
         actions={
           <div className="flex items-center gap-2">
             {showExpiryReport && (
               <Button asChild variant="outline" className="gap-1.5">
                 <Link href="/reports/expiry">
                   <CalendarClock className="size-4" />
-                  Expiry report
+                  {t("expiryReportButton")}
                 </Link>
               </Button>
             )}
             <Button asChild variant="outline" className="gap-1.5">
               <a href={`/api/reports/export?period=${period}`} download>
                 <Download className="size-4" />
-                Export CSV
+                {t("exportCsv")}
               </a>
             </Button>
           </div>
@@ -93,20 +92,20 @@ export default async function ReportsPage({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Revenue" value={formatCurrency(data.summary.revenue, currency)} icon={<DollarSign />} tint="success" />
-        <StatCard label="Profit" value={formatCurrency(data.summary.profit, currency)} icon={<TrendingUp />} tint="success" />
-        <StatCard label="Orders" value={formatNumber(data.summary.orders)} icon={<Receipt />} tint="primary" />
-        <StatCard label="Average Order" value={formatCurrency(data.summary.averageOrder, currency)} icon={<ShoppingCart />} tint="primary" />
+        <StatCard label={t("stats.revenue")} value={formatCurrency(data.summary.revenue, currency)} icon={<DollarSign />} tint="success" />
+        <StatCard label={t("stats.profit")} value={formatCurrency(data.summary.profit, currency)} icon={<TrendingUp />} tint="success" />
+        <StatCard label={t("stats.orders")} value={formatNumber(data.summary.orders)} icon={<Receipt />} tint="primary" />
+        <StatCard label={t("stats.averageOrder")} value={formatCurrency(data.summary.averageOrder, currency)} icon={<ShoppingCart />} tint="primary" />
       </div>
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Trend</CardTitle>
-          <CardDescription>Revenue and profit for {PERIOD_LABELS[period].toLowerCase()}</CardDescription>
+          <CardTitle>{t("trendTitle")}</CardTitle>
+          <CardDescription>{t("trendDescription", { period: PERIOD_LABELS[period].toLowerCase() })}</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {data.breakdown.every((b) => b.revenue === 0) ? (
-            <EmptyState icon={<BarChart3 />} title="No sales in this period" className="h-64 border-none" />
+            <EmptyState icon={<BarChart3 />} title={t("noSalesInPeriod")} className="h-64 border-none" />
           ) : (
             <RevenueChart
               data={data.breakdown.map((b) => ({ date: b.label, revenue: b.revenue, profit: b.profit }))}
@@ -118,16 +117,16 @@ export default async function ReportsPage({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Breakdown</CardTitle>
+          <CardTitle>{t("breakdownTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Revenue</TableHead>
-                <TableHead>Profit</TableHead>
+                <TableHead>{t("table.period")}</TableHead>
+                <TableHead>{t("table.orders")}</TableHead>
+                <TableHead>{t("table.revenue")}</TableHead>
+                <TableHead>{t("table.profit")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

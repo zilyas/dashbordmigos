@@ -1,0 +1,21 @@
+{
+  "dashboard": "Tableau de bord",
+  "messages": "Messages",
+  "announcements": "Annonces",
+  "stores": "Boutiques",
+  "managers": "Gérants",
+  "products": "Produits",
+  "categories": "Catégories",
+  "sizes": "Tailles",
+  "colors": "Couleurs",
+  "variantAxes": "Axes de variante",
+  "sales": "Ventes",
+  "reports": "Rapports",
+  "sellers": "Vendeurs",
+  "activity": "Activité",
+  "storefrontApi": "API boutique",
+  "settings": "Paramètres",
+  "backups": "Sauvegardes",
+  "security": "Sécurité",
+  "newSale": "Nouvelle vente"
+}

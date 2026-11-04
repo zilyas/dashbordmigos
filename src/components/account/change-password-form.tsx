@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,13 +13,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { changePassword } from "@/actions/account";
 import {
-  changePasswordSchema,
-  PASSWORD_POLICY_HINT,
+  buildChangePasswordSchema,
   type ChangePasswordInput,
 } from "@/lib/validations/password";
 
 export function ChangePasswordForm() {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("account.changePassword");
+  const tValidation = useTranslations("validation");
+  const changePasswordSchema = useMemo(
+    () => buildChangePasswordSchema(tValidation),
+    [tValidation]
+  );
 
   const form = useForm<ChangePasswordInput>({
     resolver: zodResolver(changePasswordSchema),
@@ -32,7 +38,7 @@ export function ChangePasswordForm() {
         toast.error(result.error);
         return;
       }
-      toast.success("Password updated. Your other sessions have been signed out.");
+      toast.success(t("toastUpdated"));
       form.reset();
     });
   }
@@ -40,14 +46,14 @@ export function ChangePasswordForm() {
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Change password</CardTitle>
-        <CardDescription>Update the password used to sign in to your account.</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-sm">
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.currentPassword}>
-              <FieldLabel htmlFor="currentPassword">Current password</FieldLabel>
+              <FieldLabel htmlFor="currentPassword">{t("currentPasswordLabel")}</FieldLabel>
               <Input
                 id="currentPassword"
                 type="password"
@@ -61,7 +67,7 @@ export function ChangePasswordForm() {
             </Field>
 
             <Field data-invalid={!!form.formState.errors.newPassword}>
-              <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+              <FieldLabel htmlFor="newPassword">{t("newPasswordLabel")}</FieldLabel>
               <Input
                 id="newPassword"
                 type="password"
@@ -69,14 +75,14 @@ export function ChangePasswordForm() {
                 aria-invalid={!!form.formState.errors.newPassword}
                 {...form.register("newPassword")}
               />
-              <FieldDescription>{PASSWORD_POLICY_HINT}</FieldDescription>
+              <FieldDescription>{tValidation("password.policyHint")}</FieldDescription>
               {form.formState.errors.newPassword && (
                 <FieldError>{form.formState.errors.newPassword.message}</FieldError>
               )}
             </Field>
 
             <Field data-invalid={!!form.formState.errors.confirmPassword}>
-              <FieldLabel htmlFor="confirmPassword">Confirm new password</FieldLabel>
+              <FieldLabel htmlFor="confirmPassword">{t("confirmPasswordLabel")}</FieldLabel>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -91,7 +97,7 @@ export function ChangePasswordForm() {
 
             <Button type="submit" className="w-fit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Update password
+              {t("submit")}
             </Button>
           </FieldGroup>
         </form>

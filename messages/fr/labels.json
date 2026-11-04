@@ -1,0 +1,47 @@
+{
+  "role": {
+    "SUPER_ADMIN": "Super administrateur",
+    "MANAGER": "Gérant",
+    "SELLER": "Vendeur"
+  },
+  "userStatus": {
+    "ACTIVE": "Actif",
+    "INACTIVE": "Inactif"
+  },
+  "storeStatus": {
+    "ACTIVE": "Actif",
+    "INACTIVE": "Inactif"
+  },
+  "productStatus": {
+    "ACTIVE": "Actif",
+    "DRAFT": "Brouillon",
+    "ARCHIVED": "Archivé"
+  },
+  "batchStatus": {
+    "ACTIVE": "Actif",
+    "DEPLETED": "Épuisé",
+    "EXPIRED": "Expiré",
+    "ARCHIVED": "Archivé"
+  },
+  "paymentMethod": {
+    "CASH": "Espèces",
+    "CARD": "Carte",
+    "TRANSFER": "Virement",
+    "OTHER": "Autre"
+  },
+  "movementType": {
+    "IN": "Entrée de stock",
+    "OUT": "Sortie de stock",
+    "RETURN": "Retour",
+    "ADJUSTMENT": "Ajustement",
+    "SUPPLIER_DELIVERY": "Livraison fournisseur",
+    "MANUAL_EDIT": "Modification manuelle"
+  },
+  "failReason": {
+    "invalid_credentials": "E-mail ou mot de passe invalide",
+    "account_locked": "Compte verrouillé",
+    "rate_limited": "Limite de tentatives atteinte",
+    "two_factor_required": "Code à deux facteurs requis",
+    "invalid_two_factor_code": "Code à deux facteurs invalide"
+  }
+}

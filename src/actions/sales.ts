@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
 import { logServerError } from "@/lib/logger";
+import { toAppLocale } from "@/i18n/messages";
 import {
   incrementProductStock,
   incrementVariantStock,
@@ -24,31 +26,13 @@ import {
   type CreateSaleResult,
 } from "@/lib/sales/create-sale";
 import {
-  saleReturnSchema,
+  buildSaleReturnSchema,
   saleDetailsSchema,
   type SaleInput,
   type SaleReturnInput,
   type SaleDetailsInput,
 } from "@/lib/validations/sale";
 
-
-/**
- * Generic failure text for the POS. Deliberately says nothing about the cause:
- * everything useful goes to the server log, nothing extra goes to the shop
- * floor.
- */
-const SALE_FAILED = "Failed to complete sale. Please try again." as const;
-
-/**
- * Text for failures that retrying can never fix. The Sept 2026 incident: the
- * `invoice_sequences` table (migration 20260924180000_invoice_sequence) was
- * never applied in production because `prisma migrate deploy` was missing from
- * the deploy path until 44d48ed, so `tx.invoiceSequence.upsert` raised P2021
- * and every sale rolled back. The POS said "Please try again", so shop staff
- * hammered the button against a schema that could not serve them.
- */
-const SALE_FAILED_PERMANENTLY =
-  "This sale could not be recorded because of a server problem. Retrying will not help — please contact an administrator." as const;
 
 /**
  * P2021 (table does not exist) / P2022 (column does not exist) mean the
@@ -107,10 +91,13 @@ async function reviveRestoredBatch(
  */
 export async function createSale(input: SaleInput) {
   const context = await getSessionContext();
+  const locale = toAppLocale(context?.locale);
+  const t = await getTranslations({ locale, namespace: "sales.list.actions" });
   if (!context || !can(context.role, "sale.create")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
 
   let result: CreateSaleResult;
   try {
@@ -118,7 +105,12 @@ export async function createSale(input: SaleInput) {
     // — deliberately — no `expectedTotal`. The price-override path inside the
     // core is unreachable from here, which is the point of gating it on
     // `offline`.
-    result = await createSaleCore({ userId: context.userId, role: context.role, storeId }, input);
+    result = await createSaleCore(
+      { userId: context.userId, role: context.role, storeId },
+      input,
+      {},
+      tValidation
+    );
   } catch (error) {
     // Bind and log: this used to be a bare `catch {}`, which collapsed every
     // failure mode of this ~370-line function into one opaque string with no
@@ -140,7 +132,7 @@ export async function createSale(input: SaleInput) {
     // The returned string is rendered verbatim in the POS
     // (src/components/sales/pos-terminal.tsx) — it must never carry a Prisma
     // code, a table name, SQL or a stack. Full detail stays in the log above.
-    return { error: isSchemaMismatch(cause) ? SALE_FAILED_PERMANENTLY : SALE_FAILED };
+    return { error: isSchemaMismatch(cause) ? t("saleFailedPermanently") : t("saleFailed") };
   }
 
   if (!result.ok) return { error: result.message };
@@ -169,21 +161,24 @@ export async function createSale(input: SaleInput) {
  */
 export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
   const context = await getSessionContext();
+  const locale = toAppLocale(context?.locale);
+  const t = await getTranslations({ locale, namespace: "sales.list.actions" });
   if (!context || !can(context.role, "sale.refund")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
 
-  const parsed = saleReturnSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid return data" };
+  const parsed = buildSaleReturnSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidReturnData") };
   const data = parsed.data;
 
   const sale = await prisma.sale.findFirst({
     where: { id: saleId, storeId },
     include: { items: { include: { product: { select: { allowDecimalQuantity: true } } } } },
   });
-  if (!sale) return { error: "Sale not found" };
-  if (sale.status === "REFUNDED") return { error: "This sale has already been fully returned" };
+  if (!sale) return { error: t("saleNotFound") };
+  if (sale.status === "REFUNDED") return { error: t("alreadyFullyReturned") };
   // A tracked line is identified by the presence of batch allocation rows (a
   // sale rung up before tracking was enabled has none → keeps the legacy path).
 
@@ -196,7 +191,7 @@ export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
   const lines: { item: (typeof sale.items)[number]; quantity: number; overrideBatchId: string | null }[] = [];
   for (const requested of data.items) {
     const item = sale.items.find((i) => i.id === requested.saleItemId);
-    if (!item) return { error: "That item is not part of this sale" };
+    if (!item) return { error: t("itemNotInSale") };
 
     // Allow fractional returns when the product is decimal-enabled, or when the
     // sold line is already fractional (so a 0.5 kg line stays returnable even if
@@ -204,7 +199,7 @@ export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
     const allowDecimal =
       (unitsEnabled && item.product.allowDecimalQuantity) || !Number.isInteger(Number(item.quantity));
     if (!isValidQuantity(requested.quantity, allowDecimal)) {
-      return { error: "Return quantity must be a whole number for this item." };
+      return { error: t("returnQuantityWholeNumber") };
     }
     const quantity = round3(requested.quantity);
 
@@ -213,8 +208,8 @@ export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
       return {
         error:
           remaining === 0
-            ? "Those units have already been returned"
-            : `Only ${remaining} unit(s) of that item can still be returned`,
+            ? t("alreadyReturned")
+            : t("onlyNRemaining", { remaining }),
       };
     }
 
@@ -224,14 +219,14 @@ export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
     let overrideBatchId: string | null = null;
     if (requested.overrideBatchId) {
       if (context.role !== "MANAGER") {
-        return { error: "Only a manager can choose a different return batch." };
+        return { error: t("managerOnlyOverride") };
       }
       const target = await prisma.productBatch.findFirst({
         where: { id: requested.overrideBatchId, storeId, productId: item.productId, variantId: item.variantId },
         select: { id: true, status: true },
       });
-      if (!target) return { error: "The chosen return batch doesn't match this item." };
-      if (target.status === "ARCHIVED") return { error: "You can't return stock into an archived batch." };
+      if (!target) return { error: t("batchMismatch") };
+      if (target.status === "ARCHIVED") return { error: t("batchArchived") };
       overrideBatchId = target.id;
     }
 
@@ -396,12 +391,12 @@ export async function returnSaleItems(saleId: string, input: SaleReturnInput) {
     return { success: true as const, refundAmount, fullyReturned };
   } catch (error) {
     if (error instanceof AllocationIntegrityError) {
-      return { error: "This item's batch history is inconsistent — the return was cancelled. Contact an admin." };
+      return { error: t("allocationIntegrityReturn") };
     }
     if (error instanceof BatchAllocationConflict) {
-      return { error: "This sale changed while processing the return — please try again." };
+      return { error: t("allocationConflict") };
     }
-    return { error: "Failed to process the return. Please try again." };
+    return { error: t("returnFailed") };
   }
 }
 
@@ -445,17 +440,18 @@ export async function getReturnBatchOptions(saleId: string): Promise<Record<stri
 /** Fixes customer/payment details on a sale. Money and items are untouched. */
 export async function updateSaleDetails(saleId: string, input: SaleDetailsInput) {
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "sales.list.actions" });
   if (!context || !can(context.role, "sale.edit")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
 
   const parsed = saleDetailsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid sale details" };
+  if (!parsed.success) return { error: t("invalidSaleDetails") };
   const data = parsed.data;
 
   const sale = await prisma.sale.findFirst({ where: { id: saleId, storeId } });
-  if (!sale) return { error: "Sale not found" };
+  if (!sale) return { error: t("saleNotFound") };
 
   try {
     await prisma.sale.update({
@@ -485,7 +481,7 @@ export async function updateSaleDetails(saleId: string, input: SaleDetailsInput)
       userId: context.userId,
       saleId: sale.id,
     });
-    return { error: "Failed to update the sale. Please try again." };
+    return { error: t("updateFailed") };
   }
 }
 
@@ -497,8 +493,9 @@ export async function updateSaleDetails(saleId: string, input: SaleDetailsInput)
  */
 export async function deleteSale(saleId: string) {
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "sales.list.actions" });
   if (!context || !can(context.role, "sale.delete")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
 
@@ -506,7 +503,7 @@ export async function deleteSale(saleId: string) {
     where: { id: saleId, storeId },
     include: { items: true },
   });
-  if (!sale) return { error: "Sale not found" };
+  if (!sale) return { error: t("saleNotFound") };
 
   const deleteNote = `Sale ${sale.invoiceNumber} deleted — stock restored`;
   const storeToday = getTodayInTimezone(
@@ -605,8 +602,8 @@ export async function deleteSale(saleId: string) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof AllocationIntegrityError) {
-      return { error: "This sale's batch history is inconsistent — deletion was cancelled. Contact an admin." };
+      return { error: t("allocationIntegrityDelete") };
     }
-    return { error: "Failed to delete the sale. Please try again." };
+    return { error: t("deleteFailed") };
   }
 }

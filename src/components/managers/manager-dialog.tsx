@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,8 +27,8 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { createManager, updateManager } from "@/actions/managers";
 import {
-  createManagerSchema,
-  updateManagerSchema,
+  buildCreateManagerSchema,
+  buildUpdateManagerSchema,
   type CreateManagerInput,
   type UpdateManagerInput,
 } from "@/lib/validations/manager";
@@ -45,6 +46,10 @@ export function CreateManagerDialog({
   stores: StoreOption[];
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("people.managers.createDialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const createManagerSchema = useMemo(() => buildCreateManagerSchema(tValidation), [tValidation]);
   const form = useForm<CreateManagerInput>({
     resolver: zodResolver(createManagerSchema),
     defaultValues: { name: "", email: "", password: "", phone: "", storeId: "" },
@@ -57,7 +62,7 @@ export function CreateManagerDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Manager created");
+      toast.success(t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -67,23 +72,23 @@ export function CreateManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New manager</DialogTitle>
-          <DialogDescription>Create a manager account and assign a store.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="new-mgr-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="new-mgr-name">{t("fullNameLabel")}</FieldLabel>
               <Input id="new-mgr-name" {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="new-mgr-email">Email</FieldLabel>
+              <FieldLabel htmlFor="new-mgr-email">{t("emailLabel")}</FieldLabel>
               <Input id="new-mgr-email" type="email" {...form.register("email")} />
               {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="new-mgr-password">Temporary password</FieldLabel>
+              <FieldLabel htmlFor="new-mgr-password">{t("tempPasswordLabel")}</FieldLabel>
               <Input id="new-mgr-password" {...form.register("password")} />
               {form.formState.errors.password && (
                 <FieldError>{form.formState.errors.password.message}</FieldError>
@@ -91,18 +96,18 @@ export function CreateManagerDialog({
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field>
-                <FieldLabel htmlFor="new-mgr-phone">Phone</FieldLabel>
+                <FieldLabel htmlFor="new-mgr-phone">{t("phoneLabel")}</FieldLabel>
                 <Input id="new-mgr-phone" {...form.register("phone")} />
               </Field>
               <Field data-invalid={!!form.formState.errors.storeId}>
-                <FieldLabel>Store</FieldLabel>
+                <FieldLabel>{t("storeLabel")}</FieldLabel>
                 <Controller
                   control={form.control}
                   name="storeId"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a store" />
+                        <SelectValue placeholder={t("storePlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         {stores.map((s) => (
@@ -122,11 +127,11 @@ export function CreateManagerDialog({
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Create manager
+              {t("create")}
             </Button>
           </DialogFooter>
         </form>
@@ -145,6 +150,11 @@ export function EditManagerDialog({
   manager: ManagerListItem;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("people.managers.editDialog");
+  const tFields = useTranslations("people.managers.createDialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const updateManagerSchema = useMemo(() => buildUpdateManagerSchema(tValidation), [tValidation]);
   const form = useForm<UpdateManagerInput>({
     resolver: zodResolver(updateManagerSchema),
     values: { name: manager.name, email: manager.email, phone: manager.phone ?? "" },
@@ -157,7 +167,7 @@ export function EditManagerDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Manager updated");
+      toast.success(t("toastUpdated"));
       onOpenChange(false);
     });
   }
@@ -166,33 +176,33 @@ export function EditManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit manager</DialogTitle>
-          <DialogDescription>Update this manager&apos;s details.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="edit-mgr-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="edit-mgr-name">{tFields("fullNameLabel")}</FieldLabel>
               <Input id="edit-mgr-name" {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="edit-mgr-email">Email</FieldLabel>
+              <FieldLabel htmlFor="edit-mgr-email">{tFields("emailLabel")}</FieldLabel>
               <Input id="edit-mgr-email" type="email" {...form.register("email")} />
               {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
             </Field>
             <Field>
-              <FieldLabel htmlFor="edit-mgr-phone">Phone</FieldLabel>
+              <FieldLabel htmlFor="edit-mgr-phone">{tFields("phoneLabel")}</FieldLabel>
               <Input id="edit-mgr-phone" {...form.register("phone")} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Save changes
+              {t("saveChanges")}
             </Button>
           </DialogFooter>
         </form>

@@ -35,11 +35,32 @@ vi.mock("@/lib/logger", () => ({
   scopedLogger: () => ({ warn: warnMock, error: vi.fn(), info: vi.fn(), debug: vi.fn() }),
 }));
 vi.mock("@/lib/store-context", () => ({
-  getSessionContext: vi.fn(async () => ({ userId: "user-1", role: "MANAGER", storeId: "store-1", sid: "sid-1" })),
+  getSessionContext: vi.fn(async () => ({
+    userId: "user-1",
+    role: "MANAGER",
+    storeId: "store-1",
+    sid: "sid-1",
+    locale: "EN",
+  })),
   requireStoreId: (c: { storeId: string }) => c.storeId,
 }));
 vi.mock("@/lib/audit", () => ({ logActivity: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// getTranslations needs a real Next.js server runtime that this plain-node
+// vitest environment doesn't provide. Most assertions in this file check
+// behavior, not text, so an identity translator is fine there -- but two
+// (the SALE_FAILED / SALE_FAILED_PERMANENTLY checks below) assert the actual
+// English string, since that copy is what the POS terminal renders verbatim.
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => {
+    const strings: Record<string, string> = {
+      saleFailed: "Failed to complete sale. Please try again.",
+      saleFailedPermanently:
+        "This sale could not be recorded because of a server problem. Retrying will not help — please contact an administrator.",
+    };
+    return (key: string) => strings[key] ?? key;
+  },
+}));
 
 import { Prisma } from "@/generated/prisma/client";
 import { createSale } from "@/actions/sales";

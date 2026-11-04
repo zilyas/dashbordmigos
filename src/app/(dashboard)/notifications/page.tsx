@@ -12,6 +12,8 @@ import { getSessionContext } from "@/lib/store-context";
 import { getNotificationsPage, NOTIFICATIONS_PAGE_SIZE } from "@/lib/queries/notifications";
 import { NotificationHistoryList, type NotificationHistoryItem } from "@/components/notifications/notification-history-list";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
+import { toAppLocale } from "@/i18n/messages";
+import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -24,6 +26,7 @@ export default async function NotificationsPage({
   const page = Math.max(1, Number(pageParam) || 1);
 
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context!.locale), namespace: "notifications.page" });
   const { notifications, total } = await getNotificationsPage(context!.userId, page);
   const totalPages = Math.max(1, Math.ceil(total / NOTIFICATIONS_PAGE_SIZE));
 
@@ -39,8 +42,8 @@ export default async function NotificationsPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Notifications"
-        description={`${total} notification${total === 1 ? "" : "s"}`}
+        title={t("title")}
+        description={t("description", { count: total })}
         actions={<MarkAllReadButton />}
       />
 

@@ -1,13 +1,21 @@
 "use server";
 
 import { createHash, randomBytes } from "crypto";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { checkPasswordHistory, hashPassword, recordPasswordHistory } from "@/lib/security/password";
 import { getRequestInfo } from "@/lib/security/request-info";
 import { RATE_LIMITS, rateLimit } from "@/lib/security/rate-limit";
 import { logActivity } from "@/lib/audit";
 import { logServerError } from "@/lib/logger";
-import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/password";
+import { buildForgotPasswordSchema, buildResetPasswordSchema } from "@/lib/validations/password";
+
+// Unauthenticated pages (forgot/reset password, (auth) route group) have no
+// signed-in user whose locale to read -- these stay on the root layout's
+// fixed default (see src/i18n/request.ts), same as before this phase.
+async function tValidation() {
+  return getTranslations("validation");
+}
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
@@ -18,7 +26,7 @@ function hashToken(token: string): string {
 const GENERIC_MESSAGE = "If an account exists for that email, a reset link has been generated.";
 
 export async function requestPasswordReset(input: { email: string }) {
-  const parsed = forgotPasswordSchema.safeParse(input);
+  const parsed = buildForgotPasswordSchema(await tValidation()).safeParse(input);
   if (!parsed.success) return { error: "Enter a valid email address." };
   const email = parsed.data.email.toLowerCase();
 
@@ -63,7 +71,7 @@ export async function requestPasswordReset(input: { email: string }) {
 }
 
 export async function resetPassword(input: { token: string; password: string; confirmPassword: string }) {
-  const parsed = resetPasswordSchema.safeParse(input);
+  const parsed = buildResetPasswordSchema(await tValidation()).safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }

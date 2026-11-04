@@ -1,0 +1,28 @@
+{
+  "page": {
+    "title": "Annonces",
+    "description": "Mises à jour de la direction de votre plateforme et de votre boutique."
+  },
+  "list": {
+    "emptyTitle": "Aucune annonce pour le moment",
+    "platform": "Plateforme",
+    "store": "Boutique"
+  },
+  "createDialog": {
+    "newAnnouncement": "Nouvelle annonce",
+    "descriptionPlatform": "Ceci sera envoyé à tout le monde sur toute la plateforme.",
+    "descriptionStore": "Ceci sera envoyé à tout le monde dans votre boutique.",
+    "titleLabel": "Titre",
+    "titlePlaceholder": "ex. Horaires des fêtes",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Rédigez votre annonce...",
+    "postButton": "Publier l'annonce",
+    "toastPosted": "Annonce publiée"
+  },
+  "actions": {
+    "notAuthorized": "Non autorisé",
+    "invalidTitle": "Entrez un titre valide.",
+    "invalidBody": "Entrez un message valide.",
+    "newAnnouncementNotificationTitle": "Nouvelle annonce"
+  }
+}

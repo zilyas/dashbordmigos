@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,8 +20,8 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { createSeller, updateSeller } from "@/actions/users";
 import {
-  createSellerSchema,
-  updateSellerSchema,
+  buildCreateSellerSchema,
+  buildUpdateSellerSchema,
   type CreateSellerInput,
   type UpdateSellerInput,
 } from "@/lib/validations/user";
@@ -34,6 +35,10 @@ export function CreateSellerDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("people.users.createDialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const createSellerSchema = useMemo(() => buildCreateSellerSchema(tValidation), [tValidation]);
   const form = useForm<CreateSellerInput>({
     resolver: zodResolver(createSellerSchema),
     defaultValues: { name: "", email: "", password: "", phone: "" },
@@ -46,7 +51,7 @@ export function CreateSellerDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Seller created");
+      toast.success(t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -56,40 +61,40 @@ export function CreateSellerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New seller</DialogTitle>
-          <DialogDescription>Create a new seller account for your store.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="new-seller-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="new-seller-name">{t("fullNameLabel")}</FieldLabel>
               <Input id="new-seller-name" {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="new-seller-email">Email</FieldLabel>
+              <FieldLabel htmlFor="new-seller-email">{t("emailLabel")}</FieldLabel>
               <Input id="new-seller-email" type="email" {...form.register("email")} />
               {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.password}>
-              <FieldLabel htmlFor="new-seller-password">Temporary password</FieldLabel>
+              <FieldLabel htmlFor="new-seller-password">{t("tempPasswordLabel")}</FieldLabel>
               <Input id="new-seller-password" {...form.register("password")} />
               {form.formState.errors.password && (
                 <FieldError>{form.formState.errors.password.message}</FieldError>
               )}
             </Field>
             <Field>
-              <FieldLabel htmlFor="new-seller-phone">Phone</FieldLabel>
+              <FieldLabel htmlFor="new-seller-phone">{t("phoneLabel")}</FieldLabel>
               <Input id="new-seller-phone" {...form.register("phone")} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Create seller
+              {t("create")}
             </Button>
           </DialogFooter>
         </form>
@@ -108,6 +113,11 @@ export function EditSellerDialog({
   seller: SellerListItem;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("people.users.editDialog");
+  const tFields = useTranslations("people.users.createDialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const updateSellerSchema = useMemo(() => buildUpdateSellerSchema(tValidation), [tValidation]);
   const form = useForm<UpdateSellerInput>({
     resolver: zodResolver(updateSellerSchema),
     values: { name: seller.name, email: seller.email, phone: seller.phone ?? "" },
@@ -120,7 +130,7 @@ export function EditSellerDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Seller updated");
+      toast.success(t("toastUpdated"));
       onOpenChange(false);
     });
   }
@@ -129,33 +139,33 @@ export function EditSellerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit seller</DialogTitle>
-          <DialogDescription>Update this seller&apos;s details.</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="edit-seller-name">Full name</FieldLabel>
+              <FieldLabel htmlFor="edit-seller-name">{tFields("fullNameLabel")}</FieldLabel>
               <Input id="edit-seller-name" {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.email}>
-              <FieldLabel htmlFor="edit-seller-email">Email</FieldLabel>
+              <FieldLabel htmlFor="edit-seller-email">{tFields("emailLabel")}</FieldLabel>
               <Input id="edit-seller-email" type="email" {...form.register("email")} />
               {form.formState.errors.email && <FieldError>{form.formState.errors.email.message}</FieldError>}
             </Field>
             <Field>
-              <FieldLabel htmlFor="edit-seller-phone">Phone</FieldLabel>
+              <FieldLabel htmlFor="edit-seller-phone">{tFields("phoneLabel")}</FieldLabel>
               <Input id="edit-seller-phone" {...form.register("phone")} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Save changes
+              {t("saveChanges")}
             </Button>
           </DialogFooter>
         </form>

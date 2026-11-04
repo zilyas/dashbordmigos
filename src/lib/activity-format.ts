@@ -1,74 +1,108 @@
 import { formatCurrency } from "@/lib/format";
+import { roleLabel, userStatusLabel, storeStatusLabel, productStatusLabel } from "@/lib/labels";
+import type { Role, UserStatus, StoreStatus, ProductStatus } from "@/generated/prisma/enums";
 
-export function describeActivity(action: string, entity: string, metadata: Record<string, unknown> | null): string {
+type ActivityT = (key: string, values?: Record<string, string | number>) => string;
+type LabelsT = (key: string) => string;
+
+/**
+ * Builds the human-readable activity-log sentence. Takes both translators
+ * (resolved via `useTranslations("activity")` / `useTranslations("labels")`
+ * in the caller) so the DB enum values embedded in `metadata` (role, status)
+ * render as their translated label, not the raw enum string.
+ */
+export function describeActivity(
+  t: ActivityT,
+  tLabels: LabelsT,
+  action: string,
+  entity: string,
+  metadata: Record<string, unknown> | null
+): string {
   const meta = metadata ?? {};
+  const name = typeof meta.name === "string" ? meta.name : "";
+  const sku = typeof meta.sku === "string" ? meta.sku : "";
+  const code = typeof meta.code === "string" ? meta.code : "";
+  const storeName = typeof meta.storeName === "string" ? meta.storeName : "";
+  const invoiceNumber = typeof meta.invoiceNumber === "string" ? meta.invoiceNumber : "";
+  const count = typeof meta.count === "number" ? meta.count : 0;
+  const period = typeof meta.period === "string" ? meta.period : "";
+
   switch (action) {
     case "product.created":
-      return `added product "${meta.name ?? ""}" (${meta.sku ?? ""})`;
+      return t("describe.productCreated", { name, sku });
     case "product.updated":
-      return `updated product "${meta.name ?? ""}" (${meta.sku ?? ""})`;
+      return t("describe.productUpdated", { name, sku });
     case "sale.created":
-      return `completed sale ${meta.invoiceNumber ?? ""}${
-        typeof meta.total === "number" ? ` — ${formatCurrency(meta.total)}` : ""
-      }`;
+      return typeof meta.total === "number"
+        ? t("describe.saleCreatedWithTotal", { invoiceNumber, total: formatCurrency(meta.total) })
+        : t("describe.saleCreated", { invoiceNumber });
     case "user.created":
-      return `created a ${meta.role ?? "user"} account for ${meta.name ?? ""}`;
+      return t("describe.userCreated", { name, role: roleLabel(tLabels, (meta.role as Role) ?? "SELLER") });
     case "manager.created":
-      return `created manager account for ${meta.name ?? ""} at ${meta.storeName ?? ""}`;
+      return t("describe.managerCreated", { name, storeName });
     case "manager.transferred":
-      return `transferred manager ${meta.name ?? ""} to ${meta.storeName ?? ""}`;
+      return t("describe.managerTransferred", { name, storeName });
     case "manager.updated":
     case "user.updated":
-      return `updated ${meta.name ?? "a"} account`;
+      return t("describe.accountUpdated", { name: name || "—" });
     case "manager.status_changed":
     case "user.status_changed":
-      return `set ${meta.name ?? "an account"} to ${meta.status ?? ""}`.toLowerCase();
+      return t("describe.accountStatusChanged", {
+        name: name || "",
+        status: userStatusLabel(tLabels, (meta.status as UserStatus) ?? "ACTIVE"),
+      });
     case "manager.deleted":
     case "user.deleted":
-      return `deleted account "${meta.name ?? ""}"`;
+      return t("describe.accountDeleted", { name });
     case "manager.deactivated":
     case "user.deactivated":
-      return `deactivated account "${meta.name ?? ""}" (had dependent records)`;
+      return t("describe.accountDeactivated", { name });
     case "manager.password_reset":
     case "user.password_reset":
-      return `reset the password for "${meta.name ?? ""}"`;
+      return t("describe.passwordReset", { name });
     case "store.created":
-      return `created store "${meta.name ?? ""}" (${meta.code ?? ""})`;
+      return t("describe.storeCreated", { name, code });
     case "store.updated":
-      return `updated store "${meta.name ?? ""}"`;
+      return t("describe.storeUpdated", { name });
     case "store.status_changed":
-      return `set store "${meta.name ?? ""}" to ${meta.status ?? ""}`.toLowerCase();
+      return t("describe.storeStatusChanged", {
+        name,
+        status: storeStatusLabel(tLabels, (meta.status as StoreStatus) ?? "ACTIVE"),
+      });
     case "store.deleted":
-      return `deleted store "${meta.name ?? ""}" (${meta.code ?? ""})`;
+      return t("describe.storeDeleted", { name, code });
     case "store.deactivated":
-      return `deactivated store "${meta.name ?? ""}" (had dependent records)`;
+      return t("describe.storeDeactivated", { name });
     case "product.deleted":
-      return `deleted product "${meta.name ?? ""}" (${meta.sku ?? ""})`;
+      return t("describe.productDeleted", { name, sku });
     case "product.archived":
-      return `archived product "${meta.name ?? ""}" (had dependent records)`;
+      return t("describe.productArchived", { name });
     case "product.bulk_status_changed":
-      return `set ${meta.count ?? 0} product(s) to ${meta.status ?? ""}`.toLowerCase();
+      return t("describe.productBulkStatusChanged", {
+        count,
+        status: productStatusLabel(tLabels, (meta.status as ProductStatus) ?? "ACTIVE"),
+      });
     case "settings.updated":
-      return `updated store settings for "${meta.storeName ?? ""}"`;
+      return t("describe.settingsUpdated", { storeName });
     case "user.login":
-      return "signed in";
+      return t("describe.userLogin");
     case "user.logout":
-      return "signed out";
+      return t("describe.userLogout");
     case "user.password_changed":
-      return "changed their password";
+      return t("describe.passwordChanged");
     case "user.password_reset_self":
-      return "reset their password via email link";
+      return t("describe.passwordResetSelf");
     case "user.session_terminated":
-      return "signed out a session";
+      return t("describe.sessionTerminated");
     case "user.all_sessions_terminated":
-      return "signed out of all other sessions";
+      return t("describe.allSessionsTerminated");
     case "user.two_factor_enabled":
-      return "enabled two-factor authentication";
+      return t("describe.twoFactorEnabled");
     case "user.two_factor_disabled":
-      return "disabled two-factor authentication";
+      return t("describe.twoFactorDisabled");
     case "report.exported":
-      return `exported a ${meta.period ?? ""} report`;
+      return t("describe.reportExported", { period });
     default:
-      return `${action.replace(".", " ")} ${entity}`;
+      return t("describe.fallback", { action: action.replace(".", " "), entity });
   }
 }

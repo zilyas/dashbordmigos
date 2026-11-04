@@ -1,0 +1,233 @@
+{
+  "title": "Products",
+  "description": "{count, plural, one {# product} other {# products}} in your catalog",
+  "newProduct": "New Product",
+  "unit": {
+    "piece": "Piece",
+    "kg": "Kilogram (kg)",
+    "g": "Gram (g)",
+    "L": "Liter (L)",
+    "pack": "Pack"
+  },
+  "newPage": {
+    "title": "New product",
+    "description": "Create a simple item, a measured product, or a product with variants."
+  },
+  "editPage": {
+    "title": "Edit product"
+  },
+  "table": {
+    "searchPlaceholder": "Search products...",
+    "emptyTitle": "No products found",
+    "emptyDescription": "Try adjusting your filters, or add a new product.",
+    "filters": {
+      "categoryPlaceholder": "Category",
+      "allCategories": "All categories",
+      "statusPlaceholder": "Status",
+      "allStatuses": "All statuses",
+      "unitPlaceholder": "Unit",
+      "allUnits": "All units",
+      "variantsPlaceholder": "Variants",
+      "allProducts": "All products",
+      "hasVariants": "Has variants",
+      "noVariants": "No variants"
+    },
+    "bulkActivate": "Activate",
+    "bulkArchive": "Archive",
+    "toastBulkActivated": "{count} product(s) activated",
+    "toastBulkArchived": "{count} product(s) archived",
+    "deleteTitle": "Delete \"{name}\"?",
+    "deleteDescription": "If this product has sale or inventory history, it will be archived instead of deleted to preserve your records.",
+    "toastDeleted": "Product deleted",
+    "toastArchivedInstead": "Product archived (has related history)",
+    "toastArchived": "Product archived",
+    "toastActivated": "Product activated"
+  },
+  "columns": {
+    "product": "Product",
+    "category": "Category",
+    "variant": "Variant",
+    "price": "Price",
+    "stock": "Stock",
+    "status": "Status",
+    "margin": "Margin",
+    "stockUnits": "{count, plural, one {# unit} other {# units}}",
+    "acrossVariants": "across {count, plural, one {# variant} other {# variants}}",
+    "actionsLabel": "Product actions",
+    "edit": "Edit",
+    "activate": "Activate",
+    "archive": "Archive",
+    "delete": "Delete"
+  },
+  "form": {
+    "setup": {
+      "title": "Choose the simplest setup that fits",
+      "description": "Pick one. It sets the options below for you — you can still change them by hand.",
+      "simpleTitle": "Simple item",
+      "simpleDescription": "Charger, shampoo, canned food, or any item sold as one SKU.",
+      "measuredTitle": "Measured item",
+      "measuredDescription": "Rice by kilogram, fabric by meter, or oil by liter.",
+      "variantsTitle": "Item with variants",
+      "variantsDescription": "Clothing sizes, phone storage, cosmetic shades, or flavors."
+    },
+    "identity": {
+      "title": "Product identity",
+      "description": "Only the name and SKU are required. Add a category to unlock its specifications.",
+      "nameLabel": "Product name",
+      "namePlaceholder": "e.g. Organic rice, T-shirt, Wireless headset",
+      "categoryLabel": "Category",
+      "noCategory": "No category",
+      "noCategoryHint": "You can save now and organize the product into a category later.",
+      "skuLabel": "SKU",
+      "skuPlaceholder": "Your internal stock code",
+      "barcodeLabel": "Barcode",
+      "optional": "(optional)",
+      "barcodePlaceholder": "Scan or enter a barcode",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Useful details for staff and catalog records"
+    },
+    "selling": {
+      "title": "How this product is sold",
+      "description": "Keep a single SKU, sell by a unit of measure, or manage separate variant SKUs.",
+      "hasVariantsLabel": "This product has variants",
+      "hasVariantsHint": "Use for options with their own SKU, price, or stock—such as size, color, storage, shade, or flavor.",
+      "hasVariantsAriaLabel": "Product has variants",
+      "saveThenManageVariants": "Save changes, then manage each variant below.",
+      "createBaseFirst": "Create the base product first; you will add individual variants from its edit page.",
+      "unitLabel": "Unit of measure",
+      "unitHint": "Choose how stock and sale quantities are counted.",
+      "partialQuantitiesLabel": "Allow partial quantities",
+      "partialQuantitiesHint": "Enable for values such as 0.5 kg or 1.25 L.",
+      "partialQuantitiesAriaLabel": "Allow partial quantities"
+    },
+    "sizes": {
+      "title": "Sizes",
+      "description": "Pick every size you sell. Combined with the colors below, one variant is created per combination.",
+      "ariaLabel": "This product comes in sizes",
+      "emptyPrefix": "No sizes yet.",
+      "emptyLink": "Add them in Sizes",
+      "emptySuffix": "first, then come back.",
+      "pickHint": "Pick one or more, or leave this off if the product has no sizes.",
+      "selectedCount": "{count, plural, one {# size} other {# sizes}} selected.",
+      "manageLink": "Manage sizes"
+    },
+    "colors": {
+      "title": "Colors",
+      "description": "Pick every color you sell. Each one becomes a variant with its own SKU and stock.",
+      "ariaLabel": "This product comes in colors",
+      "emptyPrefix": "No colors yet.",
+      "emptyLink": "Add them in Colors",
+      "emptySuffix": "first, then come back.",
+      "pickHint": "Pick one or more. The first is the primary color.",
+      "selectedCount": "{count, plural, one {# color} other {# colors}} selected.",
+      "manageLink": "Manage colors",
+      "primary": "Primary",
+      "secondary": "Secondary"
+    },
+    "variantCountNote": "<strong>{count}</strong> {count, plural, one {variant} other {variants}} will be created with zero stock{combo}. Set their stock and prices from the product's edit page.",
+    "variantCountCombo": " ({sizeCount, plural, one {# size} other {# sizes}} × {colorCount, plural, one {# color} other {# colors}})",
+    "specs": {
+      "title": "Category specifications",
+      "description": "Details configured for {categoryName}.",
+      "selectPlaceholder": "Select…"
+    },
+    "pricing": {
+      "title": "Pricing and inventory",
+      "descriptionVariants": "Set default prices here. Stock is entered separately for each variant after the product is saved.",
+      "descriptionSimple": "Set the prices and available stock{unitSuffix}.",
+      "descriptionUnitSuffix": " in {unit}",
+      "costPriceLabel": "Cost price",
+      "sellingPriceLabel": "Selling price",
+      "marginLabel": "Estimated profit margin:",
+      "marginNegativeWarning": "— the cost price is above the selling price.",
+      "openingStockLabel": "Opening stock{unitSuffix}",
+      "lowStockAlertLabel": "Low-stock alert{unitSuffix}",
+      "statusLabel": "Status",
+      "statusActive": "Active — available for sale",
+      "statusDraft": "Draft — still being prepared",
+      "statusArchived": "Archived — hidden from sale"
+    },
+    "legacy": {
+      "title": "Optional legacy details",
+      "description": "Use only if your catalog already relies on a single product type, size, or color.",
+      "typeLabel": "Type or model",
+      "typePlaceholder": "e.g. Hoodie, Pro, Organic",
+      "sizeLabel": "Size or format",
+      "sizePlaceholder": "e.g. M, 500 ml, 13-inch",
+      "colorLabel": "Color or finish",
+      "colorPlaceholder": "e.g. Black, Matte, Natural"
+    },
+    "images": {
+      "title": "Product images",
+      "description": "Optional. Add up to 6 images; the first image becomes the cover."
+    },
+    "saveChanges": "Save changes",
+    "create": "Create product",
+    "toastUpdated": "Product updated",
+    "toastCreated": "Product created",
+    "toastSaveFailed": "Could not save the product. Please try again."
+  },
+  "variants": {
+    "cardTitle": "Variants",
+    "cardDescription": "Each variant has its own SKU, stock and optional price.",
+    "addVariant": "Add variant",
+    "emptyTitle": "No variants yet",
+    "emptyDescription": "Add per-size / per-color variants so this product can be sold.",
+    "inactive": "(inactive)",
+    "skuStockLine": "SKU {sku} · stock {stock}",
+    "priceSuffix": " · price {price}",
+    "inStock": "In stock",
+    "empty": "Empty",
+    "deleteTitle": "Delete variant?",
+    "deleteDescription": "If it has already been sold it will be deactivated instead of deleted.",
+    "toastDeleted": "Variant deleted",
+    "toastDeactivated": "Variant deactivated",
+    "dialog": {
+      "editTitle": "Edit variant",
+      "newTitle": "New variant",
+      "description": "Leave price/cost empty to use the product's values.",
+      "sizeLabel": "Size",
+      "none": "None",
+      "colorLabel": "Color",
+      "axisPlaceholder": "e.g. {label}",
+      "skuLabel": "SKU",
+      "barcodeLabel": "Barcode",
+      "priceOverrideLabel": "Price override",
+      "costOverrideLabel": "Cost override",
+      "stockLabel": "Stock",
+      "activeLabel": "Active (available to sell)",
+      "imageLabel": "Variant image (optional)",
+      "saveVariant": "Save variant",
+      "createVariant": "Create variant",
+      "toastUpdated": "Variant updated",
+      "toastCreated": "Variant created"
+    }
+  },
+  "imageUploader": {
+    "removeImage": "Remove image {index}",
+    "addImage": "Add image",
+    "altText": "Product image {index}",
+    "toastUploadFailed": "Upload failed",
+    "toastUploadFailedRetry": "Upload failed. Check your connection and try again."
+  },
+  "actions": {
+    "invalidData": "Invalid product data",
+    "stockWholeNumber": "Stock and minimum stock must be whole numbers for this product.",
+    "attributeRequired": "{label} is required.",
+    "categoryNotFound": "Category not found",
+    "skuOrBarcodeExists": "A product with that SKU or barcode already exists.",
+    "notFound": "Product not found",
+    "notAuthorized": "Not authorized",
+    "variant": {
+      "invalidData": "Invalid variant data",
+      "stockWholeNumber": "Stock must be a whole number for this product.",
+      "notFound": "Variant not found",
+      "productNotFound": "Product not found",
+      "skuExists": "A variant with that SKU already exists.",
+      "sizeNotFound": "Selected size not found",
+      "colorNotFound": "Selected color not found",
+      "batchTrackedCreateZero": "This product is batch-tracked — create the variant with zero stock, then receive stock into a batch.",
+      "batchTrackedAdjustElsewhere": "This product is batch-tracked — change variant stock through batch receiving or adjustment."
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "page": {
+    "title": "Sécurité",
+    "description": "Posture de sécurité de la plateforme, en un coup d'œil."
+  },
+  "systemHealth": {
+    "title": "État du système",
+    "description": "Connectivité de la base de données et nombre de lignes sur toute la plateforme.",
+    "connected": "Connecté · {ms}ms",
+    "unreachable": "Injoignable",
+    "stores": "Boutiques",
+    "users": "Utilisateurs",
+    "products": "Produits",
+    "sales": "Ventes",
+    "activeSessions": "Sessions actives"
+  },
+  "lockedAccounts": {
+    "title": "Comptes verrouillés",
+    "description": "Comptes actuellement verrouillés après plusieurs tentatives de connexion échouées.",
+    "emptyTitle": "Aucun compte verrouillé",
+    "failedAttempts": "{count, plural, one {# tentative échouée} other {# tentatives échouées}}",
+    "lockedUntil": " · verrouillé jusqu'au {date}"
+  },
+  "recentLoginAttempts": {
+    "title": "Tentatives de connexion récentes",
+    "description": "Sur toute la plateforme, les plus récentes en premier.",
+    "emptyTitle": "Aucune tentative de connexion pour le moment",
+    "success": "Réussie",
+    "failed": "Échouée",
+    "unknownIp": "IP inconnue"
+  },
+  "permissionMatrix": {
+    "title": "Matrice des permissions",
+    "description": "Vue en lecture seule de ce que chaque rôle est autorisé à faire, directement depuis la configuration RBAC.",
+    "permissionColumn": "Permission"
+  }
+}

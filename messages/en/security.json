@@ -1,0 +1,37 @@
+{
+  "page": {
+    "title": "Security",
+    "description": "Platform-wide security posture, at a glance."
+  },
+  "systemHealth": {
+    "title": "System health",
+    "description": "Database connectivity and platform-wide row counts.",
+    "connected": "Connected · {ms}ms",
+    "unreachable": "Unreachable",
+    "stores": "Stores",
+    "users": "Users",
+    "products": "Products",
+    "sales": "Sales",
+    "activeSessions": "Active sessions"
+  },
+  "lockedAccounts": {
+    "title": "Locked accounts",
+    "description": "Accounts currently locked out after repeated failed sign-in attempts.",
+    "emptyTitle": "No locked accounts",
+    "failedAttempts": "{count, plural, one {# failed attempt} other {# failed attempts}}",
+    "lockedUntil": " · locked until {date}"
+  },
+  "recentLoginAttempts": {
+    "title": "Recent login attempts",
+    "description": "Platform-wide, most recent first.",
+    "emptyTitle": "No login attempts yet",
+    "success": "Success",
+    "failed": "Failed",
+    "unknownIp": "Unknown IP"
+  },
+  "permissionMatrix": {
+    "title": "Permission matrix",
+    "description": "Read-only view of what each role is allowed to do, straight from the RBAC config.",
+    "permissionColumn": "Permission"
+  }
+}

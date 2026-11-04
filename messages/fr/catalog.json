@@ -1,0 +1,181 @@
+{
+  "categories": {
+    "page": { "title": "Catégories", "description": "Organisez vos produits en catégories." },
+    "newCategory": "Nouvelle catégorie",
+    "clothingBadge": "Vêtements",
+    "emptyTitle": "Aucune catégorie pour le moment",
+    "emptyDescription": "Créez votre première catégorie pour commencer à organiser vos produits.",
+    "productCount": "{count, plural, one {# produit} other {# produits}}",
+    "attributesButton": "Attributs",
+    "deleteTitle": "Supprimer « {name} » ?",
+    "deleteDescriptionWithProducts": "Cette catégorie contient {count} produit(s). Ils deviendront non catégorisés.",
+    "deleteDescriptionEmpty": "Cette action est irréversible.",
+    "toastDeleted": "Catégorie supprimée",
+    "dialog": {
+      "editTitle": "Modifier la catégorie",
+      "newTitle": "Nouvelle catégorie",
+      "editDescription": "Mettez à jour les détails de cette catégorie.",
+      "newDescription": "Ajoutez une nouvelle catégorie de produits.",
+      "nameLabel": "Nom",
+      "descriptionLabel": "Description",
+      "parentLabel": "Catégorie parente",
+      "noParent": "Aucun parent",
+      "clothingLabel": "Catégorie vêtements",
+      "clothingHint": "Active les variantes taille/couleur pour ses produits.",
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer la catégorie",
+      "toastUpdated": "Catégorie mise à jour",
+      "toastCreated": "Catégorie créée"
+    },
+    "attributesDialog": {
+      "title": "Attributs · {name}",
+      "description": "Définissez les champs de spécification (marque, garantie, poids…) pour les produits de cette catégorie.",
+      "noAttributes": "Aucun attribut défini pour le moment.",
+      "optionsCount": "{count} option(s)",
+      "addAttribute": "Ajouter un attribut",
+      "deleteTitle": "Supprimer « {label} » ?",
+      "deleteDescription": "Toutes les valeurs produit enregistrées pour cet attribut seront supprimées.",
+      "toastDeleted": "Attribut supprimé",
+      "form": {
+        "labelLabel": "Libellé",
+        "labelPlaceholder": "ex. Marque",
+        "typeLabel": "Type",
+        "optionsLabel": "Options (une par ligne)",
+        "requiredLabel": "Obligatoire",
+        "orderLabel": "Ordre",
+        "save": "Enregistrer",
+        "add": "Ajouter",
+        "toastUpdated": "Attribut mis à jour",
+        "toastAdded": "Attribut ajouté"
+      },
+      "types": {
+        "TEXT": "Texte",
+        "NUMBER": "Nombre",
+        "BOOLEAN": "Oui / Non",
+        "SELECT": "Liste déroulante"
+      }
+    }
+  },
+  "sizes": {
+    "page": { "title": "Tailles", "description": "Tailles communes à la boutique pour les variantes de produits vêtements." },
+    "searchPlaceholder": "Rechercher une taille...",
+    "newSize": "Nouvelle taille",
+    "emptyTitle": "Aucune taille pour le moment",
+    "emptyDescription": "Ajoutez des tailles (S, M, L, …) pour les utiliser sur les variantes de produits vêtements.",
+    "emptySearchTitle": "Aucune taille ne correspond à votre recherche",
+    "variantCount": "{count, plural, one {# variante} other {# variantes}}",
+    "deleteTitle": "Supprimer « {name} » ?",
+    "deleteDescriptionWithVariants": "Cette taille est utilisée par {count} variante(s). Ces variantes perdront leur taille.",
+    "deleteDescriptionEmpty": "Cette action est irréversible.",
+    "toastDeleted": "Taille supprimée",
+    "dialog": {
+      "editTitle": "Modifier la taille",
+      "newTitle": "Nouvelle taille",
+      "description": "Les tailles sont partagées entre tous les produits à variantes de cette boutique.",
+      "pickLabel": "Choisir une taille",
+      "alreadyExists": "{name} existe déjà",
+      "nameLabel": "Nom",
+      "namePlaceholder": "ex. M",
+      "sortOrderLabel": "Ordre de tri",
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer la taille",
+      "toastUpdated": "Taille mise à jour",
+      "toastCreated": "Taille créée"
+    },
+    "scales": {
+      "letter": "Lettre",
+      "numericEu": "Numérique (EU)",
+      "waistIn": "Tour de taille (po)",
+      "shoesEu": "Chaussures (EU)",
+      "kidsYears": "Enfants (ans)",
+      "oneSize": "Taille unique"
+    }
+  },
+  "colors": {
+    "page": { "title": "Couleurs", "description": "Couleurs communes à la boutique pour les variantes de produits vêtements." },
+    "searchPlaceholder": "Rechercher une couleur...",
+    "newColor": "Nouvelle couleur",
+    "emptyTitle": "Aucune couleur pour le moment",
+    "emptyDescription": "Ajoutez des couleurs pour les utiliser sur les variantes de produits vêtements.",
+    "emptySearchTitle": "Aucune couleur ne correspond à votre recherche",
+    "noSwatch": "aucune nuance",
+    "variantCount": "{count, plural, one {# variante} other {# variantes}}",
+    "deleteTitle": "Supprimer « {name} » ?",
+    "deleteDescriptionWithVariants": "Cette couleur est utilisée par {count} variante(s). Ces variantes perdront leur couleur.",
+    "deleteDescriptionEmpty": "Cette action est irréversible.",
+    "toastDeleted": "Couleur supprimée",
+    "dialog": {
+      "editTitle": "Modifier la couleur",
+      "newTitle": "Nouvelle couleur",
+      "description": "Les couleurs sont partagées entre tous les produits à variantes de cette boutique.",
+      "nameLabel": "Nom",
+      "namePlaceholder": "ex. Noir",
+      "swatchLabel": "Nuance (optionnel)",
+      "customPickerLabel": "Choisir une couleur personnalisée",
+      "hexPlaceholder": "#1A2B3C",
+      "clear": "Effacer",
+      "sortOrderLabel": "Ordre de tri",
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer la couleur",
+      "toastUpdated": "Couleur mise à jour",
+      "toastCreated": "Couleur créée"
+    }
+  },
+  "variantAxes": {
+    "page": { "title": "Axes de variantes", "description": "Axes personnalisés (Stockage, Tension, Parfum…) pour les produits à variantes." },
+    "searchPlaceholder": "Rechercher un axe...",
+    "newAxis": "Nouvel axe",
+    "emptyTitle": "Aucun axe de variante pour le moment",
+    "emptyDescription": "Définissez des axes personnalisés (Stockage, Tension, Parfum…) pour les produits à variantes.",
+    "emptySearchTitle": "Aucun axe ne correspond à votre recherche",
+    "keyPrefix": "clé : {key}",
+    "deleteTitle": "Supprimer « {label} » ?",
+    "deleteDescription": "Les valeurs de variante existantes sous cet axe ne seront simplement plus affichées.",
+    "toastDeleted": "Axe supprimé",
+    "dialog": {
+      "editTitle": "Modifier l'axe",
+      "newTitle": "Nouvel axe",
+      "description": "Les axes sont partagés entre tous les produits à variantes de cette boutique.",
+      "labelLabel": "Libellé",
+      "labelPlaceholder": "ex. Stockage",
+      "activeLabel": "Actif",
+      "sortOrderLabel": "Ordre de tri",
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer l'axe",
+      "toastUpdated": "Axe mis à jour",
+      "toastCreated": "Axe créé"
+    }
+  },
+  "actions": {
+    "categories": {
+      "cannotBeOwnParent": "Une catégorie ne peut pas être son propre parent",
+      "parentNotFound": "Catégorie parente introuvable",
+      "invalidData": "Données de catégorie invalides",
+      "notFound": "Catégorie introuvable",
+      "nameExists": "Une catégorie avec ce nom existe déjà.",
+      "deleteFailed": "Échec de la suppression de la catégorie."
+    },
+    "sizes": {
+      "invalidData": "Données de taille invalides",
+      "nameExists": "Une taille avec ce nom existe déjà.",
+      "notFound": "Taille introuvable",
+      "deleteFailed": "Échec de la suppression de la taille."
+    },
+    "colors": {
+      "invalidData": "Données de couleur invalides",
+      "nameExists": "Une couleur avec ce nom existe déjà.",
+      "notFound": "Couleur introuvable",
+      "deleteFailed": "Échec de la suppression de la couleur."
+    },
+    "variantAxes": {
+      "invalidData": "Données d'axe invalides",
+      "labelExists": "Un axe avec ce libellé existe déjà.",
+      "notFound": "Axe introuvable"
+    },
+    "attributes": {
+      "invalidData": "Données d'attribut invalides",
+      "labelExists": "Un attribut avec ce libellé existe déjà dans cette catégorie.",
+      "notFound": "Attribut introuvable"
+    }
+  }
+}

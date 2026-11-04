@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Receipt } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { buildSalesColumns } from "@/components/sales/sales-columns";
@@ -19,9 +20,12 @@ export function SalesTable({
   showProfit: boolean;
   canManage?: boolean;
 }) {
+  const tLabels = useTranslations("labels");
+  const t = useTranslations("sales.list.table");
+  const tColumns = useTranslations("sales.list.columns");
   const columns = useMemo(
-    () => buildSalesColumns({ currency, showSeller, showProfit, canManage }),
-    [currency, showSeller, showProfit, canManage]
+    () => buildSalesColumns({ currency, showSeller, showProfit, canManage, tLabels, t: tColumns }),
+    [currency, showSeller, showProfit, canManage, tLabels, tColumns]
   );
 
   return (
@@ -29,11 +33,11 @@ export function SalesTable({
       columns={columns}
       data={sales}
       searchPlaceholder={
-        showSeller ? "Search by invoice, customer, seller or source..." : "Search by invoice or customer..."
+        showSeller ? t("searchPlaceholderWithSeller") : t("searchPlaceholder")
       }
       emptyIcon={<Receipt />}
-      emptyTitle="No sales yet"
-      emptyDescription="Completed sales will show up here."
+      emptyTitle={t("emptyTitle")}
+      emptyDescription={t("emptyDescription")}
       pageSize={15}
     />
   );

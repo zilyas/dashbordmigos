@@ -1,18 +1,24 @@
 import { z } from "zod";
 
-export const createManagerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(80),
-  email: z.email("Enter a valid email address"),
-  password: z.string().min(8, "Must be at least 8 characters"),
-  phone: z.string().max(30).optional().or(z.literal("")),
-  storeId: z.string().min(1, "Select a store"),
-});
+import type { ValidationT } from "@/lib/validations/types";
 
-export const updateManagerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(80),
-  email: z.email("Enter a valid email address"),
-  phone: z.string().max(30).optional().or(z.literal("")),
-});
+export function buildCreateManagerSchema(t: ValidationT) {
+  return z.object({
+    name: z.string().min(2, t("name.min2")).max(80),
+    email: z.email(t("email.invalid")),
+    password: z.string().min(8, t("password.atLeast8")),
+    phone: z.string().max(30).optional().or(z.literal("")),
+    storeId: z.string().min(1, t("store.select")),
+  });
+}
 
-export type CreateManagerInput = z.infer<typeof createManagerSchema>;
-export type UpdateManagerInput = z.infer<typeof updateManagerSchema>;
+export function buildUpdateManagerSchema(t: ValidationT) {
+  return z.object({
+    name: z.string().min(2, t("name.min2")).max(80),
+    email: z.email(t("email.invalid")),
+    phone: z.string().max(30).optional().or(z.literal("")),
+  });
+}
+
+export type CreateManagerInput = z.infer<ReturnType<typeof buildCreateManagerSchema>>;
+export type UpdateManagerInput = z.infer<ReturnType<typeof buildUpdateManagerSchema>>;

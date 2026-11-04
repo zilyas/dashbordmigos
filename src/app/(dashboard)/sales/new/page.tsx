@@ -5,12 +5,15 @@ import { PageHeader } from "@/components/shared/page-header";
 import { POSTerminal } from "@/components/sales/pos-terminal";
 import { getPOSProducts } from "@/lib/queries/sales";
 import { getStoreSettings } from "@/lib/queries/settings";
+import { getTranslations } from "next-intl/server";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "New Sale" };
 
 export default async function NewSalePage() {
   const context = await getSessionContext();
   const storeId = requireStoreId(context!);
+  const t = await getTranslations({ locale: toAppLocale(context!.locale), namespace: "sales.list.newPage" });
 
   const [session, products, settings] = await Promise.all([
     auth(),
@@ -20,7 +23,7 @@ export default async function NewSalePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="New sale" description="Search or scan products to build the cart." />
+      <PageHeader title={t("title")} description={t("description")} />
       <POSTerminal
         products={products}
         taxRate={settings.taxRate}

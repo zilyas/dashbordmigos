@@ -77,6 +77,14 @@ export type OfflineConfig = {
    * one thing that has not happened. Readers must fall back, not assume.
    */
   userName?: string;
+  /**
+   * The cashier's language, lowercase ("en" | "fr"), for the offline till's UI.
+   *
+   * OPTIONAL for the same reason as `userName`: a till primed before this
+   * field existed has a stored header without it. Readers must fall back to
+   * "en" (see toAppLocale in src/i18n/messages.ts), not assume a value.
+   */
+  locale?: string;
 };
 
 /** Exactly the body POST /api/pos/offline/sales validates, minus the lease. */

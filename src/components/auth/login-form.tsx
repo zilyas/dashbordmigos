@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/field";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { loginAction } from "@/actions/auth";
-import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import { buildLoginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,6 +31,8 @@ export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const tValidation = useTranslations("validation");
+  const loginSchema = useMemo(() => buildLoginSchema(tValidation), [tValidation]);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),

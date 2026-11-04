@@ -1,0 +1,233 @@
+{
+  "title": "Produits",
+  "description": "{count, plural, one {# produit} other {# produits}} dans votre catalogue",
+  "newProduct": "Nouveau produit",
+  "unit": {
+    "piece": "Pièce",
+    "kg": "Kilogramme (kg)",
+    "g": "Gramme (g)",
+    "L": "Litre (L)",
+    "pack": "Lot"
+  },
+  "newPage": {
+    "title": "Nouveau produit",
+    "description": "Créez un article simple, un produit mesuré, ou un produit à variantes."
+  },
+  "editPage": {
+    "title": "Modifier le produit"
+  },
+  "table": {
+    "searchPlaceholder": "Rechercher des produits...",
+    "emptyTitle": "Aucun produit trouvé",
+    "emptyDescription": "Essayez d'ajuster vos filtres, ou ajoutez un nouveau produit.",
+    "filters": {
+      "categoryPlaceholder": "Catégorie",
+      "allCategories": "Toutes les catégories",
+      "statusPlaceholder": "Statut",
+      "allStatuses": "Tous les statuts",
+      "unitPlaceholder": "Unité",
+      "allUnits": "Toutes les unités",
+      "variantsPlaceholder": "Variantes",
+      "allProducts": "Tous les produits",
+      "hasVariants": "Avec variantes",
+      "noVariants": "Sans variantes"
+    },
+    "bulkActivate": "Activer",
+    "bulkArchive": "Archiver",
+    "toastBulkActivated": "{count} produit(s) activé(s)",
+    "toastBulkArchived": "{count} produit(s) archivé(s)",
+    "deleteTitle": "Supprimer « {name} » ?",
+    "deleteDescription": "Si ce produit a un historique de ventes ou de stock, il sera archivé plutôt que supprimé pour préserver vos registres.",
+    "toastDeleted": "Produit supprimé",
+    "toastArchivedInstead": "Produit archivé (historique associé)",
+    "toastArchived": "Produit archivé",
+    "toastActivated": "Produit activé"
+  },
+  "columns": {
+    "product": "Produit",
+    "category": "Catégorie",
+    "variant": "Variante",
+    "price": "Prix",
+    "stock": "Stock",
+    "status": "Statut",
+    "margin": "Marge",
+    "stockUnits": "{count, plural, one {# unité} other {# unités}}",
+    "acrossVariants": "sur {count, plural, one {# variante} other {# variantes}}",
+    "actionsLabel": "Actions sur le produit",
+    "edit": "Modifier",
+    "activate": "Activer",
+    "archive": "Archiver",
+    "delete": "Supprimer"
+  },
+  "form": {
+    "setup": {
+      "title": "Choisissez la configuration la plus simple qui convient",
+      "description": "Choisissez-en une. Elle configure les options ci-dessous pour vous — vous pouvez toujours les modifier manuellement.",
+      "simpleTitle": "Article simple",
+      "simpleDescription": "Chargeur, shampooing, conserve, ou tout article vendu comme un seul SKU.",
+      "measuredTitle": "Article mesuré",
+      "measuredDescription": "Riz au kilogramme, tissu au mètre, ou huile au litre.",
+      "variantsTitle": "Article à variantes",
+      "variantsDescription": "Tailles de vêtements, stockage de téléphone, teintes cosmétiques, ou parfums."
+    },
+    "identity": {
+      "title": "Identité du produit",
+      "description": "Seuls le nom et le SKU sont obligatoires. Ajoutez une catégorie pour débloquer ses spécifications.",
+      "nameLabel": "Nom du produit",
+      "namePlaceholder": "ex. Riz biologique, T-shirt, Casque sans fil",
+      "categoryLabel": "Catégorie",
+      "noCategory": "Aucune catégorie",
+      "noCategoryHint": "Vous pouvez enregistrer maintenant et organiser le produit dans une catégorie plus tard.",
+      "skuLabel": "SKU",
+      "skuPlaceholder": "Votre code de stock interne",
+      "barcodeLabel": "Code-barres",
+      "optional": "(optionnel)",
+      "barcodePlaceholder": "Scannez ou entrez un code-barres",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Détails utiles pour le personnel et les registres du catalogue"
+    },
+    "selling": {
+      "title": "Comment ce produit est vendu",
+      "description": "Gardez un seul SKU, vendez par unité de mesure, ou gérez des SKU de variantes séparés.",
+      "hasVariantsLabel": "Ce produit a des variantes",
+      "hasVariantsHint": "À utiliser pour des options avec leur propre SKU, prix ou stock — comme la taille, la couleur, le stockage, la teinte ou le parfum.",
+      "hasVariantsAriaLabel": "Le produit a des variantes",
+      "saveThenManageVariants": "Enregistrez les modifications, puis gérez chaque variante ci-dessous.",
+      "createBaseFirst": "Créez d'abord le produit de base ; vous ajouterez les variantes individuelles depuis sa page de modification.",
+      "unitLabel": "Unité de mesure",
+      "unitHint": "Choisissez comment le stock et les quantités de vente sont comptés.",
+      "partialQuantitiesLabel": "Autoriser les quantités partielles",
+      "partialQuantitiesHint": "Activez pour des valeurs telles que 0,5 kg ou 1,25 L.",
+      "partialQuantitiesAriaLabel": "Autoriser les quantités partielles"
+    },
+    "sizes": {
+      "title": "Tailles",
+      "description": "Choisissez toutes les tailles que vous vendez. Combinées aux couleurs ci-dessous, une variante est créée par combinaison.",
+      "ariaLabel": "Ce produit existe en plusieurs tailles",
+      "emptyPrefix": "Aucune taille pour le moment.",
+      "emptyLink": "Ajoutez-les dans Tailles",
+      "emptySuffix": "puis revenez.",
+      "pickHint": "Choisissez-en une ou plusieurs, ou laissez désactivé si le produit n'a pas de tailles.",
+      "selectedCount": "{count, plural, one {# taille} other {# tailles}} sélectionnée(s).",
+      "manageLink": "Gérer les tailles"
+    },
+    "colors": {
+      "title": "Couleurs",
+      "description": "Choisissez toutes les couleurs que vous vendez. Chacune devient une variante avec son propre SKU et stock.",
+      "ariaLabel": "Ce produit existe en plusieurs couleurs",
+      "emptyPrefix": "Aucune couleur pour le moment.",
+      "emptyLink": "Ajoutez-les dans Couleurs",
+      "emptySuffix": "puis revenez.",
+      "pickHint": "Choisissez-en une ou plusieurs. La première est la couleur principale.",
+      "selectedCount": "{count, plural, one {# couleur} other {# couleurs}} sélectionnée(s).",
+      "manageLink": "Gérer les couleurs",
+      "primary": "Principale",
+      "secondary": "Secondaire"
+    },
+    "variantCountNote": "<strong>{count}</strong> {count, plural, one {variante} other {variantes}} seront créées avec un stock nul{combo}. Définissez leur stock et prix depuis la page de modification du produit.",
+    "variantCountCombo": " ({sizeCount, plural, one {# taille} other {# tailles}} × {colorCount, plural, one {# couleur} other {# couleurs}})",
+    "specs": {
+      "title": "Spécifications de catégorie",
+      "description": "Détails configurés pour {categoryName}.",
+      "selectPlaceholder": "Sélectionner…"
+    },
+    "pricing": {
+      "title": "Prix et inventaire",
+      "descriptionVariants": "Définissez les prix par défaut ici. Le stock est saisi séparément pour chaque variante après l'enregistrement du produit.",
+      "descriptionSimple": "Définissez les prix et le stock disponible{unitSuffix}.",
+      "descriptionUnitSuffix": " en {unit}",
+      "costPriceLabel": "Prix de revient",
+      "sellingPriceLabel": "Prix de vente",
+      "marginLabel": "Marge de profit estimée :",
+      "marginNegativeWarning": "— le prix de revient est supérieur au prix de vente.",
+      "openingStockLabel": "Stock d'ouverture{unitSuffix}",
+      "lowStockAlertLabel": "Alerte de stock faible{unitSuffix}",
+      "statusLabel": "Statut",
+      "statusActive": "Actif — disponible à la vente",
+      "statusDraft": "Brouillon — encore en préparation",
+      "statusArchived": "Archivé — masqué de la vente"
+    },
+    "legacy": {
+      "title": "Détails héredités optionnels",
+      "description": "À utiliser uniquement si votre catalogue repose déjà sur un seul type, taille ou couleur de produit.",
+      "typeLabel": "Type ou modèle",
+      "typePlaceholder": "ex. Hoodie, Pro, Biologique",
+      "sizeLabel": "Taille ou format",
+      "sizePlaceholder": "ex. M, 500 ml, 13 pouces",
+      "colorLabel": "Couleur ou finition",
+      "colorPlaceholder": "ex. Noir, Mat, Naturel"
+    },
+    "images": {
+      "title": "Images du produit",
+      "description": "Optionnel. Ajoutez jusqu'à 6 images ; la première devient la couverture."
+    },
+    "saveChanges": "Enregistrer les modifications",
+    "create": "Créer le produit",
+    "toastUpdated": "Produit mis à jour",
+    "toastCreated": "Produit créé",
+    "toastSaveFailed": "Impossible d'enregistrer le produit. Veuillez réessayer."
+  },
+  "variants": {
+    "cardTitle": "Variantes",
+    "cardDescription": "Chaque variante a son propre SKU, stock et prix optionnel.",
+    "addVariant": "Ajouter une variante",
+    "emptyTitle": "Aucune variante pour le moment",
+    "emptyDescription": "Ajoutez des variantes par taille / par couleur pour que ce produit puisse être vendu.",
+    "inactive": "(inactive)",
+    "skuStockLine": "SKU {sku} · stock {stock}",
+    "priceSuffix": " · prix {price}",
+    "inStock": "En stock",
+    "empty": "Épuisé",
+    "deleteTitle": "Supprimer la variante ?",
+    "deleteDescription": "Si elle a déjà été vendue, elle sera désactivée plutôt que supprimée.",
+    "toastDeleted": "Variante supprimée",
+    "toastDeactivated": "Variante désactivée",
+    "dialog": {
+      "editTitle": "Modifier la variante",
+      "newTitle": "Nouvelle variante",
+      "description": "Laissez le prix/coût vide pour utiliser les valeurs du produit.",
+      "sizeLabel": "Taille",
+      "none": "Aucun",
+      "colorLabel": "Couleur",
+      "axisPlaceholder": "ex. {label}",
+      "skuLabel": "SKU",
+      "barcodeLabel": "Code-barres",
+      "priceOverrideLabel": "Prix personnalisé",
+      "costOverrideLabel": "Coût personnalisé",
+      "stockLabel": "Stock",
+      "activeLabel": "Active (disponible à la vente)",
+      "imageLabel": "Image de la variante (optionnel)",
+      "saveVariant": "Enregistrer la variante",
+      "createVariant": "Créer la variante",
+      "toastUpdated": "Variante mise à jour",
+      "toastCreated": "Variante créée"
+    }
+  },
+  "imageUploader": {
+    "removeImage": "Supprimer l'image {index}",
+    "addImage": "Ajouter une image",
+    "altText": "Image du produit {index}",
+    "toastUploadFailed": "Échec du téléchargement",
+    "toastUploadFailedRetry": "Échec du téléchargement. Vérifiez votre connexion et réessayez."
+  },
+  "actions": {
+    "invalidData": "Données de produit invalides",
+    "stockWholeNumber": "Le stock et le stock minimum doivent être des nombres entiers pour ce produit.",
+    "attributeRequired": "{label} est requis.",
+    "categoryNotFound": "Catégorie introuvable",
+    "skuOrBarcodeExists": "Un produit avec ce SKU ou ce code-barres existe déjà.",
+    "notFound": "Produit introuvable",
+    "notAuthorized": "Non autorisé",
+    "variant": {
+      "invalidData": "Données de variante invalides",
+      "stockWholeNumber": "Le stock doit être un nombre entier pour ce produit.",
+      "notFound": "Variante introuvable",
+      "productNotFound": "Produit introuvable",
+      "skuExists": "Une variante avec ce SKU existe déjà.",
+      "sizeNotFound": "Taille sélectionnée introuvable",
+      "colorNotFound": "Couleur sélectionnée introuvable",
+      "batchTrackedCreateZero": "Ce produit est suivi par lot — créez la variante avec un stock nul, puis réceptionnez le stock dans un lot.",
+      "batchTrackedAdjustElsewhere": "Ce produit est suivi par lot — modifiez le stock de la variante via la réception ou l'ajustement de lot."
+    }
+  }
+}

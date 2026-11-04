@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
-import { storeSchema, type StoreInput } from "@/lib/validations/store";
+import { buildStoreSchema, type StoreInput } from "@/lib/validations/store";
+import { toAppLocale } from "@/i18n/messages";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 import type { StoreStatus } from "@/generated/prisma/enums";
@@ -19,8 +21,11 @@ const RESET_CONFIRMATION_TEXT = "RESET";
 
 export async function createStore(input: StoreInput) {
   const session = await requireStoreManager();
-  const parsed = storeSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid store data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildStoreSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidStoreData") };
   const data = parsed.data;
 
   try {
@@ -59,8 +64,8 @@ export async function createStore(input: StoreInput) {
           storeId: store.id,
           userId: admin.id,
           type: "STORE_CREATED" as const,
-          title: "New store created",
-          message: `${store.name} (${store.code}) was added to the platform.`,
+          title: t("newStoreNotificationTitle"),
+          message: t("newStoreNotificationMessage", { name: store.name, code: store.code }),
         })),
       });
     }
@@ -69,7 +74,7 @@ export async function createStore(input: StoreInput) {
     return { success: true as const, id: store.id };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A store with that code already exists." };
+      return { error: t("storeCodeExists") };
     }
     throw error;
   }
@@ -77,8 +82,11 @@ export async function createStore(input: StoreInput) {
 
 export async function updateStore(id: string, input: StoreInput) {
   const session = await requireStoreManager();
-  const parsed = storeSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid store data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildStoreSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidStoreData") };
   const data = parsed.data;
 
   try {
@@ -113,7 +121,7 @@ export async function updateStore(id: string, input: StoreInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A store with that code already exists." };
+      return { error: t("storeCodeExists") };
     }
     throw error;
   }
@@ -121,8 +129,9 @@ export async function updateStore(id: string, input: StoreInput) {
 
 export async function toggleStoreStatus(id: string) {
   const session = await requireStoreManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const store = await prisma.store.findUnique({ where: { id } });
-  if (!store) return { error: "Store not found" };
+  if (!store) return { error: t("storeNotFound") };
 
   const nextStatus: StoreStatus = store.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
   await prisma.store.update({ where: { id }, data: { status: nextStatus } });
@@ -143,8 +152,9 @@ export async function toggleStoreStatus(id: string) {
 
 export async function deleteStore(id: string) {
   const session = await requireStoreManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const store = await prisma.store.findUnique({ where: { id } });
-  if (!store) return { error: "Store not found" };
+  if (!store) return { error: t("storeNotFound") };
 
   try {
     await prisma.store.delete({ where: { id } });
@@ -193,13 +203,14 @@ export async function deleteStore(id: string) {
  */
 export async function resetStoreData(storeId: string, confirmText: string) {
   const session = await requireStoreReset();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
 
   if (confirmText !== RESET_CONFIRMATION_TEXT) {
-    return { error: `Type "${RESET_CONFIRMATION_TEXT}" to confirm.` };
+    return { error: t("resetConfirmationMismatch", { confirmText: RESET_CONFIRMATION_TEXT }) };
   }
 
   const store = await prisma.store.findUnique({ where: { id: storeId } });
-  if (!store) return { error: "Store not found" };
+  if (!store) return { error: t("storeNotFound") };
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -237,6 +248,6 @@ export async function resetStoreData(storeId: string, confirmText: string) {
 
     return { success: true as const, ...result };
   } catch {
-    return { error: "Failed to reset the store. Please try again." };
+    return { error: t("resetFailed") };
   }
 }

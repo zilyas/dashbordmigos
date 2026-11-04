@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { apiError, apiRoute, methodNotAllowed, noStore } from "@/lib/api/auth";
 import { logServerError } from "@/lib/logger";
 import { getSessionContext } from "@/lib/store-context";
+import { toAppLocale } from "@/i18n/messages";
 import { getStoreSettings } from "@/lib/queries/settings";
 import { getSales } from "@/lib/queries/sales";
 import {
@@ -41,7 +42,7 @@ async function handle(_request: Request, requestId: string): Promise<NextRespons
     if (!context) {
       return noStore(apiError(401, "unauthorized", "Sign in to use the offline till."));
     }
-    const { storeId, userId, role } = context;
+    const { storeId, userId, role, locale } = context;
     if (!storeId) {
       // SUPER_ADMIN has no store, so there is no till and no catalogue to cache.
       return noStore(apiError(403, "no_store", "This account is not attached to a store."));
@@ -123,6 +124,7 @@ async function handle(_request: Request, requestId: string): Promise<NextRespons
           currency: settings.currency,
           taxRate: settings.taxRate,
           unitsEnabled: settings.features.units_enabled,
+          locale: toAppLocale(locale),
         },
         products: products.map((p) => ({
           id: p.id,

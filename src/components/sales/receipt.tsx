@@ -1,8 +1,11 @@
+import { useTranslations } from "next-intl";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
+import { paymentMethodLabel } from "@/lib/labels";
 import type { SaleReceipt } from "@/lib/queries/sales";
 
 export function Receipt({ receipt }: { receipt: NonNullable<SaleReceipt> }) {
+  const t = useTranslations("receipt");
+  const tLabels = useTranslations("labels");
   return (
     <div id="receipt-print-area" className="mx-auto flex w-full max-w-sm flex-col gap-4 font-mono text-sm">
       <div className="text-center">
@@ -11,16 +14,16 @@ export function Receipt({ receipt }: { receipt: NonNullable<SaleReceipt> }) {
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Invoice</span>
+        <span>{t("invoice")}</span>
         <span>{receipt.invoiceNumber}</span>
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Served by</span>
+        <span>{t("servedBy")}</span>
         <span>{receipt.sellerName}</span>
       </div>
       {receipt.customerName && (
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Customer</span>
+          <span>{t("customer")}</span>
           <span>{receipt.customerName}</span>
         </div>
       )}
@@ -45,21 +48,21 @@ export function Receipt({ receipt }: { receipt: NonNullable<SaleReceipt> }) {
 
       <div className="flex flex-col gap-1">
         <div className="flex justify-between">
-          <span>Subtotal</span>
+          <span>{t("subtotal")}</span>
           <span className="tabular-nums">{formatCurrency(receipt.subtotal, receipt.currency)}</span>
         </div>
         {receipt.discount > 0 && (
           <div className="flex justify-between">
-            <span>Discount</span>
+            <span>{t("discount")}</span>
             <span className="tabular-nums">-{formatCurrency(receipt.discount, receipt.currency)}</span>
           </div>
         )}
         <div className="flex justify-between">
-          <span>Tax</span>
+          <span>{t("tax")}</span>
           <span className="tabular-nums">{formatCurrency(receipt.tax, receipt.currency)}</span>
         </div>
         <div className="flex justify-between border-t pt-1 text-base font-semibold">
-          <span>Total</span>
+          <span>{t("total")}</span>
           <span className="tabular-nums">{formatCurrency(receipt.total, receipt.currency)}</span>
         </div>
       </div>
@@ -67,11 +70,11 @@ export function Receipt({ receipt }: { receipt: NonNullable<SaleReceipt> }) {
       <div className="border-t border-dashed" />
 
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Payment method</span>
-        <span>{PAYMENT_METHOD_LABELS[receipt.paymentMethod]}</span>
+        <span>{t("paymentMethod")}</span>
+        <span>{paymentMethodLabel(tLabels, receipt.paymentMethod)}</span>
       </div>
 
-      <p className="text-center text-xs text-muted-foreground">Thank you for your purchase!</p>
+      <p className="text-center text-xs text-muted-foreground">{t("thankYou")}</p>
     </div>
   );
 }

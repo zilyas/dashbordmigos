@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -19,10 +20,11 @@ export function ConversationList({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const t = useTranslations("messaging.conversationList");
   if (conversations.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-4">
-        <EmptyState icon={<Users />} title="No conversations yet" className="border-none py-6" />
+        <EmptyState icon={<Users />} title={t("emptyTitle")} className="border-none py-6" />
       </div>
     );
   }
@@ -63,11 +65,11 @@ export function ConversationList({
               </div>
               <div className="mt-0.5 flex items-center justify-between gap-2">
                 <span className="truncate text-xs text-muted-foreground">
-                  {lastMessage ? `${isOwnLastMessage ? "You: " : ""}${lastMessage.body}` : "No messages yet"}
+                  {lastMessage ? `${isOwnLastMessage ? t("you") : ""}${lastMessage.body}` : t("noMessagesYet")}
                 </span>
                 {conversation.unreadCount > 0 && (
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                    {conversation.unreadCount > 9 ? "9+" : conversation.unreadCount}
+                    {conversation.unreadCount > 9 ? t("unreadOverflow") : conversation.unreadCount}
                   </span>
                 )}
               </div>

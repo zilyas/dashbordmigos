@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { requirePermission } from "@/lib/rbac-guards";
 import { logActivity } from "@/lib/audit";
 import { logServerError } from "@/lib/logger";
 import { isValidBackupPayload, restoreBackupPayload } from "@/lib/backup";
 import { runBackup } from "@/lib/backup-run";
+import { toAppLocale } from "@/i18n/messages";
 
 const RESTORE_CONFIRMATION_TEXT = "RESTORE";
 
@@ -24,28 +26,29 @@ export async function createBackup() {
 
 export async function restoreBackup(fileContent: string, confirmText: string) {
   const session = await requireSuperAdmin();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "backups.actions" });
 
   if (confirmText !== RESTORE_CONFIRMATION_TEXT) {
-    return { error: `Type "${RESTORE_CONFIRMATION_TEXT}" to confirm.` };
+    return { error: t("typeToConfirm", { confirmText: RESTORE_CONFIRMATION_TEXT }) };
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(fileContent);
   } catch {
-    return { error: "That file is not valid JSON." };
+    return { error: t("invalidJson") };
   }
 
   if (!isValidBackupPayload(payload)) {
-    return { error: "That file is not a recognized backup." };
+    return { error: t("unrecognizedBackup") };
   }
 
   try {
     await restoreBackupPayload(payload);
   } catch (error) {
     await logServerError("app", error, { action: "backup.restored", userId: session.user.id });
-    const message = error instanceof Error ? error.message : "Restore failed.";
-    return { error: `Restore failed: ${message}` };
+    const message = error instanceof Error ? error.message : t("restoreFailedGeneric");
+    return { error: t("restoreFailed", { message }) };
   }
 
   // Every table — including ActivityLog and the acting user's own row —

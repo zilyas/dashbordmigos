@@ -1,12 +1,14 @@
+import { getTranslations } from "next-intl/server";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { ROLE_LABELS } from "@/lib/labels";
+import { roleLabel } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
 import { initials } from "@/lib/utils";
 import type { Role } from "@/generated/prisma/enums";
+import type { AppLocale } from "@/i18n/messages";
 
-export function ProfileCard({
+export async function ProfileCard({
   name,
   email,
   role,
@@ -14,6 +16,7 @@ export function ProfileCard({
   avatar,
   createdAt,
   lastLogin,
+  locale,
 }: {
   name: string;
   email: string;
@@ -22,12 +25,15 @@ export function ProfileCard({
   avatar: string | null;
   createdAt: Date;
   lastLogin: Date | null;
+  locale: AppLocale;
 }) {
+  const t = await getTranslations({ locale, namespace: "labels" });
+  const tProfile = await getTranslations({ locale, namespace: "account.profile" });
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>Your account details.</CardDescription>
+        <CardTitle>{tProfile("title")}</CardTitle>
+        <CardDescription>{tProfile("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6 pt-4">
         <div className="flex items-center gap-4">
@@ -45,23 +51,23 @@ export function ProfileCard({
 
         <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <div>
-            <p className="text-xs text-muted-foreground">Role</p>
+            <p className="text-xs text-muted-foreground">{tProfile("role")}</p>
             <StatusBadge variant="info" className="mt-1">
-              {ROLE_LABELS[role]}
+              {roleLabel(t, role)}
             </StatusBadge>
           </div>
           {storeName && (
             <div>
-              <p className="text-xs text-muted-foreground">Store</p>
+              <p className="text-xs text-muted-foreground">{tProfile("store")}</p>
               <p className="mt-1 font-medium">{storeName}</p>
             </div>
           )}
           <div>
-            <p className="text-xs text-muted-foreground">Member since</p>
+            <p className="text-xs text-muted-foreground">{tProfile("memberSince")}</p>
             <p className="mt-1 font-medium">{formatDateTime(createdAt)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Last login</p>
+            <p className="text-xs text-muted-foreground">{tProfile("lastLogin")}</p>
             <p className="mt-1 font-medium">{lastLogin ? formatDateTime(lastLogin) : "—"}</p>
           </div>
         </div>

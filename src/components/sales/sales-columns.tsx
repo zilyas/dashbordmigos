@@ -5,37 +5,41 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SaleActions } from "@/components/sales/sale-actions";
 import { SaleReceiptButton } from "@/components/sales/sale-receipt-button";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
+import { paymentMethodLabel } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
-
-/** Shown for sales with no apiClient — rung up by a human on the POS terminal. */
-const IN_STORE_SOURCE = "In-store";
 
 export function buildSalesColumns({
   currency,
   showSeller,
   showProfit,
   canManage,
+  tLabels,
+  t,
 }: {
   currency: string;
   showSeller: boolean;
   showProfit: boolean;
   /** Managers can refund/edit/delete; Sellers only ever read their own sales. */
   canManage: boolean;
+  /** Resolved via useTranslations("labels") in the caller. */
+  tLabels: (key: string) => string;
+  /** Resolved via useTranslations("sales.list.columns") in the caller. */
+  t: (key: string, values?: Record<string, string | number>) => string;
 }): ColumnDef<SaleListItem, unknown>[] {
+  const inStoreSource = t("inStoreSource");
   const columns: ColumnDef<SaleListItem, unknown>[] = [
     {
       id: "invoiceNumber",
       accessorFn: (row) => row.invoiceNumber,
-      header: "Invoice",
+      header: t("invoice"),
       cell: ({ row }) => {
         const sale = row.original;
         return (
           <div className="flex items-center gap-2">
             <span className="font-medium">{sale.invoiceNumber}</span>
-            {sale.status === "REFUNDED" && <StatusBadge variant="destructive">Returned</StatusBadge>}
+            {sale.status === "REFUNDED" && <StatusBadge variant="destructive">{t("returned")}</StatusBadge>}
             {sale.status === "PARTIALLY_REFUNDED" && (
-              <StatusBadge variant="warning">Part-returned</StatusBadge>
+              <StatusBadge variant="warning">{t("partReturned")}</StatusBadge>
             )}
           </div>
         );
@@ -44,15 +48,15 @@ export function buildSalesColumns({
     {
       id: "createdAt",
       accessorFn: (row) => row.createdAt,
-      header: "Date",
+      header: t("date"),
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatDateTime(row.original.createdAt)}</span>
       ),
     },
     {
       id: "customer",
-      accessorFn: (row) => row.customerName ?? "Walk-in",
-      header: "Customer",
+      accessorFn: (row) => row.customerName ?? t("walkIn"),
+      header: t("customer"),
     },
   ];
 
@@ -60,7 +64,7 @@ export function buildSalesColumns({
     columns.push({
       id: "seller",
       accessorFn: (row) => row.sellerName,
-      header: "Seller",
+      header: t("seller"),
     });
     // Reuses the showSeller gate deliberately: a Seller only ever sees sales
     // they rang up themselves and cannot create an API sale, so the value is
@@ -71,14 +75,14 @@ export function buildSalesColumns({
       // An accessorFn is all it takes to make the integration name reachable
       // from the table's existing global search — typing it narrows the list to
       // that client's sales, no dedicated filter UI needed.
-      accessorFn: (row) => row.apiClientName ?? IN_STORE_SOURCE,
-      header: "Source",
+      accessorFn: (row) => row.apiClientName ?? inStoreSource,
+      header: t("source"),
       cell: ({ row }) => {
         const apiClientName = row.original.apiClientName;
         return apiClientName ? (
           <StatusBadge variant="info">{apiClientName}</StatusBadge>
         ) : (
-          <span className="text-sm text-muted-foreground">{IN_STORE_SOURCE}</span>
+          <span className="text-sm text-muted-foreground">{inStoreSource}</span>
         );
       },
     });
@@ -88,21 +92,21 @@ export function buildSalesColumns({
     {
       id: "items",
       accessorFn: (row) => row.itemCount,
-      header: "Items",
+      header: t("items"),
       cell: ({ row }) => <span className="tabular-nums">{row.original.itemCount}</span>,
     },
     {
       id: "paymentMethod",
       accessorFn: (row) => row.paymentMethod,
-      header: "Payment",
+      header: t("payment"),
       cell: ({ row }) => (
-        <StatusBadge variant="neutral">{PAYMENT_METHOD_LABELS[row.original.paymentMethod]}</StatusBadge>
+        <StatusBadge variant="neutral">{paymentMethodLabel(tLabels, row.original.paymentMethod)}</StatusBadge>
       ),
     },
     {
       id: "total",
       accessorFn: (row) => row.total,
-      header: "Total",
+      header: t("total"),
       cell: ({ row }) => {
         const sale = row.original;
         return (
@@ -110,7 +114,7 @@ export function buildSalesColumns({
             <span className="font-medium tabular-nums">{formatCurrency(sale.total, currency)}</span>
             {sale.refundedTotal > 0 && (
               <span className="text-xs tabular-nums text-muted-foreground">
-                {formatCurrency(sale.refundedTotal, currency)} refunded
+                {t("refunded", { amount: formatCurrency(sale.refundedTotal, currency) })}
               </span>
             )}
           </div>
@@ -123,7 +127,7 @@ export function buildSalesColumns({
     columns.push({
       id: "netProfit",
       accessorFn: (row) => row.netProfit,
-      header: "Profit",
+      header: t("profit"),
       cell: ({ row }) => (
         <span className="tabular-nums text-success">{formatCurrency(row.original.netProfit, currency)}</span>
       ),

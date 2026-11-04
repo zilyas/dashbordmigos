@@ -12,21 +12,14 @@ import { getExpiryReport, parseExpiryFilter, type ExpiryFilter } from "@/lib/que
 import { getStoreSettings } from "@/lib/queries/settings";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
-import { BUCKET_LABEL, type ExpiryBucket } from "@/lib/expiry";
+import { type ExpiryBucket } from "@/lib/expiry";
+import { batchStatusLabel } from "@/lib/labels";
 import { DEFAULT_CURRENCY, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Expiry report" };
-
-const FILTERS: { key: ExpiryFilter; label: string }[] = [
-  { key: "all", label: "All at risk" },
-  { key: "expired", label: "Expired" },
-  { key: "today", label: "Today" },
-  { key: "7", label: "≤7 days" },
-  { key: "30", label: "≤30 days" },
-  { key: "60", label: "≤60 days" },
-  { key: "missing", label: "Missing date" },
-];
 
 const BUCKET_CLASS: Record<ExpiryBucket, string> = {
   expired: "text-red-700 dark:text-red-400",
@@ -44,17 +37,41 @@ export default async function ExpiryReportPage({
   searchParams: Promise<{ window?: string }>;
 }) {
   const context = await getSessionContext();
+  const locale = toAppLocale(context!.locale);
+  const t = await getTranslations({ locale, namespace: "reports.expiry" });
+  const tLabels = await getTranslations({ locale, namespace: "labels" });
+
+  const FILTERS: { key: ExpiryFilter; label: string }[] = [
+    { key: "all", label: t("filters.all") },
+    { key: "expired", label: t("filters.expired") },
+    { key: "today", label: t("filters.today") },
+    { key: "7", label: t("filters.within7") },
+    { key: "30", label: t("filters.within30") },
+    { key: "60", label: t("filters.within60") },
+    { key: "missing", label: t("filters.missingDate") },
+  ];
+
+  const BUCKET_LABEL: Record<ExpiryBucket, string> = {
+    expired: t("buckets.expired"),
+    today: t("buckets.today"),
+    "7": t("buckets.7"),
+    "30": t("buckets.30"),
+    "60": t("buckets.60"),
+    later: t("buckets.later"),
+    missing: t("buckets.missing"),
+  };
+
   const storeId = requireStoreId(context!);
   const features = await getStoreFeatures(storeId);
 
   if (!features.expiry_batch_enabled) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Expiry report" description="Batch & expiry inventory." />
+        <PageHeader title={t("title")} description={t("featureOffPageDescription")} />
         <EmptyState
           icon={<CalendarClock />}
-          title="Batch & expiry tracking is off"
-          description="Enable it in Settings, then turn on expiry tracking per product to see this report."
+          title={t("featureOffTitle")}
+          description={t("featureOffDescription")}
         />
       </div>
     );
@@ -72,14 +89,14 @@ export default async function ExpiryReportPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Expiry report"
-        description={`At-risk batch inventory · store-local today ${report.storeToday}`}
+        title={t("title")}
+        description={t("description", { today: report.storeToday })}
         actions={
           <div className="flex items-center gap-2">
             <ExpiryRefreshButton />
             <Button asChild variant="outline" className="gap-1.5">
               <a href={`/api/reports/expiry/export?window=${filter}`} download>
-                <Download className="size-4" /> Export CSV
+                <Download className="size-4" /> {t("exportCsv")}
               </a>
             </Button>
           </div>
@@ -87,17 +104,17 @@ export default async function ExpiryReportPage({
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Expired" value={String(s.buckets.expired.count)} icon={<PackageX />} tint="destructive" />
-        <StatCard label="Today" value={String(s.buckets.today.count)} icon={<CalendarClock />} tint="warning" />
-        <StatCard label="≤7 days" value={String(s.buckets["7"].count)} icon={<CalendarClock />} tint="warning" />
-        <StatCard label="≤30 days" value={String(s.buckets["30"].count)} icon={<CalendarClock />} tint="primary" />
-        <StatCard label="At-risk value" value={formatCurrency(s.totalAtRiskValue, currency)} icon={<AlertTriangle />} tint="primary" />
+        <StatCard label={t("stats.expired")} value={String(s.buckets.expired.count)} icon={<PackageX />} tint="destructive" />
+        <StatCard label={t("stats.today")} value={String(s.buckets.today.count)} icon={<CalendarClock />} tint="warning" />
+        <StatCard label={t("stats.within7")} value={String(s.buckets["7"].count)} icon={<CalendarClock />} tint="warning" />
+        <StatCard label={t("stats.within30")} value={String(s.buckets["30"].count)} icon={<CalendarClock />} tint="primary" />
+        <StatCard label={t("stats.atRiskValue")} value={formatCurrency(s.totalAtRiskValue, currency)} icon={<AlertTriangle />} tint="primary" />
       </div>
 
       {s.missingDateCount > 0 && (
         <div className="flex items-center gap-2 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           <AlertTriangle className="size-4" />
-          {s.missingDateCount} batch(es) have stock but no expiry date — fix them from the product page.
+          {t("missingDateWarning", { count: s.missingDateCount })}
         </div>
       )}
 
@@ -118,30 +135,30 @@ export default async function ExpiryReportPage({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Batches</CardTitle>
+          <CardTitle>{t("batchesCardTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
           {!hasAnything ? (
             <EmptyState
               icon={<CalendarClock />}
-              title="No expiry-tracked stock yet"
-              description="Turn on expiry tracking for a product and receive dated batches to populate this report."
+              title={t("emptyNoStockTitle")}
+              description={t("emptyNoStockDescription")}
               className="h-48 border-none"
             />
           ) : report.rows.length === 0 ? (
-            <EmptyState icon={<CalendarClock />} title="Nothing in this window" className="h-40 border-none" />
+            <EmptyState icon={<CalendarClock />} title={t("emptyNothingInWindow")} className="h-40 border-none" />
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Batch</TableHead>
-                    <TableHead>Expiry</TableHead>
-                    <TableHead>Days</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("table.product")}</TableHead>
+                    <TableHead>{t("table.batch")}</TableHead>
+                    <TableHead>{t("table.expiry")}</TableHead>
+                    <TableHead>{t("table.days")}</TableHead>
+                    <TableHead>{t("table.qty")}</TableHead>
+                    <TableHead>{t("table.value")}</TableHead>
+                    <TableHead>{t("table.status")}</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -161,10 +178,10 @@ export default async function ExpiryReportPage({
                       <TableCell className="tabular-nums">{r.daysUntilExpiry ?? "—"}</TableCell>
                       <TableCell className="tabular-nums">{r.quantity} {r.unit}</TableCell>
                       <TableCell className="tabular-nums">{formatCurrency(r.stockValue, currency)}</TableCell>
-                      <TableCell>{r.status}</TableCell>
+                      <TableCell>{batchStatusLabel(tLabels, r.status)}</TableCell>
                       <TableCell className="text-right">
                         <Link href={`/products/${r.productId}/edit`} className="text-sm text-primary hover:underline">
-                          Edit
+                          {t("edit")}
                         </Link>
                       </TableCell>
                     </TableRow>

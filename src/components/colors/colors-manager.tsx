@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Plus, Palette, Pencil, Trash2, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +22,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createColor, deleteColor, updateColor } from "@/actions/colors";
-import { colorSchema, type ColorInput } from "@/lib/validations/color";
+import { buildColorSchema, type ColorInput } from "@/lib/validations/color";
 import { matchesAny } from "@/lib/text";
 import type { ColorListItem } from "@/lib/queries/colors";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,8 @@ const SWATCHES = [
 ] as const;
 
 export function ColorsManager({ colors }: { colors: ColorListItem[] }) {
+  const t = useTranslations("catalog.colors");
+  const tCommon = useTranslations("common");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ColorListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ColorListItem | null>(null);
@@ -83,29 +86,29 @@ export function ColorsManager({ colors }: { colors: ColorListItem[] }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search colors..."
+            placeholder={t("searchPlaceholder")}
             className="pl-9"
           />
         </div>
         <Button onClick={openCreate} className="gap-1.5">
           <Plus className="size-4" />
-          New Color
+          {t("newColor")}
         </Button>
       </div>
 
       {colors.length === 0 ? (
         <EmptyState
           icon={<Palette />}
-          title="No colors yet"
-          description="Add colors to use them on clothing product variants."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <Button onClick={openCreate} size="sm">
-              New Color
+              {t("newColor")}
             </Button>
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<Search />} title="No colors match your search" />
+        <EmptyState icon={<Search />} title={t("emptySearchTitle")} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((color) => (
@@ -119,7 +122,7 @@ export function ColorsManager({ colors }: { colors: ColorListItem[] }) {
                 <div>
                   <p className="font-medium">{color.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {color.hex ?? "no swatch"} · {color.variantCount} variant{color.variantCount === 1 ? "" : "s"}
+                    {color.hex ?? t("noSwatch")} · {t("variantCount", { count: color.variantCount })}
                   </p>
                 </div>
               </div>
@@ -147,18 +150,18 @@ export function ColorsManager({ colors }: { colors: ColorListItem[] }) {
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
+          title={t("deleteTitle", { name: deleteTarget.name })}
           description={
             deleteTarget.variantCount > 0
-              ? `This color is used by ${deleteTarget.variantCount} variant(s). Those variants will lose their color.`
-              : "This action cannot be undone."
+              ? t("deleteDescriptionWithVariants", { count: deleteTarget.variantCount })
+              : t("deleteDescriptionEmpty")
           }
-          confirmLabel="Delete"
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteColor(deleteTarget.id);
             if (result?.error) toast.error(result.error);
-            else toast.success("Color deleted");
+            else toast.success(t("toastDeleted"));
           }}
         />
       )}
@@ -176,6 +179,10 @@ function ColorDialog({
   color: ColorListItem | null;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("catalog.colors.dialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const colorSchema = useMemo(() => buildColorSchema(tValidation), [tValidation]);
   const form = useForm<ColorInput>({
     resolver: zodResolver(colorSchema),
     values: { name: color?.name ?? "", hex: color?.hex ?? "", position: color?.position ?? 0 },
@@ -197,7 +204,7 @@ function ColorDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(color ? "Color updated" : "Color created");
+      toast.success(color ? t("toastUpdated") : t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -207,18 +214,18 @@ function ColorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{color ? "Edit color" : "New color"}</DialogTitle>
-          <DialogDescription>Colors are shared across this store&apos;s variant products.</DialogDescription>
+          <DialogTitle>{color ? t("editTitle") : t("newTitle")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="color-name">Name</FieldLabel>
-              <Input id="color-name" placeholder="e.g. Noir" {...form.register("name")} />
+              <FieldLabel htmlFor="color-name">{t("nameLabel")}</FieldLabel>
+              <Input id="color-name" placeholder={t("namePlaceholder")} {...form.register("name")} />
               {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
             </Field>
             <Field data-invalid={!!form.formState.errors.hex}>
-              <FieldLabel>Swatch (optional)</FieldLabel>
+              <FieldLabel>{t("swatchLabel")}</FieldLabel>
               <div className="grid grid-cols-8 gap-2">
                 {SWATCHES.map((s) => (
                   <button
@@ -248,34 +255,34 @@ function ColorDialog({
                   value={/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000"}
                   onChange={(e) => form.setValue("hex", e.target.value, { shouldValidate: true })}
                   className="size-9 cursor-pointer rounded-md border bg-transparent p-1"
-                  aria-label="Pick a custom color"
+                  aria-label={t("customPickerLabel")}
                 />
                 <Input
                   id="color-hex"
-                  placeholder="#1A2B3C"
+                  placeholder={t("hexPlaceholder")}
                   className="font-mono"
                   {...form.register("hex")}
                 />
                 {hex && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => form.setValue("hex", "")}>
-                    Clear
+                    {t("clear")}
                   </Button>
                 )}
               </div>
               {form.formState.errors.hex && <FieldError>{form.formState.errors.hex.message}</FieldError>}
             </Field>
             <Field>
-              <FieldLabel htmlFor="color-position">Sort order</FieldLabel>
+              <FieldLabel htmlFor="color-position">{t("sortOrderLabel")}</FieldLabel>
               <Input id="color-position" type="number" {...form.register("position", { valueAsNumber: true })} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              {color ? "Save changes" : "Create color"}
+              {color ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </form>
