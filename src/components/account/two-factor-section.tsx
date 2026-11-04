@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
 type Step = "idle" | "enrolling" | "recovery-codes";
 
 export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boolean }) {
+  const t = useTranslations("account.twoFactor");
   const [enabled, setEnabled] = useState(initiallyEnabled);
   const [step, setStep] = useState<Step>("idle");
   const [isPending, startTransition] = useTransition();
@@ -56,7 +58,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
     startTransition(async () => {
       const result = await startTwoFactorEnrollment();
       if (result.error || !result.secret || !result.qrCodeDataUrl) {
-        toast.error(result.error ?? "Failed to start enrollment.");
+        toast.error(result.error ?? t("toastEnrollFailed"));
         return;
       }
       setSecret(result.secret);
@@ -79,7 +81,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
     startTransition(async () => {
       const result = await confirmTwoFactorEnrollment(code);
       if (result.error || !result.recoveryCodes) {
-        toast.error(result.error ?? "Failed to verify code.");
+        toast.error(result.error ?? t("toastVerifyFailed"));
         return;
       }
       setRecoveryCodes(result.recoveryCodes);
@@ -98,7 +100,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
       }
       setEnabled(false);
       setDisablePassword("");
-      toast.success("Two-factor authentication disabled");
+      toast.success(t("toastDisabled"));
     });
   }
 
@@ -107,7 +109,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
     startTransition(async () => {
       const result = await regenerateRecoveryCodes(regenPassword);
       if (result.error || !result.recoveryCodes) {
-        setRegenError(result.error ?? "Failed to regenerate codes.");
+        setRegenError(result.error ?? t("toastRegenFailed"));
         return;
       }
       setRegenPassword("");
@@ -127,13 +129,13 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
       <Card>
         <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Two-factor authentication</CardTitle>
+            <CardTitle>{t("title")}</CardTitle>
             <CardDescription>
-              Require a verification code from an authenticator app when signing in.
+              {t("description")}
             </CardDescription>
           </div>
           <StatusBadge variant={enabled ? "success" : "neutral"}>
-            {enabled ? "Enabled" : "Disabled"}
+            {enabled ? t("enabled") : t("disabled")}
           </StatusBadge>
         </CardHeader>
         <CardContent className="pt-4">
@@ -141,7 +143,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
             <Button onClick={handleStartEnrollment} disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
               <ShieldCheck className="size-4" />
-              Enable two-factor authentication
+              {t("enableButton")}
             </Button>
           )}
 
@@ -149,18 +151,18 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
             <div className="flex flex-wrap gap-2">
               <Dialog open={regenOpen} onOpenChange={setRegenOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">View new recovery codes</Button>
+                  <Button variant="outline">{t("viewRecoveryCodes")}</Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Regenerate recovery codes</DialogTitle>
+                    <DialogTitle>{t("regenerateTitle")}</DialogTitle>
                     <DialogDescription>
-                      This invalidates your existing recovery codes. Confirm your password to continue.
+                      {t("regenerateDescription")}
                     </DialogDescription>
                   </DialogHeader>
                   <Input
                     type="password"
-                    placeholder="Password"
+                    placeholder={t("passwordPlaceholder")}
                     value={regenPassword}
                     onChange={(e) => setRegenPassword(e.target.value)}
                   />
@@ -168,7 +170,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
                   <DialogFooter>
                     <Button onClick={handleRegenerate} disabled={isPending || !regenPassword}>
                       {isPending && <Loader2 className="size-4 animate-spin" />}
-                      Regenerate codes
+                      {t("regenerateButton")}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -178,20 +180,19 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" className="text-destructive hover:text-destructive">
                     <ShieldOff className="size-4" />
-                    Disable
+                    {t("disableButton")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Disable two-factor authentication?</AlertDialogTitle>
+                    <AlertDialogTitle>{t("disableTitle")}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Your account will only be protected by your password. Confirm your password to
-                      continue.
+                      {t("disableDescription")}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <Input
                     type="password"
-                    placeholder="Password"
+                    placeholder={t("passwordPlaceholder")}
                     value={disablePassword}
                     onChange={(e) => setDisablePassword(e.target.value)}
                   />
@@ -203,7 +204,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
                         setDisableError(null);
                       }}
                     >
-                      Cancel
+                      {t("cancel")}
                     </AlertDialogCancel>
                     <Button
                       variant="destructive"
@@ -211,7 +212,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
                       disabled={isPending || !disablePassword}
                     >
                       {isPending && <Loader2 className="size-4 animate-spin" />}
-                      Disable
+                      {t("disableButton")}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -222,20 +223,19 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
           {step === "enrolling" && (
             <div className="flex flex-col gap-4">
               <p className="text-sm text-muted-foreground">
-                Scan this QR code with your authenticator app (Google Authenticator, 1Password,
-                Authy...), then enter the 6-digit code it generates.
+                {t("enrollInstructions")}
               </p>
               {qrCodeDataUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={qrCodeDataUrl}
-                  alt="Two-factor authentication QR code"
+                  alt={t("qrAlt")}
                   className="size-40 rounded-lg border p-2"
                 />
               )}
               {secret && (
                 <p className="text-xs text-muted-foreground">
-                  Can&apos;t scan it? Enter this code manually:{" "}
+                  {t("manualEntryPrefix")}{" "}
                   <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{secret}</code>
                 </p>
               )}
@@ -252,10 +252,10 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
               <div className="flex gap-2">
                 <Button onClick={handleConfirm} disabled={isPending || code.length !== 6}>
                   {isPending && <Loader2 className="size-4 animate-spin" />}
-                  Verify and enable
+                  {t("verifyButton")}
                 </Button>
                 <Button variant="ghost" onClick={handleCancelEnrollment} disabled={isPending}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </div>
             </div>
@@ -266,10 +266,9 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
       <Dialog open={step === "recovery-codes"} onOpenChange={(open) => !open && finishRecoveryCodesStep()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save your recovery codes</DialogTitle>
+            <DialogTitle>{t("recoveryCodesTitle")}</DialogTitle>
             <DialogDescription>
-              Each code can be used once to sign in if you lose access to your authenticator app. Store
-              them somewhere safe — they won&apos;t be shown again.
+              {t("recoveryCodesDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-3 font-mono text-sm">
@@ -278,7 +277,7 @@ export function TwoFactorSection({ initiallyEnabled }: { initiallyEnabled: boole
             ))}
           </div>
           <DialogFooter>
-            <Button onClick={finishRecoveryCodesStep}>I&apos;ve saved these codes</Button>
+            <Button onClick={finishRecoveryCodesStep}>{t("savedCodesButton")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

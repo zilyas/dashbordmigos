@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
+import { toAppLocale } from "@/i18n/messages";
 import type { Prisma } from "@/generated/prisma/client";
 
 const TITLE_MAX_LENGTH = 200;
@@ -12,14 +14,15 @@ const BODY_MAX_LENGTH = 4000;
 
 export async function createAnnouncement(input: { title: string; body: string }) {
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "announcements.actions" });
   if (!context || !can(context.role, "announcement.manage")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
 
   const title = input.title.trim();
   const body = input.body.trim();
-  if (!title || title.length > TITLE_MAX_LENGTH) return { error: "Enter a valid title." };
-  if (!body || body.length > BODY_MAX_LENGTH) return { error: "Enter a valid message." };
+  if (!title || title.length > TITLE_MAX_LENGTH) return { error: t("invalidTitle") };
+  if (!body || body.length > BODY_MAX_LENGTH) return { error: t("invalidBody") };
 
   let scope: "PLATFORM" | "STORE";
   let storeId: string | null;
@@ -77,7 +80,10 @@ export async function createAnnouncement(input: { title: string; body: string })
 
 export async function markAnnouncementRead(announcementId: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "announcements.actions" });
+    return { error: t("notAuthorized") };
+  }
 
   await prisma.announcementRecipient.updateMany({
     where: { announcementId, userId: context.userId, readAt: null },
@@ -91,7 +97,10 @@ export async function markAnnouncementRead(announcementId: string) {
 
 export async function markAllAnnouncementsRead() {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "announcements.actions" });
+    return { error: t("notAuthorized") };
+  }
 
   await prisma.announcementRecipient.updateMany({
     where: { userId: context.userId, readAt: null },

@@ -1,13 +1,17 @@
 import { z } from "zod";
 
-export const colorSchema = z.object({
-  name: z.string().min(1, "Name is required").max(30),
-  hex: z
-    .string()
-    .regex(/^#([0-9a-fA-F]{6})$/, "Use a hex color like #1A2B3C")
-    .optional()
-    .or(z.literal("")),
-  position: z.number().int().min(0).max(9999).optional(),
-});
+import type { ValidationT } from "@/lib/validations/types";
 
-export type ColorInput = z.infer<typeof colorSchema>;
+export function buildColorSchema(t: ValidationT) {
+  return z.object({
+    name: z.string().min(1, t("name.required")).max(30),
+    hex: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{6})$/, t("hexColor.format"))
+      .optional()
+      .or(z.literal("")),
+    position: z.number().int().min(0).max(9999).optional(),
+  });
+}
+
+export type ColorInput = z.infer<ReturnType<typeof buildColorSchema>>;

@@ -1,0 +1,98 @@
+{
+  "page": {
+    "titleSeller": "My sales",
+    "titleOther": "Sales",
+    "descriptionSeller": "{count, plural, one {# sale} other {# sales}} you've made",
+    "descriptionOther": "{count, plural, one {# sale} other {# sales}} across the store",
+    "newSale": "New Sale"
+  },
+  "newPage": {
+    "title": "New sale",
+    "description": "Search or scan products to build the cart."
+  },
+  "table": {
+    "searchPlaceholderWithSeller": "Search by invoice, customer, seller or source...",
+    "searchPlaceholder": "Search by invoice or customer...",
+    "emptyTitle": "No sales yet",
+    "emptyDescription": "Completed sales will show up here."
+  },
+  "columns": {
+    "invoice": "Invoice",
+    "date": "Date",
+    "customer": "Customer",
+    "walkIn": "Walk-in",
+    "seller": "Seller",
+    "source": "Source",
+    "inStoreSource": "In-store",
+    "items": "Items",
+    "payment": "Payment",
+    "total": "Total",
+    "refunded": "{amount} refunded",
+    "profit": "Profit",
+    "returned": "Returned",
+    "partReturned": "Part-returned",
+    "actionsLabel": "Actions for {invoiceNumber}",
+    "viewReceipt": "View receipt",
+    "returnItems": "Return items",
+    "editDetails": "Edit details",
+    "deleteSale": "Delete sale"
+  },
+  "deleteDialog": {
+    "title": "Delete {invoiceNumber}?",
+    "description": "This removes the sale entirely and puts any units the customer still has back into stock. Use this for mistakes — for a customer returning goods, use “Return items” instead so the refund is recorded.",
+    "confirm": "Delete sale",
+    "toastDeleted": "{invoiceNumber} deleted — stock restored"
+  },
+  "returnDialog": {
+    "title": "Return items · {invoiceNumber}",
+    "description": "Choose how many of each item the customer is bringing back. Stock is restored and the refund is deducted from revenue.",
+    "returnableOf": "{remaining} of {quantity} returnable",
+    "returnQuantityAriaLabel": "Return quantity for {name}",
+    "oneFewerAriaLabel": "Return one fewer {name}",
+    "oneMoreAriaLabel": "Return one more {name}",
+    "restoreToOriginalPlaceholder": "Restore to original batch",
+    "restoreToOriginalDefault": "Restore to original batch (default)",
+    "expLabel": " · exp {date}",
+    "reasonLabel": "Reason (optional)",
+    "reasonPlaceholder": "e.g. wrong size, no replacement in stock",
+    "refundAmount": "Refund amount",
+    "cancel": "Cancel",
+    "refundButton": "Refund {amount}",
+    "errorChooseItem": "Choose at least one item to return",
+    "toastFullyReturned": "{invoiceNumber} fully returned — {amount} refunded",
+    "toastRefunded": "Refunded {amount}"
+  },
+  "editDialog": {
+    "title": "Edit {invoiceNumber}",
+    "description": "Correct the customer or payment details. To change what was sold, delete the sale and ring it up again.",
+    "customerNameLabel": "Customer name",
+    "customerNamePlaceholder": "Walk-in",
+    "customerPhoneLabel": "Customer phone",
+    "paymentMethodLabel": "Payment method",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes",
+    "toastUpdated": "Sale updated"
+  },
+  "actions": {
+    "notAuthorized": "Not authorized",
+    "invalidReturnData": "Invalid return data",
+    "saleNotFound": "Sale not found",
+    "alreadyFullyReturned": "This sale has already been fully returned",
+    "itemNotInSale": "That item is not part of this sale",
+    "returnQuantityWholeNumber": "Return quantity must be a whole number for this item.",
+    "alreadyReturned": "Those units have already been returned",
+    "onlyNRemaining": "Only {remaining} unit(s) of that item can still be returned",
+    "managerOnlyOverride": "Only a manager can choose a different return batch.",
+    "batchMismatch": "The chosen return batch doesn't match this item.",
+    "batchArchived": "You can't return stock into an archived batch.",
+    "allocationIntegrityReturn": "This item's batch history is inconsistent — the return was cancelled. Contact an admin.",
+    "allocationConflict": "This sale changed while processing the return — please try again.",
+    "returnFailed": "Failed to process the return. Please try again.",
+    "invalidSaleDetails": "Invalid sale details",
+    "updateFailed": "Failed to update the sale. Please try again.",
+    "allocationIntegrityDelete": "This sale's batch history is inconsistent — deletion was cancelled. Contact an admin.",
+    "deleteFailed": "Failed to delete the sale. Please try again.",
+    "saleFailed": "Failed to complete sale. Please try again.",
+    "saleFailedPermanently": "This sale could not be recorded because of a server problem. Retrying will not help — please contact an administrator."
+  }
+}

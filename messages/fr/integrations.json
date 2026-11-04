@@ -1,0 +1,73 @@
+{
+  "page": {
+    "title": "API boutique",
+    "description": "Connectez un site e-commerce au catalogue, au stock et aux commandes de cette boutique."
+  },
+  "scopes": {
+    "productsRead": "Lire le catalogue (produits, prix, images)",
+    "stockRead": "Lire les niveaux de stock",
+    "ordersCreate": "Passer des commandes, ce qui réduit le stock"
+  },
+  "manager": {
+    "newKey": "Nouvelle clé",
+    "emptyTitle": "Aucune clé API pour le moment",
+    "emptyDescription": "Créez une clé et donnez-la à la personne qui construit votre site web.",
+    "table": {
+      "name": "Nom",
+      "key": "Clé",
+      "permissions": "Permissions",
+      "status": "Statut",
+      "expires": "Expire",
+      "lastUsed": "Dernière utilisation",
+      "madeBy": "Créée par"
+    },
+    "active": "Active",
+    "revoked": "Révoquée",
+    "never": "Jamais",
+    "unknown": "Inconnu",
+    "revokeDialog": {
+      "title": "Révoquer « {name} » ?",
+      "description": "La clé cesse de fonctionner immédiatement et ne peut pas être rétablie. Chaque site qui l'utilise perd l'accès jusqu'à ce que vous créiez une nouvelle clé.",
+      "confirm": "Révoquer",
+      "toastRevoked": "Clé révoquée"
+    }
+  },
+  "newKeyDialog": {
+    "title": "Nouvelle clé",
+    "description": "Une clé permet à un site web de lire les données de cette boutique. Donnez à chaque site sa propre clé.",
+    "nameLabel": "Nom",
+    "namePlaceholder": "ex. Site principal",
+    "permissionsLabel": "Permissions",
+    "expiresAfterLabel": "Expire après",
+    "daysOption": "{days} jours",
+    "cancel": "Annuler",
+    "createButton": "Créer la clé",
+    "toastCopied": "Clé copiée",
+    "toastCopyFailed": "Impossible de copier. Sélectionnez la clé et copiez-la manuellement.",
+    "minted": {
+      "title": "Votre nouvelle clé",
+      "description": "C'est la seule fois où la clé est affichée. Conservez-la en lieu sûr. Si vous la perdez, révoquez cette clé et créez-en une nouvelle.",
+      "copyButton": "Copier la clé",
+      "doneButton": "Je l'ai enregistrée"
+    }
+  },
+  "guide": {
+    "title": "Connecter votre site web",
+    "description": "Envoyez la clé en tant que <code>Authorization: Bearer &lt;clé&gt;</code> depuis votre serveur, jamais depuis le navigateur.",
+    "secretWarningTitle": "La clé est un secret serveur.",
+    "secretWarningBody": "Cette API n'envoie volontairement aucun en-tête CORS, de sorte qu'un appel depuis le JavaScript du navigateur échouera. Une clé placée dans le code front-end est publique : n'importe qui peut la lire et l'utiliser.",
+    "variantFootnote": "Pour un produit à variantes, ajoutez le variantId de la variante choisie à chaque article de commande.",
+    "examples": {
+      "readCatalogue": { "title": "Lire le catalogue", "description": "Parcourez tout le catalogue avec nextCursor, ou passez updatedSince pour détecter les changements." },
+      "readStock": { "title": "Lire les niveaux de stock", "description": "L'appel léger et fréquent. Passez des ids pour les articles d'un panier, ou updatedSince pour détecter les mouvements." },
+      "placeOrder": { "title": "Passer une commande", "description": "Le stock diminue immédiatement. Renvoyez la même idempotencyKey après un délai d'attente : la commande n'est pas comptée deux fois." }
+    }
+  },
+  "actions": {
+    "invalidKeyData": "Données de clé invalides",
+    "apiNotEnabled": "L'API boutique n'est pas activée pour cette boutique.",
+    "maxKeysReached": "Cette boutique possède déjà 10 clés actives. Révoquez-en une d'abord.",
+    "keyCollision": "Collision de clé, veuillez réessayer.",
+    "keyNotFound": "Clé introuvable ou déjà révoquée."
+  }
+}

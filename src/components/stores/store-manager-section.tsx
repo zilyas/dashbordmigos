@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { UserPlus, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,14 @@ export function StoreManagerSection({
   storeName: string;
   manager: { id: string; name: string; email: string } | null;
 }) {
+  const t = useTranslations("storeDetail.managerSection");
   const [assignOpen, setAssignOpen] = useState(false);
 
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Manager</CardTitle>
-        <CardDescription>The person running this store day-to-day.</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         {manager ? (
@@ -43,7 +45,7 @@ export function StoreManagerSection({
             </div>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link href="/managers">
-                Manage in Managers
+                {t("manageInManagers")}
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
@@ -51,12 +53,12 @@ export function StoreManagerSection({
         ) : (
           <EmptyState
             icon={<UserPlus />}
-            title="No manager assigned"
-            description="This store needs a manager to operate."
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
             className="border-none py-8"
             action={
               <Button size="sm" onClick={() => setAssignOpen(true)}>
-                Assign manager
+                {t("assignButton")}
               </Button>
             }
           />

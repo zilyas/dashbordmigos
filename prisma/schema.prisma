@@ -23,6 +23,11 @@ enum UserStatus {
   INACTIVE
 }
 
+enum Locale {
+  EN
+  FR
+}
+
 enum ApiClientStatus {
   ACTIVE
   REVOKED
@@ -193,6 +198,7 @@ model User {
   phone               String?
   avatar              String?
   status              UserStatus @default(ACTIVE)
+  locale              Locale     @default(EN)
   failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
   createdAt           DateTime   @default(now())

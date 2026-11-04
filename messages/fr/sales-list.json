@@ -1,0 +1,98 @@
+{
+  "page": {
+    "titleSeller": "Mes ventes",
+    "titleOther": "Ventes",
+    "descriptionSeller": "{count, plural, one {# vente} other {# ventes}} que vous avez effectuée(s)",
+    "descriptionOther": "{count, plural, one {# vente} other {# ventes}} dans la boutique",
+    "newSale": "Nouvelle vente"
+  },
+  "newPage": {
+    "title": "Nouvelle vente",
+    "description": "Recherchez ou scannez des produits pour construire le panier."
+  },
+  "table": {
+    "searchPlaceholderWithSeller": "Rechercher par facture, client, vendeur ou source...",
+    "searchPlaceholder": "Rechercher par facture ou client...",
+    "emptyTitle": "Aucune vente pour le moment",
+    "emptyDescription": "Les ventes terminées apparaîtront ici."
+  },
+  "columns": {
+    "invoice": "Facture",
+    "date": "Date",
+    "customer": "Client",
+    "walkIn": "Client de passage",
+    "seller": "Vendeur",
+    "source": "Source",
+    "inStoreSource": "En magasin",
+    "items": "Articles",
+    "payment": "Paiement",
+    "total": "Total",
+    "refunded": "{amount} remboursé",
+    "profit": "Profit",
+    "returned": "Retournée",
+    "partReturned": "Partiellement retournée",
+    "actionsLabel": "Actions pour {invoiceNumber}",
+    "viewReceipt": "Voir le reçu",
+    "returnItems": "Retourner des articles",
+    "editDetails": "Modifier les détails",
+    "deleteSale": "Supprimer la vente"
+  },
+  "deleteDialog": {
+    "title": "Supprimer {invoiceNumber} ?",
+    "description": "Cette action supprime entièrement la vente et remet en stock les unités que le client détient encore. Utilisez ceci pour les erreurs — pour un client qui retourne des produits, utilisez plutôt « Retourner des articles » afin que le remboursement soit enregistré.",
+    "confirm": "Supprimer la vente",
+    "toastDeleted": "{invoiceNumber} supprimée — stock restauré"
+  },
+  "returnDialog": {
+    "title": "Retourner des articles · {invoiceNumber}",
+    "description": "Choisissez combien d'unités de chaque article le client rapporte. Le stock est restauré et le remboursement est déduit du chiffre d'affaires.",
+    "returnableOf": "{remaining} sur {quantity} retournable(s)",
+    "returnQuantityAriaLabel": "Quantité à retourner pour {name}",
+    "oneFewerAriaLabel": "Retourner une unité de moins de {name}",
+    "oneMoreAriaLabel": "Retourner une unité de plus de {name}",
+    "restoreToOriginalPlaceholder": "Restaurer vers le lot d'origine",
+    "restoreToOriginalDefault": "Restaurer vers le lot d'origine (par défaut)",
+    "expLabel": " · exp {date}",
+    "reasonLabel": "Raison (optionnel)",
+    "reasonPlaceholder": "ex. mauvaise taille, pas de remplacement en stock",
+    "refundAmount": "Montant du remboursement",
+    "cancel": "Annuler",
+    "refundButton": "Rembourser {amount}",
+    "errorChooseItem": "Choisissez au moins un article à retourner",
+    "toastFullyReturned": "{invoiceNumber} entièrement retournée — {amount} remboursé",
+    "toastRefunded": "{amount} remboursé"
+  },
+  "editDialog": {
+    "title": "Modifier {invoiceNumber}",
+    "description": "Corrigez les détails du client ou du paiement. Pour changer ce qui a été vendu, supprimez la vente et ressaisissez-la.",
+    "customerNameLabel": "Nom du client",
+    "customerNamePlaceholder": "Client de passage",
+    "customerPhoneLabel": "Téléphone du client",
+    "paymentMethodLabel": "Méthode de paiement",
+    "cancel": "Annuler",
+    "saveChanges": "Enregistrer les modifications",
+    "toastUpdated": "Vente mise à jour"
+  },
+  "actions": {
+    "notAuthorized": "Non autorisé",
+    "invalidReturnData": "Données de retour invalides",
+    "saleNotFound": "Vente introuvable",
+    "alreadyFullyReturned": "Cette vente a déjà été entièrement retournée",
+    "itemNotInSale": "Cet article ne fait pas partie de cette vente",
+    "returnQuantityWholeNumber": "La quantité à retourner doit être un nombre entier pour cet article.",
+    "alreadyReturned": "Ces unités ont déjà été retournées",
+    "onlyNRemaining": "Seulement {remaining} unité(s) de cet article peuvent encore être retournées",
+    "managerOnlyOverride": "Seul un gérant peut choisir un autre lot de retour.",
+    "batchMismatch": "Le lot de retour choisi ne correspond pas à cet article.",
+    "batchArchived": "Vous ne pouvez pas retourner du stock dans un lot archivé.",
+    "allocationIntegrityReturn": "L'historique des lots de cet article est incohérent — le retour a été annulé. Contactez un administrateur.",
+    "allocationConflict": "Cette vente a changé pendant le traitement du retour — veuillez réessayer.",
+    "returnFailed": "Échec du traitement du retour. Veuillez réessayer.",
+    "invalidSaleDetails": "Détails de vente invalides",
+    "updateFailed": "Échec de la mise à jour de la vente. Veuillez réessayer.",
+    "allocationIntegrityDelete": "L'historique des lots de cette vente est incohérent — la suppression a été annulée. Contactez un administrateur.",
+    "deleteFailed": "Échec de la suppression de la vente. Veuillez réessayer.",
+    "saleFailed": "Échec de la finalisation de la vente. Veuillez réessayer.",
+    "saleFailedPermanently": "Cette vente n'a pas pu être enregistrée en raison d'un problème serveur. Réessayer n'aidera pas — veuillez contacter un administrateur."
+  }
+}

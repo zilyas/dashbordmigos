@@ -1,0 +1,110 @@
+{
+  "page": {
+    "title": "Compte",
+    "description": "Gérez votre profil, votre sécurité et vos sessions actives.",
+    "tabs": {
+      "profile": "Profil",
+      "password": "Mot de passe",
+      "preferences": "Préférences",
+      "twoFactor": "Deux facteurs",
+      "sessions": "Sessions",
+      "history": "Historique de connexion"
+    },
+    "languageTitle": "Langue",
+    "languageDescription": "La langue dans laquelle le tableau de bord vous est présenté."
+  },
+  "profile": {
+    "title": "Profil",
+    "description": "Les détails de votre compte.",
+    "role": "Rôle",
+    "store": "Boutique",
+    "memberSince": "Membre depuis",
+    "lastLogin": "Dernière connexion"
+  },
+  "loginHistory": {
+    "title": "Historique de connexion",
+    "description": "Tentatives de connexion récentes sur votre compte.",
+    "emptyTitle": "Aucune tentative de connexion pour le moment",
+    "success": "Réussie",
+    "failed": "Échouée",
+    "unknownIp": "IP inconnue"
+  },
+  "changePassword": {
+    "title": "Changer le mot de passe",
+    "description": "Mettez à jour le mot de passe utilisé pour vous connecter à votre compte.",
+    "currentPasswordLabel": "Mot de passe actuel",
+    "newPasswordLabel": "Nouveau mot de passe",
+    "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+    "submit": "Mettre à jour le mot de passe",
+    "toastUpdated": "Mot de passe mis à jour. Vos autres sessions ont été déconnectées."
+  },
+  "sessions": {
+    "title": "Sessions actives",
+    "description": "Appareils et navigateurs actuellement connectés à votre compte.",
+    "signOutOthers": "Déconnecter les autres sessions",
+    "unknownBrowser": "Navigateur inconnu",
+    "unknownOs": "OS inconnu",
+    "thisDevice": "Cet appareil",
+    "remembered": "Mémorisé",
+    "unknownIp": "IP inconnue",
+    "lastActive": "Dernière activité {date}",
+    "signOut": "Déconnecter",
+    "toastTerminated": "Session déconnectée",
+    "toastAllTerminated": "Déconnecté de toutes les autres sessions",
+    "terminateOneTitle": "Déconnecter cette session ?",
+    "terminateOneDescription": "Ceci déconnecte immédiatement {browser} sur {os}.",
+    "terminateConfirm": "Déconnecter",
+    "terminateAllTitle": "Déconnecter toutes les autres sessions ?",
+    "terminateAllDescription": "Ceci vous déconnecte immédiatement partout sauf sur cet appareil.",
+    "terminateAllConfirm": "Déconnecter les autres"
+  },
+  "localeSelect": {
+    "en": "English",
+    "fr": "Français",
+    "toastFailed": "Impossible de changer la langue."
+  },
+  "twoFactor": {
+    "title": "Authentification à deux facteurs",
+    "description": "Exiger un code de vérification d'une application d'authentification lors de la connexion.",
+    "enabled": "Activée",
+    "disabled": "Désactivée",
+    "enableButton": "Activer l'authentification à deux facteurs",
+    "viewRecoveryCodes": "Voir de nouveaux codes de récupération",
+    "regenerateTitle": "Régénérer les codes de récupération",
+    "regenerateDescription": "Ceci invalide vos codes de récupération existants. Confirmez votre mot de passe pour continuer.",
+    "passwordPlaceholder": "Mot de passe",
+    "regenerateButton": "Régénérer les codes",
+    "disableButton": "Désactiver",
+    "disableTitle": "Désactiver l'authentification à deux facteurs ?",
+    "disableDescription": "Votre compte ne sera protégé que par votre mot de passe. Confirmez votre mot de passe pour continuer.",
+    "cancel": "Annuler",
+    "enrollInstructions": "Scannez ce code QR avec votre application d'authentification (Google Authenticator, 1Password, Authy...), puis entrez le code à 6 chiffres qu'elle génère.",
+    "qrAlt": "Code QR d'authentification à deux facteurs",
+    "manualEntryPrefix": "Impossible de scanner ? Entrez ce code manuellement :",
+    "verifyButton": "Vérifier et activer",
+    "recoveryCodesTitle": "Enregistrez vos codes de récupération",
+    "recoveryCodesDescription": "Chaque code peut être utilisé une fois pour vous connecter si vous perdez l'accès à votre application d'authentification. Conservez-les en lieu sûr — ils ne seront plus affichés.",
+    "savedCodesButton": "J'ai enregistré ces codes",
+    "toastDisabled": "Authentification à deux facteurs désactivée",
+    "toastEnrollFailed": "Échec du démarrage de l'inscription.",
+    "toastVerifyFailed": "Échec de la vérification du code.",
+    "toastRegenFailed": "Échec de la régénération des codes.",
+    "actions": {
+      "notAuthorized": "Non autorisé",
+      "alreadyEnabled": "L'authentification à deux facteurs est déjà activée.",
+      "startEnrollmentFirst": "Démarrez d'abord l'inscription.",
+      "invalidCode": "Code invalide. Vérifiez votre application d'authentification et réessayez.",
+      "notEnabled": "L'authentification à deux facteurs n'est pas activée.",
+      "incorrectPassword": "Mot de passe incorrect."
+    }
+  },
+  "actions": {
+    "notAuthorized": "Non autorisé",
+    "invalidInput": "Entrée invalide.",
+    "currentPasswordIncorrect": "Le mot de passe actuel est incorrect.",
+    "passwordReused": "Vous avez déjà utilisé ce mot de passe. Choisissez-en un différent.",
+    "sessionNotFound": "Session introuvable.",
+    "passwordChangedNotificationTitle": "Mot de passe modifié",
+    "passwordChangedNotificationMessage": "Votre mot de passe a été modifié. Si ce n'était pas vous, contactez immédiatement votre administrateur."
+  }
+}

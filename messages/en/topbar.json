@@ -1,0 +1,14 @@
+{
+  "search": {
+    "ariaLabel": "Search",
+    "placeholder": "Search..."
+  },
+  "notifications": {
+    "ariaLabel": "Notifications",
+    "overflowCount": "9+",
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "You're all caught up.",
+    "viewAll": "View all notifications"
+  }
+}

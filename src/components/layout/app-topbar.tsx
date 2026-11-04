@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -17,6 +18,7 @@ export function AppTopbar({
   notifications: NotificationItem[];
 }) {
   const { setOpen } = useCommandPalette();
+  const t = useTranslations("topbar.search");
   const isMac =
     typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("mac");
 
@@ -28,11 +30,11 @@ export function AppTopbar({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Search"
+        aria-label={t("ariaLabel")}
         className="flex size-8 shrink-0 items-center justify-center gap-2 rounded-lg border bg-muted/40 text-sm text-muted-foreground transition-colors hover:bg-muted sm:w-full sm:min-w-0 sm:max-w-72 sm:shrink sm:justify-start sm:px-2.5"
       >
         <Search className="size-3.5 shrink-0" />
-        <span className="hidden min-w-0 flex-1 truncate text-left sm:inline">Search...</span>
+        <span className="hidden min-w-0 flex-1 truncate text-left sm:inline">{t("placeholder")}</span>
         <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
           {isMac ? "⌘K" : "Ctrl K"}
         </kbd>

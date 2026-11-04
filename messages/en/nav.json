@@ -1,0 +1,21 @@
+{
+  "dashboard": "Dashboard",
+  "messages": "Messages",
+  "announcements": "Announcements",
+  "stores": "Stores",
+  "managers": "Managers",
+  "products": "Products",
+  "categories": "Categories",
+  "sizes": "Sizes",
+  "colors": "Colors",
+  "variantAxes": "Variant axes",
+  "sales": "Sales",
+  "reports": "Reports",
+  "sellers": "Sellers",
+  "activity": "Activity",
+  "storefrontApi": "Storefront API",
+  "settings": "Settings",
+  "backups": "Backups",
+  "security": "Security",
+  "newSale": "New Sale"
+}

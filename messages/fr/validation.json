@@ -1,0 +1,89 @@
+{
+  "name": {
+    "min2": "Le nom doit comporter au moins 2 caractères",
+    "required": "Le nom est requis",
+    "max60": "Le nom doit comporter 60 caractères ou moins"
+  },
+  "email": {
+    "invalid": "Saisissez une adresse e-mail valide"
+  },
+  "password": {
+    "required": "Le mot de passe est requis",
+    "minLength": "Le mot de passe doit comporter au moins {min} caractères",
+    "maxLength": "Le mot de passe est trop long",
+    "lowercase": "Le mot de passe doit inclure une lettre minuscule",
+    "uppercase": "Le mot de passe doit inclure une lettre majuscule",
+    "number": "Le mot de passe doit inclure un chiffre",
+    "symbol": "Le mot de passe doit inclure un symbole",
+    "atLeast8": "Doit comporter au moins 8 caractères",
+    "mismatch": "Les mots de passe ne correspondent pas",
+    "currentRequired": "Le mot de passe actuel est requis",
+    "mustDiffer": "Le nouveau mot de passe doit être différent de votre mot de passe actuel",
+    "policyHint": "Au moins 10 caractères, avec une majuscule, une minuscule, un chiffre et un symbole."
+  },
+  "sku": {
+    "required": "Le SKU est requis"
+  },
+  "label": {
+    "required": "Le libellé est requis"
+  },
+  "store": {
+    "select": "Sélectionnez une boutique"
+  },
+  "stock": {
+    "min0": "Doit être 0 ou plus",
+    "negative": "Le stock ne peut pas être négatif",
+    "tooLarge": "Le stock est trop élevé"
+  },
+  "price": {
+    "min0": "Doit être 0 ou plus",
+    "greaterThanZero": "Doit être supérieur à 0",
+    "tooLarge": "Le prix est trop élevé"
+  },
+  "quantity": {
+    "positive": "La quantité doit être supérieure à zéro"
+  },
+  "reason": {
+    "required": "Un motif est requis"
+  },
+  "date": {
+    "format": "Utilisez une date AAAA-MM-JJ"
+  },
+  "currency": {
+    "format": "Utilisez un code devise à 3 lettres, par ex. USD"
+  },
+  "timezone": {
+    "invalid": "Choisissez un fuseau horaire IANA valide"
+  },
+  "hexColor": {
+    "format": "Utilisez une couleur hexadécimale comme #1A2B3C"
+  },
+  "storeCode": {
+    "short": "Utilisez un code court, par ex. NYC-01",
+    "format": "Lettres, chiffres et tirets uniquement"
+  },
+  "images": {
+    "max6": "6 images maximum"
+  },
+  "colors": {
+    "max20": "20 couleurs maximum"
+  },
+  "sizes": {
+    "max20": "20 tailles maximum"
+  },
+  "permissions": {
+    "atLeastOne": "Choisissez au moins une autorisation",
+    "duplicate": "Autorisation en double"
+  },
+  "attribute": {
+    "selectOption": "Ajoutez au moins une option pour un attribut de type Liste."
+  },
+  "sale": {
+    "atLeastOneProduct": "Ajoutez au moins un produit",
+    "atLeastOneReturnItem": "Sélectionnez au moins un article à retourner"
+  },
+  "batchCode": {
+    "required": "Le code du lot est requis",
+    "tooLong": "Le code du lot est trop long"
+  }
+}

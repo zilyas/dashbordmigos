@@ -1,22 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
 import { parseFeatures } from "@/lib/features";
-import { storeSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
+import { buildStoreSettingsSchema, type StoreSettingsInput } from "@/lib/validations/settings";
+import { toAppLocale } from "@/i18n/messages";
 
 export async function updateStoreSettings(input: StoreSettingsInput) {
   const context = await getSessionContext();
+  const locale = toAppLocale(context?.locale);
+  const t = await getTranslations({ locale, namespace: "settings.actions" });
   if (!context || !can(context.role, "settings.manage")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
 
-  const parsed = storeSettingsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid settings data" };
+  const parsed = buildStoreSettingsSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidSettingsData") };
   const data = parsed.data;
 
   // storefront_api_enabled is the owner's switch, not the manager's. This

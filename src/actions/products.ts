@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requireStorePermission } from "@/lib/rbac-guards";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
-import { productSchema, type ProductInput } from "@/lib/validations/product";
+import { buildProductSchema, type ProductInput } from "@/lib/validations/product";
+import { toAppLocale } from "@/i18n/messages";
 import type { ProductAttributeValueInput } from "@/lib/validations/category-attribute";
 import { getStoreFeatures } from "@/lib/features";
 import { validateAttributeValue, parseOptions } from "@/lib/attributes";
@@ -42,11 +44,12 @@ function resolveStockValues(
   unitsEnabled: boolean,
   allowDecimalQuantity: boolean,
   rawStock: number,
-  rawMinimumStock: number
+  rawMinimumStock: number,
+  t: Awaited<ReturnType<typeof getTranslations>>
 ): { stock: number; minimumStock: number } | { error: string } {
   const allowDecimal = unitsEnabled && allowDecimalQuantity;
   if (!allowDecimal && (!Number.isInteger(rawStock) || !Number.isInteger(rawMinimumStock))) {
-    return { error: "Stock and minimum stock must be whole numbers for this product." };
+    return { error: t("stockWholeNumber") };
   }
   return { stock: round3(rawStock), minimumStock: round3(rawMinimumStock) };
 }
@@ -60,7 +63,8 @@ function resolveStockValues(
 async function resolveAttributeValues(
   storeId: string,
   categoryId: string,
-  values: ProductAttributeValueInput[]
+  values: ProductAttributeValueInput[],
+  t: Awaited<ReturnType<typeof getTranslations>>
 ): Promise<{ resolved: Map<string, string> } | { error: string }> {
   if (!categoryId) return { resolved: new Map() };
   const defs = await prisma.categoryAttributeDefinition.findMany({
@@ -77,7 +81,7 @@ async function resolveAttributeValues(
   }
   for (const def of defs) {
     if (def.required && !(resolved.get(def.id) ?? "")) {
-      return { error: `${def.label} is required.` };
+      return { error: t("attributeRequired", { label: def.label }) };
     }
   }
   return { resolved };
@@ -212,8 +216,11 @@ async function createPickedVariants(
 
 export async function createProduct(input: ProductInput) {
   const session = await requireProductEditor();
-  const parsed = productSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid product data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "products.actions" });
+  const parsed = buildProductSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
   const data = parsed.data;
 
   const features = await getStoreFeatures(session.storeId);
@@ -221,7 +228,8 @@ export async function createProduct(input: ProductInput) {
     features.units_enabled,
     data.allowDecimalQuantity ?? false,
     data.stock,
-    data.minimumStock
+    data.minimumStock,
+    t
   );
   if ("error" in stockResult) return { error: stockResult.error };
   const { minimumStock } = stockResult;
@@ -236,7 +244,7 @@ export async function createProduct(input: ProductInput) {
   const attributesEnabled = features.category_attributes_enabled;
   const attrResult =
     attributesEnabled && data.attributes
-      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes)
+      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes, t)
       : { resolved: new Map<string, string>() };
   if ("error" in attrResult) return { error: attrResult.error };
 
@@ -249,7 +257,7 @@ export async function createProduct(input: ProductInput) {
       where: { id: data.categoryId, storeId: session.storeId },
       select: { id: true },
     });
-    if (!category) return { error: "Category not found" };
+    if (!category) return { error: t("categoryNotFound") };
   }
 
   const slug = await uniqueSlug(session.storeId, `${data.name}-${data.color || ""}-${data.size || ""}`);
@@ -324,7 +332,7 @@ export async function createProduct(input: ProductInput) {
     return { success: true as const, id: product.id };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A product with that SKU or barcode already exists." };
+      return { error: t("skuOrBarcodeExists") };
     }
     throw error;
   }
@@ -332,19 +340,23 @@ export async function createProduct(input: ProductInput) {
 
 export async function updateProduct(id: string, input: ProductInput) {
   const session = await requireProductEditor();
-  const parsed = productSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid product data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "products.actions" });
+  const parsed = buildProductSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
   const data = parsed.data;
 
   const existing = await prisma.product.findFirst({ where: { id, storeId: session.storeId } });
-  if (!existing) return { error: "Product not found" };
+  if (!existing) return { error: t("notFound") };
 
   const features = await getStoreFeatures(session.storeId);
   const stockResult = resolveStockValues(
     features.units_enabled,
     data.allowDecimalQuantity ?? false,
     data.stock,
-    data.minimumStock
+    data.minimumStock,
+    t
   );
   if ("error" in stockResult) return { error: stockResult.error };
   const { minimumStock } = stockResult;
@@ -360,7 +372,7 @@ export async function updateProduct(id: string, input: ProductInput) {
   const attributesEnabled = features.category_attributes_enabled;
   const attrResult =
     attributesEnabled && data.attributes
-      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes)
+      ? await resolveAttributeValues(session.storeId, data.categoryId || "", data.attributes, t)
       : { resolved: new Map<string, string>() };
   if ("error" in attrResult) return { error: attrResult.error };
 
@@ -451,7 +463,7 @@ export async function updateProduct(id: string, input: ProductInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A product with that SKU or barcode already exists." };
+      return { error: t("skuOrBarcodeExists") };
     }
     throw error;
   }
@@ -459,13 +471,14 @@ export async function updateProduct(id: string, input: ProductInput) {
 
 export async function deleteProduct(id: string) {
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "products.actions" });
   if (!context || !can(context.role, "product.delete")) {
-    return { error: "Not authorized" };
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
 
   const existing = await prisma.product.findFirst({ where: { id, storeId } });
-  if (!existing) return { error: "Product not found" };
+  if (!existing) return { error: t("notFound") };
 
   try {
     await prisma.product.delete({ where: { id } });
@@ -504,7 +517,8 @@ export async function deleteProduct(id: string) {
 export async function bulkUpdateProductStatus(ids: string[], status: ProductStatus) {
   const context = await getSessionContext();
   if (!context || !can(context.role, "product.edit")) {
-    return { error: "Not authorized" };
+    const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "products.actions" });
+    return { error: t("notAuthorized") };
   }
   const storeId = requireStoreId(context);
 

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, Package, ShoppingCart, LayoutDashboard, Users, BarChart3, Settings, Tags, Store } from "lucide-react";
 import {
   CommandDialog,
@@ -17,17 +18,19 @@ import { navItemsForRole } from "@/lib/nav-config";
 import { can } from "@/lib/rbac";
 import type { Role } from "@/generated/prisma/enums";
 
+// Keyed by NavItem.titleKey (src/lib/nav-config.ts), not display text — a
+// translated/renamed title must not silently drop an item's icon.
 const NAV_ICONS = {
-  Dashboard: LayoutDashboard,
-  Stores: Store,
-  Managers: Users,
-  Products: Package,
-  Categories: Tags,
-  Sales: ShoppingCart,
-  Reports: BarChart3,
-  Sellers: Users,
-  Activity: BarChart3,
-  Settings: Settings,
+  dashboard: LayoutDashboard,
+  stores: Store,
+  managers: Users,
+  products: Package,
+  categories: Tags,
+  sales: ShoppingCart,
+  sellers: Users,
+  activity: BarChart3,
+  reports: BarChart3,
+  settings: Settings,
 } as const;
 
 type CommandPaletteContextValue = { open: boolean; setOpen: (open: boolean) => void };
@@ -49,6 +52,8 @@ export function CommandPaletteProvider({
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const t = useTranslations("nav");
+  const tCmd = useTranslations("commandPalette");
   const navItems = navItemsForRole(role);
   const value = useMemo(() => ({ open, setOpen }), [open]);
 
@@ -71,46 +76,46 @@ export function CommandPaletteProvider({
   return (
     <CommandPaletteContext.Provider value={value}>
       {children}
-      <CommandDialog open={open} onOpenChange={setOpen} title="Quick actions">
-        <CommandInput placeholder="Search pages and actions..." />
+      <CommandDialog open={open} onOpenChange={setOpen} title={tCmd("title")}>
+        <CommandInput placeholder={tCmd("searchPlaceholder")} />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Quick actions">
+          <CommandEmpty>{tCmd("noResults")}</CommandEmpty>
+          <CommandGroup heading={tCmd("quickActions")}>
             {can(role, "sale.create") && (
               <CommandItem onSelect={() => go("/sales/new")}>
                 <Plus />
-                New Sale
+                {tCmd("newSale")}
               </CommandItem>
             )}
             {can(role, "product.create") && (
               <CommandItem onSelect={() => go("/products/new")}>
                 <Plus />
-                New Product
+                {tCmd("newProduct")}
               </CommandItem>
             )}
             {can(role, "store.manage") && (
               <CommandItem onSelect={() => go("/stores")}>
                 <Plus />
-                New Store
+                {tCmd("newStore")}
               </CommandItem>
             )}
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="Navigate">
+          <CommandGroup heading={tCmd("navigate")}>
             {navItems.map((item) => {
-              const Icon = NAV_ICONS[item.title as keyof typeof NAV_ICONS] ?? LayoutDashboard;
+              const Icon = NAV_ICONS[item.titleKey as keyof typeof NAV_ICONS] ?? LayoutDashboard;
               return (
                 <CommandItem key={item.href} onSelect={() => go(item.href)}>
                   <Icon />
-                  {item.title}
+                  {t(item.titleKey)}
                 </CommandItem>
               );
             })}
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="Tips">
+          <CommandGroup heading={tCmd("tips")}>
             <CommandItem disabled className="opacity-60">
-              Toggle this palette anytime
+              {tCmd("togglePalette")}
               <CommandShortcut>⌘K</CommandShortcut>
             </CommandItem>
           </CommandGroup>

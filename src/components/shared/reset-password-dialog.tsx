@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ export function ResetPasswordDialog({
   userName: string;
   onReset: () => Promise<{ error?: string; tempPassword?: string }>;
 }) {
+  const t = useTranslations("people.resetPasswordDialog");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -33,7 +35,7 @@ export function ResetPasswordDialog({
     try {
       const result = await onReset();
       if (result.error || !result.tempPassword) {
-        toast.error(result.error ?? "Failed to reset password.");
+        toast.error(result.error ?? t("toastFailed"));
         return;
       }
       setTempPassword(result.tempPassword);
@@ -56,11 +58,11 @@ export function ResetPasswordDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reset password</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
             {tempPassword
-              ? `Share this temporary password with ${userName} securely. It won't be shown again.`
-              : `Generate a new temporary password for ${userName}.`}
+              ? t("descriptionShare", { name: userName })
+              : t("descriptionGenerate", { name: userName })}
           </DialogDescription>
         </DialogHeader>
 
@@ -75,7 +77,7 @@ export function ResetPasswordDialog({
               onClick={() => {
                 navigator.clipboard.writeText(tempPassword);
                 setCopied(true);
-                toast.success("Copied to clipboard");
+                toast.success(t("toastCopied"));
               }}
             >
               {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -85,15 +87,15 @@ export function ResetPasswordDialog({
 
         <DialogFooter className="mt-2">
           {tempPassword ? (
-            <Button onClick={() => handleClose(false)}>Done</Button>
+            <Button onClick={() => handleClose(false)}>{t("done")}</Button>
           ) : (
             <>
               <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button onClick={handleReset} disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                Generate password
+                {t("generate")}
               </Button>
             </>
           )}

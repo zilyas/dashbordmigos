@@ -6,49 +6,59 @@ import type {
   PaymentMethod,
   MovementType,
 } from "@/generated/prisma/enums";
+import type { BatchStatus } from "@/lib/batches";
 
-export const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: "Super Admin",
-  MANAGER: "Manager",
-  SELLER: "Seller",
-};
+/**
+ * Every function here takes an already-resolved translator scoped to the
+ * "labels" namespace -- callers get `t` from `useTranslations("labels")`
+ * (client components) or `getTranslations("labels")` (Server Components /
+ * Server Actions) and pass it straight through. Centralized here, not
+ * inlined at each of the 17 call sites, so the enum->key mapping stays in
+ * one place if an enum value is ever renamed.
+ */
+type LabelsT = (key: string) => string;
 
-export const USER_STATUS_LABELS: Record<UserStatus, string> = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-};
+export function roleLabel(t: LabelsT, role: Role): string {
+  return t(`role.${role}`);
+}
 
-export const STORE_STATUS_LABELS: Record<StoreStatus, string> = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-};
+export function userStatusLabel(t: LabelsT, status: UserStatus): string {
+  return t(`userStatus.${status}`);
+}
 
-export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
-  ACTIVE: "Active",
-  DRAFT: "Draft",
-  ARCHIVED: "Archived",
-};
+export function storeStatusLabel(t: LabelsT, status: StoreStatus): string {
+  return t(`storeStatus.${status}`);
+}
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  TRANSFER: "Transfer",
-  OTHER: "Other",
-};
+export function productStatusLabel(t: LabelsT, status: ProductStatus): string {
+  return t(`productStatus.${status}`);
+}
 
-export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
-  IN: "Stock In",
-  OUT: "Stock Out",
-  RETURN: "Return",
-  ADJUSTMENT: "Adjustment",
-  SUPPLIER_DELIVERY: "Supplier Delivery",
-  MANUAL_EDIT: "Manual Edit",
-};
+export function batchStatusLabel(t: LabelsT, status: BatchStatus): string {
+  return t(`batchStatus.${status}`);
+}
 
-export const FAIL_REASON_LABELS: Record<string, string> = {
-  invalid_credentials: "Invalid email or password",
-  account_locked: "Account locked",
-  rate_limited: "Rate limited",
-  two_factor_required: "Two-factor code required",
-  invalid_two_factor_code: "Invalid two-factor code",
-};
+export function paymentMethodLabel(t: LabelsT, method: PaymentMethod): string {
+  return t(`paymentMethod.${method}`);
+}
+
+export function movementTypeLabel(t: LabelsT, type: MovementType): string {
+  return t(`movementType.${type}`);
+}
+
+const KNOWN_FAIL_REASONS = [
+  "invalid_credentials",
+  "account_locked",
+  "rate_limited",
+  "two_factor_required",
+  "invalid_two_factor_code",
+] as const;
+
+/** Falls back to the raw reason string for a value next-intl has no key for (e.g. a new reason added server-side before this table catches up). */
+export function failReasonLabel(t: LabelsT, reason: string): string {
+  const known = KNOWN_FAIL_REASONS.includes(reason as (typeof KNOWN_FAIL_REASONS)[number]);
+  return known ? t(`failReason.${reason}`) : reason;
+}
+
+/** All PaymentMethod values, for building a full option list (Select, picker). */
+export const PAYMENT_METHODS: PaymentMethod[] = ["CASH", "CARD", "TRANSFER", "OTHER"];

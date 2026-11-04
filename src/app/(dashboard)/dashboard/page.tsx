@@ -33,14 +33,18 @@ import { CategoryChart } from "@/components/dashboard/category-chart";
 import { BestSellersChart } from "@/components/dashboard/best-sellers-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { UnreadAnnouncementsCard } from "@/components/dashboard/unread-announcements-card";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
+import { getTranslations } from "next-intl/server";
+import { paymentMethodLabel } from "@/lib/labels";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const context = await getSessionContext();
   const role = context!.role;
+  const locale = toAppLocale(context!.locale);
+  const tLabels = await getTranslations({ locale, namespace: "labels" });
 
   const unreadAnnouncementRows = await getUnreadAnnouncementsForUser(context!.userId, 3);
   const unreadAnnouncements = unreadAnnouncementRows.map((r) => ({
@@ -52,17 +56,18 @@ export default async function DashboardPage() {
   }));
 
   if (role === "SUPER_ADMIN") {
+    const t = await getTranslations({ locale, namespace: "dashboard.superAdmin" });
     const data = await getSuperAdminDashboardData();
     const maxStoreRevenue = Math.max(1, ...data.topStores.map((s) => s.revenue));
 
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Platform Overview"
-          description="Revenue, profit and activity across every store."
+          title={t("title")}
+          description={t("description")}
           actions={
             <Button asChild>
-              <Link href="/stores">Manage Stores</Link>
+              <Link href="/stores">{t("manageStores")}</Link>
             </Button>
           }
         />
@@ -70,30 +75,30 @@ export default async function DashboardPage() {
         <UnreadAnnouncementsCard announcements={unreadAnnouncements} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Active Stores" value={`${data.stores.active} / ${data.stores.total}`} icon={<Store />} tint="primary" />
-          <StatCard label="Total Users" value={formatNumber(data.users.total)} icon={<Users />} tint="primary" />
-          <StatCard label="Today's Revenue" value={formatCurrency(data.today.revenue)} icon={<DollarSign />} tint="success" />
-          <StatCard label="Today's Orders" value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
+          <StatCard label={t("stats.activeStores")} value={`${data.stores.active} / ${data.stores.total}`} icon={<Store />} tint="primary" />
+          <StatCard label={t("stats.totalUsers")} value={formatNumber(data.users.total)} icon={<Users />} tint="primary" />
+          <StatCard label={t("stats.todaysRevenue")} value={formatCurrency(data.today.revenue)} icon={<DollarSign />} tint="success" />
+          <StatCard label={t("stats.todaysOrders")} value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
           <StatCard
-            label="Monthly Revenue"
+            label={t("stats.monthlyRevenue")}
             value={formatCurrency(data.monthly.revenue)}
             icon={<TrendingUp />}
             tint="primary"
-            trend={{ value: data.monthly.revenueGrowth, label: "vs last month" }}
+            trend={{ value: data.monthly.revenueGrowth, label: t("stats.vsLastMonth") }}
           />
-          <StatCard label="Monthly Profit" value={formatCurrency(data.monthly.profit)} icon={<DollarSign />} tint="success" />
-          <StatCard label="Monthly Orders" value={formatNumber(data.monthly.orders)} icon={<ShoppingCart />} tint="primary" />
+          <StatCard label={t("stats.monthlyProfit")} value={formatCurrency(data.monthly.profit)} icon={<DollarSign />} tint="success" />
+          <StatCard label={t("stats.monthlyOrders")} value={formatNumber(data.monthly.orders)} icon={<ShoppingCart />} tint="primary" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader className="border-b pb-4">
-              <CardTitle>Top stores this month</CardTitle>
-              <CardDescription>By revenue</CardDescription>
+              <CardTitle>{t("topStoresTitle")}</CardTitle>
+              <CardDescription>{t("topStoresDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               {data.topStores.length === 0 ? (
-                <EmptyState icon={<TrophyIcon />} title="No sales yet" className="border-none py-10" />
+                <EmptyState icon={<TrophyIcon />} title={t("noSalesYet")} className="border-none py-10" />
               ) : (
                 <div className="flex flex-col gap-4">
                   {data.topStores.map((store, i) => (
@@ -124,8 +129,8 @@ export default async function DashboardPage() {
 
           <Card>
             <CardHeader className="border-b pb-4">
-              <CardTitle>Recent activity</CardTitle>
-              <CardDescription>Latest actions across the platform</CardDescription>
+              <CardTitle>{t("recentActivityTitle")}</CardTitle>
+              <CardDescription>{t("recentActivityDescriptionPlatform")}</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <ActivityFeed items={data.recentActivity} />
@@ -141,15 +146,16 @@ export default async function DashboardPage() {
   const currency = settings.currency;
 
   if (role === "SELLER") {
+    const t = await getTranslations({ locale, namespace: "dashboard.seller" });
     const data = await getSellerDashboardData(context!.userId, storeId);
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Welcome back"
-          description="Here's how your sales are looking."
+          title={t("title")}
+          description={t("description")}
           actions={
             <Button asChild>
-              <Link href="/sales/new">New Sale</Link>
+              <Link href="/sales/new">{t("newSale")}</Link>
             </Button>
           }
         />
@@ -160,28 +166,27 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
             <AlertTriangle className="size-4 shrink-0 text-warning-foreground" />
             <span>
-              {data.lowStockCount} product{data.lowStockCount === 1 ? "" : "s"} running low on
-              stock store-wide.
+              {t("lowStockWarning", { count: data.lowStockCount })}
             </span>
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Today's Sales" value={formatCurrency(data.today.total, currency)} icon={<DollarSign />} tint="success" />
-          <StatCard label="Today's Orders" value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
-          <StatCard label="This Month's Sales" value={formatCurrency(data.monthly.total, currency)} icon={<TrendingUp />} tint="success" />
-          <StatCard label="This Month's Orders" value={formatNumber(data.monthly.orders)} icon={<CalendarDays />} tint="primary" />
+          <StatCard label={t("stats.todaysSales")} value={formatCurrency(data.today.total, currency)} icon={<DollarSign />} tint="success" />
+          <StatCard label={t("stats.todaysOrders")} value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
+          <StatCard label={t("stats.monthlySales")} value={formatCurrency(data.monthly.total, currency)} icon={<TrendingUp />} tint="success" />
+          <StatCard label={t("stats.monthlyOrders")} value={formatNumber(data.monthly.orders)} icon={<CalendarDays />} tint="primary" />
         </div>
 
         <Card>
           <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>My recent sales</CardTitle>
-              <CardDescription>Your last 8 completed sales</CardDescription>
+              <CardTitle>{t("recentSalesTitle")}</CardTitle>
+              <CardDescription>{t("recentSalesDescription")}</CardDescription>
             </div>
             <Button asChild variant="ghost" size="sm" className="gap-1">
               <Link href="/sales">
-                View all
+                {t("viewAll")}
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
@@ -189,7 +194,7 @@ export default async function DashboardPage() {
           <CardContent className="pt-4">
             {data.recentSales.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No sales yet — start your first one from the sidebar.
+                {t("noSalesYet")}
               </p>
             ) : (
               <div className="flex flex-col divide-y">
@@ -198,11 +203,11 @@ export default async function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium">{sale.invoiceNumber}</p>
                       <p className="text-xs text-muted-foreground">
-                        {sale.customerName ?? "Walk-in customer"} · {formatDateTime(sale.createdAt)}
+                        {sale.customerName ?? t("walkInCustomer")} · {formatDateTime(sale.createdAt)}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <StatusBadge variant="neutral">{PAYMENT_METHOD_LABELS[sale.paymentMethod]}</StatusBadge>
+                      <StatusBadge variant="neutral">{paymentMethodLabel(tLabels, sale.paymentMethod)}</StatusBadge>
                       <span className="text-sm font-semibold tabular-nums">
                         {formatCurrency(sale.total, currency)}
                       </span>
@@ -217,16 +222,18 @@ export default async function DashboardPage() {
     );
   }
 
+  const t = await getTranslations({ locale, namespace: "dashboard.manager" });
+  const tNav = await getTranslations({ locale, namespace: "nav" });
   const data = await getManagerDashboardData(storeId);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Dashboard"
-        description={`Overview of ${settings.storeName}`}
+        title={tNav("dashboard")}
+        description={t("description", { storeName: settings.storeName })}
         actions={
           <Button asChild>
-            <Link href="/sales/new">New Sale</Link>
+            <Link href="/sales/new">{t("newSale")}</Link>
           </Button>
         }
       />
@@ -234,39 +241,39 @@ export default async function DashboardPage() {
       <UnreadAnnouncementsCard announcements={unreadAnnouncements} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today's Revenue" value={formatCurrency(data.today.revenue, currency)} icon={<DollarSign />} tint="success" />
-        <StatCard label="Today's Profit" value={formatCurrency(data.today.profit, currency)} icon={<TrendingUp />} tint="success" />
-        <StatCard label="Today's Orders" value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
+        <StatCard label={t("stats.todaysRevenue")} value={formatCurrency(data.today.revenue, currency)} icon={<DollarSign />} tint="success" />
+        <StatCard label={t("stats.todaysProfit")} value={formatCurrency(data.today.profit, currency)} icon={<TrendingUp />} tint="success" />
+        <StatCard label={t("stats.todaysOrders")} value={formatNumber(data.today.orders)} icon={<Receipt />} tint="primary" />
         <StatCard
-          label="Monthly Revenue"
+          label={t("stats.monthlyRevenue")}
           value={formatCurrency(data.monthly.revenue, currency)}
           icon={<DollarSign />}
           tint="primary"
-          trend={{ value: data.monthly.revenueGrowth, label: "vs last month" }}
+          trend={{ value: data.monthly.revenueGrowth, label: t("stats.vsLastMonth") }}
         />
         <StatCard
-          label="Monthly Profit"
+          label={t("stats.monthlyProfit")}
           value={formatCurrency(data.monthly.profit, currency)}
           icon={<TrendingUp />}
           tint="primary"
-          trend={{ value: data.monthly.profitGrowth, label: "vs last month" }}
+          trend={{ value: data.monthly.profitGrowth, label: t("stats.vsLastMonth") }}
         />
-        <StatCard label="Units In Stock" value={formatNumber(data.stock.unitsInStock)} icon={<Boxes />} tint="primary" />
+        <StatCard label={t("stats.unitsInStock")} value={formatNumber(data.stock.unitsInStock)} icon={<Boxes />} tint="primary" />
         <StatCard
-          label="Low Stock Items"
+          label={t("stats.lowStockItems")}
           value={formatNumber(data.stock.lowStockCount)}
           icon={<AlertTriangle />}
           tint={data.stock.lowStockCount > 0 ? "warning" : "success"}
         />
-        <StatCard label="Top Seller" value={data.topSeller} icon={<Trophy />} tint="primary" />
-        <StatCard label="Average Order" value={formatCurrency(data.monthly.averageOrder, currency)} icon={<ShoppingCart />} tint="primary" />
+        <StatCard label={t("stats.topSeller")} value={data.topSeller} icon={<Trophy />} tint="primary" />
+        <StatCard label={t("stats.averageOrder")} value={formatCurrency(data.monthly.averageOrder, currency)} icon={<ShoppingCart />} tint="primary" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="border-b pb-4">
-            <CardTitle>Revenue & profit</CardTitle>
-            <CardDescription>Last 14 days</CardDescription>
+            <CardTitle>{t("revenueProfitTitle")}</CardTitle>
+            <CardDescription>{t("revenueProfitDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <RevenueChart data={data.revenueTrend} currency={currency} />
@@ -275,8 +282,8 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="border-b pb-4">
-            <CardTitle>Sales by category</CardTitle>
-            <CardDescription>Last 30 days</CardDescription>
+            <CardTitle>{t("salesByCategoryTitle")}</CardTitle>
+            <CardDescription>{t("salesByCategoryDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <CategoryChart data={data.salesByCategory} />
@@ -287,8 +294,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="border-b pb-4">
-            <CardTitle>Best selling products</CardTitle>
-            <CardDescription>By units sold, last 30 days</CardDescription>
+            <CardTitle>{t("bestSellersTitle")}</CardTitle>
+            <CardDescription>{t("bestSellersDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <BestSellersChart data={data.bestSellers} />
@@ -297,8 +304,8 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="border-b pb-4">
-            <CardTitle>Recent activity</CardTitle>
-            <CardDescription>Latest actions across the store</CardDescription>
+            <CardTitle>{t("recentActivityTitle")}</CardTitle>
+            <CardDescription>{t("recentActivityDescriptionStore")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <ActivityFeed items={data.recentActivity} />

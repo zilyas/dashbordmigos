@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const OPTIONS = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
+  { value: "light", i18nKey: "light", icon: Sun },
+  { value: "dark", i18nKey: "dark", icon: Moon },
+  { value: "system", i18nKey: "system", icon: Monitor },
 ] as const;
 
 export function ThemeSettings() {
+  const t = useTranslations("settings.appearance");
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -23,8 +25,8 @@ export function ThemeSettings() {
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Appearance</CardTitle>
-        <CardDescription>Choose how the dashboard looks on this device.</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <div className="grid grid-cols-3 gap-3">
@@ -41,7 +43,7 @@ export function ThemeSettings() {
                 )}
               >
                 <opt.icon className="size-5" />
-                {opt.label}
+                {t(opt.i18nKey)}
                 {active && <Check className="size-3.5" />}
               </button>
             );

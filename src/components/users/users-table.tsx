@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Plus, Users as UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
@@ -13,6 +14,11 @@ import { deleteSeller, resetSellerPassword, toggleSellerStatus } from "@/actions
 import type { SellerListItem } from "@/lib/queries/users";
 
 export function UsersTable({ sellers, currency }: { sellers: SellerListItem[]; currency: string }) {
+  const t = useTranslations("people.users");
+  const tTable = useTranslations("people.users.table");
+  const tColumns = useTranslations("people.users.columns");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SellerListItem | null>(null);
   const [resetting, setResetting] = useState<SellerListItem | null>(null);
@@ -23,7 +29,7 @@ export function UsersTable({ sellers, currency }: { sellers: SellerListItem[]; c
     if (result?.error) {
       toast.error(result.error);
     } else {
-      toast.success(result?.status === "ACTIVE" ? "Seller activated" : "Seller deactivated");
+      toast.success(result?.status === "ACTIVE" ? t("toastActivated") : t("toastDeactivated"));
     }
   }
 
@@ -35,8 +41,10 @@ export function UsersTable({ sellers, currency }: { sellers: SellerListItem[]; c
         onResetPassword: setResetting,
         onToggleStatus: handleToggleStatus,
         onDelete: setDeleteTarget,
+        t: tColumns,
+        tLabels,
       }),
-    [currency]
+    [currency, tColumns, tLabels]
   );
 
   return (
@@ -44,13 +52,13 @@ export function UsersTable({ sellers, currency }: { sellers: SellerListItem[]; c
       <DataTable
         columns={columns}
         data={sellers}
-        searchPlaceholder="Search by name or email..."
+        searchPlaceholder={tTable("searchPlaceholder")}
         emptyIcon={<UsersIcon />}
-        emptyTitle="No sellers found"
+        emptyTitle={tTable("emptyTitle")}
         toolbar={
           <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New Seller
+            {tTable("newSeller")}
           </Button>
         }
       />
@@ -71,18 +79,18 @@ export function UsersTable({ sellers, currency }: { sellers: SellerListItem[]; c
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
-          description="If this seller has made sales, they will be deactivated instead of deleted to preserve records."
-          confirmLabel="Delete"
+          title={t("deleteDialog.title", { name: deleteTarget.name })}
+          description={t("deleteDialog.description")}
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteSeller(deleteTarget.id);
             if (result?.error) {
               toast.error(result.error);
             } else if (result?.deactivated) {
-              toast.success("Seller deactivated (has related history)");
+              toast.success(t("deleteDialog.toastDeactivated"));
             } else {
-              toast.success("Seller deleted");
+              toast.success(t("deleteDialog.toastDeleted"));
             }
           }}
         />

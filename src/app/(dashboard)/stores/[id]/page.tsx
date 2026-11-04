@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { EmptyState } from "@/components/shared/empty-state";
 import { StoreManagerSection } from "@/components/stores/store-manager-section";
 import { StoreDangerZone } from "@/components/stores/store-danger-zone";
+import { getTranslations } from "next-intl/server";
 import { getStoreById, getStoreStats } from "@/lib/queries/stores";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { STORE_STATUS_LABELS } from "@/lib/labels";
+import { storeStatusLabel } from "@/lib/labels";
+import { getSessionContext } from "@/lib/store-context";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Store Details" };
 
@@ -25,6 +28,10 @@ export default async function StoreDetailPage({
   const store = await getStoreById(id);
   if (!store) notFound();
 
+  const context = await getSessionContext();
+  const locale = toAppLocale(context?.locale);
+  const tLabels = await getTranslations({ locale, namespace: "labels" });
+  const t = await getTranslations({ locale, namespace: "storeDetail" });
   const stats = await getStoreStats(id);
 
   return (
@@ -33,15 +40,15 @@ export default async function StoreDetailPage({
         <Button asChild variant="ghost" size="sm" className="mb-2 gap-1.5">
           <Link href="/stores">
             <ArrowLeft className="size-3.5" />
-            All stores
+            {t("allStores")}
           </Link>
         </Button>
         <PageHeader
           title={store.name}
-          description={`${store.code} · ${[store.city, store.country].filter(Boolean).join(", ") || "No location set"}`}
+          description={`${store.code} · ${[store.city, store.country].filter(Boolean).join(", ") || t("noLocationSet")}`}
           actions={
             <StatusBadge variant={store.status === "ACTIVE" ? "success" : "neutral"}>
-              {STORE_STATUS_LABELS[store.status]}
+              {storeStatusLabel(tLabels, store.status)}
             </StatusBadge>
           }
         />
@@ -49,35 +56,35 @@ export default async function StoreDetailPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Monthly Revenue"
+          label={t("stats.monthlyRevenue")}
           value={formatCurrency(stats.monthlyRevenue, store.currency)}
           icon={<DollarSign />}
           tint="success"
         />
         <StatCard
-          label="Monthly Profit"
+          label={t("stats.monthlyProfit")}
           value={formatCurrency(stats.monthlyProfit, store.currency)}
           icon={<TrendingUp />}
           tint="success"
         />
         <StatCard
-          label="Inventory Value"
+          label={t("stats.inventoryValue")}
           value={formatCurrency(stats.inventoryValue, store.currency)}
           icon={<Boxes />}
           tint="primary"
         />
-        <StatCard label="Employees" value={String(stats.employeeCount)} icon={<Users />} tint="primary" />
+        <StatCard label={t("stats.employees")} value={String(stats.employeeCount)} icon={<Users />} tint="primary" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="border-b pb-4">
-            <CardTitle>Recent sales</CardTitle>
-            <CardDescription>Last 8 sales at this store</CardDescription>
+            <CardTitle>{t("recentSales.title")}</CardTitle>
+            <CardDescription>{t("recentSales.description")}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             {stats.recentSales.length === 0 ? (
-              <EmptyState icon={<Receipt />} title="No sales yet" className="border-none py-10" />
+              <EmptyState icon={<Receipt />} title={t("recentSales.emptyTitle")} className="border-none py-10" />
             ) : (
               <div className="flex flex-col divide-y">
                 {stats.recentSales.map((sale) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,15 +26,14 @@ export function ReceiptDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const receipt = saleToReceipt(sale, currency);
+  const t = useTranslations("receipt");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Receipt {sale.invoiceNumber}</DialogTitle>
-          <DialogDescription>
-            Print it, save it as an image, or send it to the customer.
-          </DialogDescription>
+          <DialogTitle>{t("dialog.title", { invoiceNumber: sale.invoiceNumber })}</DialogTitle>
+          <DialogDescription>{t("dialog.description")}</DialogDescription>
         </DialogHeader>
         <Receipt receipt={receipt} />
         <ReceiptActions receipt={receipt} />

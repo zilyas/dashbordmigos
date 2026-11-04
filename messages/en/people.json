@@ -1,0 +1,210 @@
+{
+  "users": {
+    "page": {
+      "title": "Sellers",
+      "description": "{count, plural, one {# seller} other {# sellers}} at your store"
+    },
+    "table": {
+      "searchPlaceholder": "Search by name or email...",
+      "emptyTitle": "No sellers found",
+      "newSeller": "New Seller"
+    },
+    "columns": {
+      "seller": "Seller",
+      "phone": "Phone",
+      "sales": "Sales",
+      "revenue": "Revenue",
+      "status": "Status",
+      "lastLogin": "Last login",
+      "never": "Never",
+      "actionsLabel": "Seller actions",
+      "edit": "Edit",
+      "resetPassword": "Reset password",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete"
+    },
+    "deleteDialog": {
+      "title": "Delete \"{name}\"?",
+      "description": "If this seller has made sales, they will be deactivated instead of deleted to preserve records.",
+      "toastDeactivated": "Seller deactivated (has related history)",
+      "toastDeleted": "Seller deleted"
+    },
+    "toastActivated": "Seller activated",
+    "toastDeactivated": "Seller deactivated",
+    "createDialog": {
+      "title": "New seller",
+      "description": "Create a new seller account for your store.",
+      "fullNameLabel": "Full name",
+      "emailLabel": "Email",
+      "tempPasswordLabel": "Temporary password",
+      "phoneLabel": "Phone",
+      "create": "Create seller",
+      "toastCreated": "Seller created"
+    },
+    "editDialog": {
+      "title": "Edit seller",
+      "description": "Update this seller's details.",
+      "saveChanges": "Save changes",
+      "toastUpdated": "Seller updated"
+    }
+  },
+  "managers": {
+    "page": {
+      "title": "Managers",
+      "description": "{count, plural, one {# manager} other {# managers}} across the platform"
+    },
+    "table": {
+      "searchPlaceholder": "Search by name or email...",
+      "emptyTitle": "No managers yet",
+      "newManager": "New Manager"
+    },
+    "columns": {
+      "manager": "Manager",
+      "store": "Store",
+      "unassigned": "Unassigned",
+      "phone": "Phone",
+      "status": "Status",
+      "lastLogin": "Last login",
+      "never": "Never",
+      "actionsLabel": "Manager actions",
+      "edit": "Edit",
+      "transfer": "Transfer to another store",
+      "resetPassword": "Reset password",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete"
+    },
+    "deleteDialog": {
+      "title": "Delete \"{name}\"?",
+      "description": "If this manager has related store history, they will be deactivated instead of deleted to preserve records.",
+      "toastDeactivated": "Manager deactivated (has related history)",
+      "toastDeleted": "Manager deleted"
+    },
+    "toastActivated": "Manager activated",
+    "toastDeactivated": "Manager deactivated",
+    "createDialog": {
+      "title": "New manager",
+      "description": "Create a manager account and assign a store.",
+      "fullNameLabel": "Full name",
+      "emailLabel": "Email",
+      "tempPasswordLabel": "Temporary password",
+      "phoneLabel": "Phone",
+      "storeLabel": "Store",
+      "storePlaceholder": "Select a store",
+      "create": "Create manager",
+      "toastCreated": "Manager created"
+    },
+    "editDialog": {
+      "title": "Edit manager",
+      "description": "Update this manager's details.",
+      "saveChanges": "Save changes",
+      "toastUpdated": "Manager updated"
+    },
+    "transferDialog": {
+      "title": "Transfer manager",
+      "description": "Move {name} from {storeName} to a different store.",
+      "currentStoreFallback": "their current store",
+      "destinationLabel": "Destination store",
+      "storePlaceholder": "Select a store",
+      "transfer": "Transfer",
+      "errorSelectStore": "Select a destination store",
+      "toastTransferred": "{name} transferred"
+    }
+  },
+  "stores": {
+    "page": {
+      "title": "Stores",
+      "description": "{count, plural, one {# store} other {# stores}} on the platform"
+    },
+    "table": {
+      "searchPlaceholder": "Search stores...",
+      "emptyTitle": "No stores yet",
+      "emptyDescription": "Create your first store to get started.",
+      "newStore": "New Store"
+    },
+    "columns": {
+      "store": "Store",
+      "location": "Location",
+      "manager": "Manager",
+      "unassigned": "Unassigned",
+      "products": "Products",
+      "employees": "Employees",
+      "status": "Status",
+      "actionsLabel": "Store actions",
+      "viewDetails": "View details",
+      "edit": "Edit",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete"
+    },
+    "deleteDialog": {
+      "title": "Delete \"{name}\"?",
+      "description": "If this store has real data (products, sales, staff), it will be deactivated instead of deleted to preserve records.",
+      "toastDeactivated": "Store deactivated (has related data)",
+      "toastDeleted": "Store deleted"
+    },
+    "toastActivated": "Store activated",
+    "toastDeactivated": "Store deactivated",
+    "dialog": {
+      "editTitle": "Edit store",
+      "newTitle": "New store",
+      "editDescription": "Update this store's details.",
+      "newDescription": "Create a new store on the platform.",
+      "logoLabel": "Logo",
+      "storeNameLabel": "Store name",
+      "storeCodeLabel": "Store code",
+      "currencyLabel": "Currency",
+      "taxRateLabel": "Tax rate (%)",
+      "cityLabel": "City",
+      "countryLabel": "Country",
+      "addressLabel": "Address",
+      "phoneLabel": "Phone",
+      "emailLabel": "Email",
+      "advancedFeaturesTitle": "Advanced features",
+      "features": {
+        "units": "Units of measure",
+        "categoryAttributes": "Category attributes (soon)",
+        "customVariantAxes": "Custom variant axes (soon)",
+        "expiryBatch": "Expiry & batch (soon)",
+        "storefrontApi": "Storefront API"
+      },
+      "saveChanges": "Save changes",
+      "create": "Create store",
+      "toastUpdated": "Store updated",
+      "toastCreated": "Store created"
+    }
+  },
+  "resetPasswordDialog": {
+    "title": "Reset password",
+    "descriptionShare": "Share this temporary password with {name} securely. It won't be shown again.",
+    "descriptionGenerate": "Generate a new temporary password for {name}.",
+    "toastCopied": "Copied to clipboard",
+    "toastFailed": "Failed to reset password.",
+    "done": "Done",
+    "cancel": "Cancel",
+    "generate": "Generate password"
+  },
+  "actions": {
+    "invalidSellerData": "Invalid seller data",
+    "sellerEmailExists": "A user with that email already exists.",
+    "sellerNotFound": "Seller not found",
+    "welcomeNotificationTitle": "Welcome to the team",
+    "welcomeNotificationMessage": "Your seller account has been created. Sign in to get started.",
+    "resetPasswordFailed": "Failed to reset password.",
+    "invalidManagerData": "Invalid manager data",
+    "managerEmailExists": "A user with that email already exists.",
+    "storeNotFound": "Store not found",
+    "managerNotFound": "Manager not found",
+    "assignedNotificationTitle": "You've been assigned a store",
+    "assignedNotificationMessage": "You're now managing {storeName}. Sign in to get started.",
+    "transferredNotificationTitle": "You've been transferred",
+    "transferredNotificationMessage": "You're now managing {storeName}.",
+    "invalidStoreData": "Invalid store data",
+    "storeCodeExists": "A store with that code already exists.",
+    "newStoreNotificationTitle": "New store created",
+    "newStoreNotificationMessage": "{name} ({code}) was added to the platform.",
+    "resetConfirmationMismatch": "Type \"{confirmText}\" to confirm.",
+    "resetFailed": "Failed to reset the store. Please try again."
+  }
+}

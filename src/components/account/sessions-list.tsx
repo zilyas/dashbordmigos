@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { MonitorSmartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export type SessionRow = {
 };
 
 export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[]; currentSid: string }) {
+  const t = useTranslations("account.sessions");
   const [isPending, startTransition] = useTransition();
   const [terminateTarget, setTerminateTarget] = useState<SessionRow | null>(null);
   const [terminateAllOpen, setTerminateAllOpen] = useState(false);
@@ -35,7 +37,7 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
         toast.error(result.error);
         return;
       }
-      toast.success("Session terminated");
+      toast.success(t("toastTerminated"));
     });
   }
 
@@ -46,7 +48,7 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
         toast.error(result.error);
         return;
       }
-      toast.success("Signed out of all other sessions");
+      toast.success(t("toastAllTerminated"));
     });
   }
 
@@ -56,8 +58,8 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
     <Card>
       <CardHeader className="flex flex-col items-start gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Active sessions</CardTitle>
-          <CardDescription>Devices and browsers currently signed in to your account.</CardDescription>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </div>
         {otherSessionCount > 0 && (
           <Button
@@ -66,7 +68,7 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
             className="w-full sm:w-auto"
             onClick={() => setTerminateAllOpen(true)}
           >
-            Sign out other sessions
+            {t("signOutOthers")}
           </Button>
         )}
       </CardHeader>
@@ -82,13 +84,13 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                     <span className="truncate">
-                      {session.browser ?? "Unknown browser"} · {session.os ?? "Unknown OS"}
+                      {session.browser ?? t("unknownBrowser")} · {session.os ?? t("unknownOs")}
                     </span>
-                    {isCurrent && <StatusBadge variant="success">This device</StatusBadge>}
-                    {session.rememberMe && <StatusBadge variant="neutral">Remembered</StatusBadge>}
+                    {isCurrent && <StatusBadge variant="success">{t("thisDevice")}</StatusBadge>}
+                    {session.rememberMe && <StatusBadge variant="neutral">{t("remembered")}</StatusBadge>}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {session.ipAddress ?? "Unknown IP"} · Last active {formatDateTime(session.lastSeenAt)}
+                    {session.ipAddress ?? t("unknownIp")} · {t("lastActive", { date: formatDateTime(session.lastSeenAt) })}
                   </p>
                 </div>
               </div>
@@ -100,7 +102,7 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
                   disabled={isPending}
                   onClick={() => setTerminateTarget(session)}
                 >
-                  Sign out
+                  {t("signOut")}
                 </Button>
               )}
             </div>
@@ -112,9 +114,12 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
         <ConfirmDialog
           open={!!terminateTarget}
           onOpenChange={(open) => !open && setTerminateTarget(null)}
-          title="Sign out this session?"
-          description={`This immediately signs out ${terminateTarget.browser ?? "this device"} on ${terminateTarget.os ?? "an unknown OS"}.`}
-          confirmLabel="Sign out"
+          title={t("terminateOneTitle")}
+          description={t("terminateOneDescription", {
+            browser: terminateTarget.browser ?? t("unknownBrowser"),
+            os: terminateTarget.os ?? t("unknownOs"),
+          })}
+          confirmLabel={t("terminateConfirm")}
           destructive
           onConfirm={() => handleTerminate(terminateTarget.id)}
         />
@@ -123,9 +128,9 @@ export function SessionsList({ sessions, currentSid }: { sessions: SessionRow[];
       <ConfirmDialog
         open={terminateAllOpen}
         onOpenChange={setTerminateAllOpen}
-        title="Sign out all other sessions?"
-        description="This immediately signs you out everywhere except this device."
-        confirmLabel="Sign out others"
+        title={t("terminateAllTitle")}
+        description={t("terminateAllDescription")}
+        confirmLabel={t("terminateAllConfirm")}
         destructive
         onConfirm={handleTerminateAll}
       />

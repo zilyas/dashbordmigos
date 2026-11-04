@@ -1,0 +1,79 @@
+{
+  "search": {
+    "placeholder": "Search by name, SKU, or scan a barcode..."
+  },
+  "connectivity": {
+    "offline": "Offline",
+    "online": "Online",
+    "pendingToSync": "{count} sale(s) waiting to sync",
+    "nothingToSync": "Nothing waiting to sync",
+    "lastSync": "Last sync {time}",
+    "noSyncYet": "No sync yet",
+    "syncNow": "Sync now"
+  },
+  "toast": {
+    "stillNoConnection": "Still no connection. Check the network and try again.",
+    "offlineAccessInactive": "This store's offline access is not active. Contact the owner.",
+    "offlineAccessRenewed": "Offline access renewed.",
+    "couldNotReachServer": "Could not reach the server. Check the network and try again.",
+    "syncStopped": "Sync stopped.",
+    "syncAlreadyRunning": "A sync is already running.",
+    "nothingToSync": "Nothing to sync.",
+    "salesSent": "{count} sale(s) sent.",
+    "salesNeedReview": "{count} sale(s) need review.",
+    "productBlocked": "{name}: {reason}",
+    "noOfflineCatalogue": "This device has no offline catalogue yet. Reconnect once while online.",
+    "outOfStockNamed": "{name} is out of stock",
+    "noMoreStock": "No more stock available",
+    "cartEmpty": "Add at least one product to the cart",
+    "saleFailed": "Failed to complete sale",
+    "saleCompleted": "Sale completed"
+  },
+  "grid": {
+    "noCachedMatch": "No cached products match your search",
+    "noCatalogueStored": "This device has no catalogue stored yet",
+    "noMatch": "No products match your search",
+    "variantCount": "{count} variant(s)",
+    "unitsAvailable": "{count} {unit} available",
+    "outOfStock": "Out of stock",
+    "chooseVariant": "Choose a variant"
+  },
+  "cart": {
+    "title": "Cart ({count})",
+    "empty": "Add products from the left to start a sale.",
+    "quantityAriaLabel": "Quantity for {name}",
+    "customerNamePlaceholder": "Customer name (optional)",
+    "customerPhonePlaceholder": "Customer phone (optional)",
+    "percentOff": "% off",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "tax": "Tax ({rate}%)",
+    "total": "Total",
+    "processing": "Processing...",
+    "completeSale": "Complete Sale · {amount}"
+  },
+  "variantDialog": {
+    "description": "Choose a variant to add to the cart.",
+    "noActiveVariants": "This product has no active variants.",
+    "noCachedVariants": "This product has no cached variants.",
+    "inStock": "{count} in stock",
+    "outOfStock": "out of stock"
+  },
+  "leaseDialog": {
+    "title": "Internet connection required",
+    "description": "Your offline access period has expired. Connect to the internet to verify your subscription and continue making sales. Your pending sales are saved on this device.",
+    "accessInactive": "This store's offline access is not active. Reconnecting will not restore it until the account is reactivated — contact the owner.",
+    "pendingSaved": "{count} sale(s) saved on this device, waiting to be sent. They are kept until the server confirms them.",
+    "viewPendingSales": "View pending sales",
+    "checking": "Checking...",
+    "retryConnection": "Retry connection"
+  },
+  "expiredStockDialog": {
+    "title": "Sell expired stock anyway?",
+    "description": "Non-expired stock isn't enough to cover this sale. As a manager, you can knowingly complete it using expired stock instead. This is recorded on the sale and in the activity log.",
+    "confirmLabel": "Sell expired stock"
+  },
+  "saleCompleteDialog": {
+    "title": "Sale complete"
+  }
+}

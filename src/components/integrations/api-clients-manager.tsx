@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Plus, KeyRound, Copy, Ban, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,14 +38,22 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createApiClient, revokeApiClient } from "@/actions/api-clients";
-import { apiClientSchema, type ApiClientInput } from "@/lib/validations/api-client";
-import { API_SCOPES, API_SCOPE_LABELS, type ApiScope } from "@/lib/api/scopes";
+import { buildApiClientSchema, type ApiClientInput } from "@/lib/validations/api-client";
+import { API_SCOPES, type ApiScope } from "@/lib/api/scopes";
 import { formatDateTime } from "@/lib/format";
 import type { ApiClientItem } from "@/lib/queries/api-clients";
 
 const EXPIRY_CHOICES = [30, 90, 180, 365];
 
+const SCOPE_I18N_KEYS: Record<ApiScope, string> = {
+  "products:read": "productsRead",
+  "stock:read": "stockRead",
+  "orders:create": "ordersCreate",
+};
+
 export function ApiClientsManager({ clients }: { clients: ApiClientItem[] }) {
+  const t = useTranslations("integrations.manager");
+  const tScopes = useTranslations("integrations.scopes");
   const [dialogOpen, setDialogOpen] = useState(false);
   // Bumped on every open so the dialog remounts: the minted key lives in that
   // child's state and must not survive a close.
@@ -61,18 +70,18 @@ export function ApiClientsManager({ clients }: { clients: ApiClientItem[] }) {
       <div className="flex items-center justify-end">
         <Button onClick={openCreate} className="gap-1.5">
           <Plus className="size-4" />
-          New key
+          {t("newKey")}
         </Button>
       </div>
 
       {clients.length === 0 ? (
         <EmptyState
           icon={<KeyRound />}
-          title="No API keys yet"
-          description="Make a key and give it to the person who builds your website."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <Button onClick={openCreate} size="sm">
-              New key
+              {t("newKey")}
             </Button>
           }
         />
@@ -81,13 +90,13 @@ export function ApiClientsManager({ clients }: { clients: ApiClientItem[] }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Last used</TableHead>
-                <TableHead>Made by</TableHead>
+                <TableHead>{t("table.name")}</TableHead>
+                <TableHead>{t("table.key")}</TableHead>
+                <TableHead>{t("table.permissions")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead>{t("table.expires")}</TableHead>
+                <TableHead>{t("table.lastUsed")}</TableHead>
+                <TableHead>{t("table.madeBy")}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -100,26 +109,29 @@ export function ApiClientsManager({ clients }: { clients: ApiClientItem[] }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {client.scopes.map((scope) => (
-                        <StatusBadge key={scope} variant="neutral">
-                          {API_SCOPE_LABELS[scope as ApiScope] ?? scope}
-                        </StatusBadge>
-                      ))}
+                      {client.scopes.map((scope) => {
+                        const i18nKey = SCOPE_I18N_KEYS[scope as ApiScope];
+                        return (
+                          <StatusBadge key={scope} variant="neutral">
+                            {i18nKey ? tScopes(i18nKey) : scope}
+                          </StatusBadge>
+                        );
+                      })}
                     </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge variant={client.status === "ACTIVE" ? "success" : "destructive"}>
-                      {client.status === "ACTIVE" ? "Active" : "Revoked"}
+                      {client.status === "ACTIVE" ? t("active") : t("revoked")}
                     </StatusBadge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {client.expiresAt ? formatDateTime(client.expiresAt) : "Never"}
+                    {client.expiresAt ? formatDateTime(client.expiresAt) : t("never")}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {client.lastUsedAt ? formatDateTime(client.lastUsedAt) : "Never"}
+                    {client.lastUsedAt ? formatDateTime(client.lastUsedAt) : t("never")}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {client.actor?.name ?? "Unknown"}
+                    {client.actor?.name ?? t("unknown")}
                   </TableCell>
                   <TableCell>
                     {client.status === "ACTIVE" && (
@@ -146,14 +158,14 @@ export function ApiClientsManager({ clients }: { clients: ApiClientItem[] }) {
         <ConfirmDialog
           open={!!revokeTarget}
           onOpenChange={(open) => !open && setRevokeTarget(null)}
-          title={`Revoke "${revokeTarget.name}"?`}
-          description="The key stops working immediately and cannot be put back. Every website that uses it loses access until you make a new key."
-          confirmLabel="Revoke"
+          title={t("revokeDialog.title", { name: revokeTarget.name })}
+          description={t("revokeDialog.description")}
+          confirmLabel={t("revokeDialog.confirm")}
           destructive
           onConfirm={async () => {
             const result = await revokeApiClient(revokeTarget.id);
             if ("error" in result) toast.error(result.error);
-            else toast.success("Key revoked");
+            else toast.success(t("revokeDialog.toastRevoked"));
           }}
         />
       )}
@@ -170,6 +182,10 @@ function NewKeyDialog({
 }) {
   const [isPending, startTransition] = useTransition();
   const [minted, setMinted] = useState<string | null>(null);
+  const t = useTranslations("integrations.newKeyDialog");
+  const tScopes = useTranslations("integrations.scopes");
+  const tValidation = useTranslations("validation");
+  const apiClientSchema = useMemo(() => buildApiClientSchema(tValidation), [tValidation]);
 
   const form = useForm<ApiClientInput>({
     resolver: zodResolver(apiClientSchema),
@@ -197,9 +213,9 @@ function NewKeyDialog({
   async function copyKey(key: string) {
     try {
       await navigator.clipboard.writeText(key);
-      toast.success("Key copied");
+      toast.success(t("toastCopied"));
     } catch {
-      toast.error("Could not copy. Select the key and copy it by hand.");
+      toast.error(t("toastCopyFailed"));
     }
   }
 
@@ -216,10 +232,9 @@ function NewKeyDialog({
       <Dialog open={open}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Your new key</DialogTitle>
+            <DialogTitle>{t("minted.title")}</DialogTitle>
             <DialogDescription>
-              This is the only time the key is shown. Store it somewhere safe. If you lose it, revoke
-              this key and make a new one.
+              {t("minted.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg bg-muted p-3 font-mono text-xs break-all">{minted}</div>
@@ -231,10 +246,10 @@ function NewKeyDialog({
               className="gap-1.5"
             >
               <Copy className="size-4" />
-              Copy key
+              {t("minted.copyButton")}
             </Button>
             <Button type="button" onClick={dismissMinted}>
-              I have saved it
+              {t("minted.doneButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -246,23 +261,23 @@ function NewKeyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New key</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            A key lets one website read this shop&apos;s data. Give each website its own key.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor="api-client-name">Name</FieldLabel>
-              <Input id="api-client-name" placeholder="e.g. Main website" {...form.register("name")} />
+              <FieldLabel htmlFor="api-client-name">{t("nameLabel")}</FieldLabel>
+              <Input id="api-client-name" placeholder={t("namePlaceholder")} {...form.register("name")} />
               {form.formState.errors.name && (
                 <FieldError>{form.formState.errors.name.message}</FieldError>
               )}
             </Field>
 
             <Field data-invalid={!!form.formState.errors.scopes}>
-              <FieldLabel>Permissions</FieldLabel>
+              <FieldLabel>{t("permissionsLabel")}</FieldLabel>
               <div className="flex flex-col gap-2.5">
                 {API_SCOPES.map((scope) => (
                   <div key={scope} className="flex items-center gap-2">
@@ -272,7 +287,7 @@ function NewKeyDialog({
                       onCheckedChange={(checked) => toggleScope(scope, checked === true)}
                     />
                     <label htmlFor={`scope-${scope}`} className="text-sm">
-                      {API_SCOPE_LABELS[scope]}
+                      {tScopes(SCOPE_I18N_KEYS[scope])}
                     </label>
                   </div>
                 ))}
@@ -283,7 +298,7 @@ function NewKeyDialog({
             </Field>
 
             <Field>
-              <FieldLabel>Expires after</FieldLabel>
+              <FieldLabel>{t("expiresAfterLabel")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="expiresInDays"
@@ -298,7 +313,7 @@ function NewKeyDialog({
                     <SelectContent>
                       {EXPIRY_CHOICES.map((days) => (
                         <SelectItem key={days} value={String(days)}>
-                          {days} days
+                          {t("daysOption", { days })}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -309,11 +324,11 @@ function NewKeyDialog({
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Create key
+              {t("createButton")}
             </Button>
           </DialogFooter>
         </form>

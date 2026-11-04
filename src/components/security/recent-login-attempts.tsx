@@ -1,12 +1,15 @@
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatDateTime } from "@/lib/format";
-import { FAIL_REASON_LABELS } from "@/lib/labels";
+import { failReasonLabel } from "@/lib/labels";
 import { History } from "lucide-react";
+import type { AppLocale } from "@/i18n/messages";
 
-export function RecentLoginAttempts({
+export async function RecentLoginAttempts({
   attempts,
+  locale,
 }: {
   attempts: {
     id: string;
@@ -16,16 +19,19 @@ export function RecentLoginAttempts({
     failReason: string | null;
     createdAt: Date;
   }[];
+  locale: AppLocale;
 }) {
+  const t = await getTranslations({ locale, namespace: "labels" });
+  const tCard = await getTranslations({ locale, namespace: "security.recentLoginAttempts" });
   return (
     <Card>
       <CardHeader className="border-b pb-4">
-        <CardTitle>Recent login attempts</CardTitle>
-        <CardDescription>Platform-wide, most recent first.</CardDescription>
+        <CardTitle>{tCard("title")}</CardTitle>
+        <CardDescription>{tCard("description")}</CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         {attempts.length === 0 ? (
-          <EmptyState icon={<History />} title="No login attempts yet" className="border-none py-10" />
+          <EmptyState icon={<History />} title={tCard("emptyTitle")} className="border-none py-10" />
         ) : (
           <div className="flex max-h-96 flex-col divide-y overflow-y-auto">
             {attempts.map((attempt) => (
@@ -33,13 +39,13 @@ export function RecentLoginAttempts({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <StatusBadge variant={attempt.success ? "success" : "destructive"} className="shrink-0">
-                      {attempt.success ? "Success" : "Failed"}
+                      {attempt.success ? tCard("success") : tCard("failed")}
                     </StatusBadge>
                     <span className="truncate">{attempt.email}</span>
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {attempt.ipAddress ?? "Unknown IP"}
-                    {attempt.failReason ? ` · ${FAIL_REASON_LABELS[attempt.failReason] ?? attempt.failReason}` : ""}
+                    {attempt.ipAddress ?? tCard("unknownIp")}
+                    {attempt.failReason ? ` · ${failReasonLabel(t, attempt.failReason)}` : ""}
                     {" · "}
                     {formatDateTime(attempt.createdAt)}
                   </p>

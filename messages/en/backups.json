@@ -1,0 +1,37 @@
+{
+  "page": {
+    "title": "Backups",
+    "description": "Create, download and restore full platform backups."
+  },
+  "create": {
+    "title": "Create a backup",
+    "description": "Exports every table to a downloadable JSON file. Contains sensitive data — store it securely.",
+    "createButton": "Create backup",
+    "restoreFromFileButton": "Restore from file",
+    "toastCreated": "Backup created"
+  },
+  "history": {
+    "title": "Backup history",
+    "description": "Every backup created on this platform.",
+    "emptyTitle": "No backups yet",
+    "completed": "Completed",
+    "failed": "Failed",
+    "byLine": "{size} · by {name} · {date}",
+    "never": "Never",
+    "download": "Download"
+  },
+  "restoreDialog": {
+    "title": "Restore from \"{filename}\"?",
+    "description": "This permanently replaces every store, product, sale, user and setting on the entire platform with the contents of this file. This cannot be undone. Type <strong>{confirmText}</strong> to confirm.",
+    "cancel": "Cancel",
+    "confirmButton": "Restore and replace everything",
+    "toastRestored": "Restore complete. You may need to sign in again."
+  },
+  "actions": {
+    "typeToConfirm": "Type \"{confirmText}\" to confirm.",
+    "invalidJson": "That file is not valid JSON.",
+    "unrecognizedBackup": "That file is not a recognized backup.",
+    "restoreFailed": "Restore failed: {message}",
+    "restoreFailedGeneric": "Restore failed."
+  }
+}

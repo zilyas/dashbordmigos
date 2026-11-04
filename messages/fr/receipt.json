@@ -1,0 +1,24 @@
+{
+  "invoice": "Facture",
+  "servedBy": "Servi par",
+  "customer": "Client",
+  "subtotal": "Sous-total",
+  "discount": "Remise",
+  "tax": "Taxe",
+  "total": "Total",
+  "paymentMethod": "Mode de paiement",
+  "thankYou": "Merci pour votre achat !",
+  "dialog": {
+    "title": "Reçu {invoiceNumber}",
+    "description": "Imprimez-le, enregistrez-le en image ou envoyez-le au client."
+  },
+  "actions": {
+    "print": "Imprimer",
+    "download": "Télécharger",
+    "whatsapp": "WhatsApp",
+    "toastPrepareFailed": "Impossible de préparer le reçu.",
+    "toastAllowPopups": "Autorisez les fenêtres pop-up pour ce site afin d'imprimer le reçu.",
+    "toastSavedForWhatsapp": "Reçu enregistré. Joignez-le dans WhatsApp."
+  },
+  "viewReceiptAriaLabel": "Voir le reçu pour {invoiceNumber}"
+}

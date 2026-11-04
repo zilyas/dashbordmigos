@@ -15,6 +15,7 @@ import {
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/format";
 import { initials } from "@/lib/utils";
+import { userStatusLabel } from "@/lib/labels";
 import type { SellerListItem } from "@/lib/queries/users";
 
 export function buildSellerColumns({
@@ -23,18 +24,24 @@ export function buildSellerColumns({
   onResetPassword,
   onToggleStatus,
   onDelete,
+  t,
+  tLabels,
 }: {
   currency: string;
   onEdit: (seller: SellerListItem) => void;
   onResetPassword: (seller: SellerListItem) => void;
   onToggleStatus: (seller: SellerListItem) => void;
   onDelete: (seller: SellerListItem) => void;
+  /** Resolved via useTranslations("people.users.columns") in the caller. */
+  t: (key: string) => string;
+  /** Resolved via useTranslations("labels") in the caller. */
+  tLabels: (key: string) => string;
 }): ColumnDef<SellerListItem, unknown>[] {
   return [
     {
       id: "user",
       accessorFn: (row) => `${row.name} ${row.email}`,
-      header: "Seller",
+      header: t("seller"),
       cell: ({ row }) => {
         const u = row.original;
         return (
@@ -56,19 +63,19 @@ export function buildSellerColumns({
     {
       id: "phone",
       accessorFn: (row) => row.phone ?? "",
-      header: "Phone",
+      header: t("phone"),
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.phone || "—"}</span>,
     },
     {
       id: "salesCount",
       accessorFn: (row) => row.salesCount,
-      header: "Sales",
+      header: t("sales"),
       cell: ({ row }) => <span className="tabular-nums">{row.original.salesCount}</span>,
     },
     {
       id: "salesTotal",
       accessorFn: (row) => row.salesTotal,
-      header: "Revenue",
+      header: t("revenue"),
       cell: ({ row }) => (
         <span className="tabular-nums">{formatCurrency(row.original.salesTotal, currency)}</span>
       ),
@@ -76,22 +83,22 @@ export function buildSellerColumns({
     {
       id: "status",
       accessorFn: (row) => row.status,
-      header: "Status",
+      header: t("status"),
       cell: ({ row }) => (
         <StatusBadge variant={row.original.status === "ACTIVE" ? "success" : "neutral"}>
-          {row.original.status === "ACTIVE" ? "Active" : "Inactive"}
+          {userStatusLabel(tLabels, row.original.status)}
         </StatusBadge>
       ),
     },
     {
       id: "lastLogin",
       accessorFn: (row) => row.lastLogin ?? "",
-      header: "Last login",
+      header: t("lastLogin"),
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
           {row.original.lastLogin
             ? formatDistanceToNow(new Date(row.original.lastLogin), { addSuffix: true })
-            : "Never"}
+            : t("never")}
         </span>
       ),
     },
@@ -104,27 +111,27 @@ export function buildSellerColumns({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Seller actions">
+              <Button variant="ghost" size="icon-sm" aria-label={t("actionsLabel")}>
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onEdit(u)}>
                 <Pencil />
-                Edit
+                {t("edit")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onResetPassword(u)}>
                 <KeyRound />
-                Reset password
+                {t("resetPassword")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onToggleStatus(u)}>
                 {u.status === "ACTIVE" ? <UserX /> : <UserCheck />}
-                {u.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                {u.status === "ACTIVE" ? t("deactivate") : t("activate")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => onDelete(u)}>
                 <Trash2 />
-                Delete
+                {t("delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

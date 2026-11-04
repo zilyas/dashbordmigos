@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
+import { toAppLocale } from "@/i18n/messages";
 import { logActivity } from "@/lib/audit";
 import { getStoreFeatures } from "@/lib/features";
 import { incrementProductStock, incrementVariantStock, touchProductForVariant } from "@/lib/inventory";
@@ -19,11 +21,11 @@ import { getProductBatchView, getStoreBatchReconciliation } from "@/lib/queries/
 import { runExpirySweep } from "@/lib/expiry-sweep";
 import {
   enableBatchTrackingSchema,
-  receiveBatchStockSchema,
-  adjustBatchStockSchema,
-  enableExpiryTrackingSchema,
-  updateBatchExpirySchema,
-  archiveBatchSchema,
+  buildReceiveBatchStockSchema,
+  buildAdjustBatchStockSchema,
+  buildEnableExpiryTrackingSchema,
+  buildUpdateBatchExpirySchema,
+  buildArchiveBatchSchema,
   type EnableBatchTrackingInput,
   type ReceiveBatchStockInput,
   type AdjustBatchStockInput,
@@ -47,9 +49,12 @@ class Unreconciled extends Error {}
 class ExpiryMismatch extends Error {}
 
 /** All batch actions require the store-level feature flag to be on. */
-async function ensureFeatureEnabled(storeId: string): Promise<true | { error: string }> {
+async function ensureFeatureEnabled(
+  storeId: string,
+  t: Awaited<ReturnType<typeof getTranslations>>
+): Promise<true | { error: string }> {
   const features = await getStoreFeatures(storeId);
-  if (!features.expiry_batch_enabled) return { error: "Batch tracking is not enabled for this store." };
+  if (!features.expiry_batch_enabled) return { error: t("notEnabled") };
   return true;
 }
 
@@ -114,11 +119,12 @@ function revalidateBatchRoutes(productId: string) {
 
 export async function enableProductBatchTracking(input: EnableBatchTrackingInput) {
   const session = await requireInventoryManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
   const parsed = enableBatchTrackingSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid request" };
+  if (!parsed.success) return { error: t("invalidRequest") };
   const { storeId, userId } = session;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const product = await prisma.product.findFirst({
@@ -134,8 +140,8 @@ export async function enableProductBatchTracking(input: EnableBatchTrackingInput
       variants: { select: { id: true, stock: true, fabricationPrice: true } },
     },
   });
-  if (!product) return { error: "Product not found" };
-  if (product.trackExpiry) return { error: "Expiry tracking is not supported yet." };
+  if (!product) return { error: t("productNotFound") };
+  if (product.trackExpiry) return { error: t("expiryNotSupportedYet") };
   if (product.trackBatch) return { success: true as const, alreadyEnabled: true as const };
 
   try {
@@ -228,7 +234,7 @@ export async function enableProductBatchTracking(input: EnableBatchTrackingInput
     return { success: true as const, alreadyEnabled: false as const, openingBatches };
   } catch (error) {
     if (error instanceof AlreadyEnabled) return { success: true as const, alreadyEnabled: true as const };
-    if (error instanceof Unreconciled) return { error: "Could not enable tracking: stock reconciliation failed." };
+    if (error instanceof Unreconciled) return { error: t("reconciliationFailed") };
     throw error;
   }
 }
@@ -237,35 +243,38 @@ export async function enableProductBatchTracking(input: EnableBatchTrackingInput
 
 export async function receiveBatchStock(input: ReceiveBatchStockInput) {
   const session = await requireInventoryManager();
-  const parsed = receiveBatchStockSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid batch data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "batches.actions" });
+  const parsed = buildReceiveBatchStockSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidBatchData") };
   const { storeId, userId } = session;
   const data = parsed.data;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const product = await prisma.product.findFirst({
     where: { id: data.productId, storeId },
     select: { id: true, hasVariants: true, trackBatch: true, trackExpiry: true, allowDecimalQuantity: true },
   });
-  if (!product) return { error: "Product not found" };
-  if (!product.trackBatch) return { error: "This product is not batch-tracked." };
+  if (!product) return { error: t("productNotFound") };
+  if (!product.trackBatch) return { error: t("notBatchTracked") };
 
   const variantId = data.variantId || null;
-  if (product.hasVariants && !variantId) return { error: "Choose a variant to receive into." };
-  if (!product.hasVariants && variantId) return { error: "This product has no variants." };
+  if (product.hasVariants && !variantId) return { error: t("chooseVariantToReceive") };
+  if (!product.hasVariants && variantId) return { error: t("noVariants") };
   if (variantId) {
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, productId: product.id, storeId },
       select: { id: true },
     });
-    if (!variant) return { error: "Variant not found for this product." };
+    if (!variant) return { error: t("variantNotFound") };
   }
 
   const allowDecimal = await decimalAllowed(storeId, product.allowDecimalQuantity);
   if (!allowDecimal && !Number.isInteger(data.quantity)) {
-    return { error: "Quantity must be a whole number for this product." };
+    return { error: t("quantityWholeNumber") };
   }
   const quantity = round3(data.quantity);
 
@@ -275,10 +284,10 @@ export async function receiveBatchStock(input: ReceiveBatchStockInput) {
   if (product.trackExpiry) {
     const submitted = data.expiryDate || "";
     if (!submitted || !isValidDateKey(submitted)) {
-      return { error: "An expiry date is required for this product." };
+      return { error: t("expiryRequired") };
     }
     const storeToday = await getStoreToday(storeId);
-    if (submitted < storeToday) return { error: "Expiry date cannot be in the past." };
+    if (submitted < storeToday) return { error: t("expiryInPast") };
     expiryKey = submitted;
   }
 
@@ -364,11 +373,11 @@ export async function receiveBatchStock(input: ReceiveBatchStockInput) {
     revalidateBatchRoutes(product.id);
     return { success: true as const, ...result };
   } catch (error) {
-    if (error instanceof ArchivedBatch) return { error: "That batch is archived and cannot receive stock." };
-    if (error instanceof ExpiryMismatch) return { error: "That batch code already exists with a different expiry date." };
-    if (error instanceof Unreconciled) return { error: "Receiving failed: stock reconciliation error." };
+    if (error instanceof ArchivedBatch) return { error: t("batchArchivedCannotReceive") };
+    if (error instanceof ExpiryMismatch) return { error: t("batchCodeDifferentExpiry") };
+    if (error instanceof Unreconciled) return { error: t("reconciliationErrorReceiving") };
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "That batch code was just created — please try again." };
+      return { error: t("batchCodeRetry") };
     }
     throw error;
   }
@@ -378,12 +387,15 @@ export async function receiveBatchStock(input: ReceiveBatchStockInput) {
 
 export async function adjustBatchStock(input: AdjustBatchStockInput) {
   const session = await requireInventoryManager();
-  const parsed = adjustBatchStockSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid adjustment data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "batches.actions" });
+  const parsed = buildAdjustBatchStockSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidAdjustmentData") };
   const { storeId, userId } = session;
   const data = parsed.data;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const batch = await prisma.productBatch.findFirst({
@@ -398,13 +410,13 @@ export async function adjustBatchStock(input: AdjustBatchStockInput) {
       product: { select: { trackBatch: true, trackExpiry: true, allowDecimalQuantity: true } },
     },
   });
-  if (!batch) return { error: "Batch not found" };
-  if (batch.status === "ARCHIVED") return { error: "Archived batches cannot be adjusted." };
-  if (!batch.product.trackBatch) return { error: "This product is not batch-tracked." };
+  if (!batch) return { error: t("batchNotFound") };
+  if (batch.status === "ARCHIVED") return { error: t("archivedCannotAdjust") };
+  if (!batch.product.trackBatch) return { error: t("notBatchTracked") };
 
   const allowDecimal = await decimalAllowed(storeId, batch.product.allowDecimalQuantity);
   if (!allowDecimal && !Number.isInteger(data.newStock)) {
-    return { error: "Stock must be a whole number for this product." };
+    return { error: t("stockWholeNumber") };
   }
   const newStock = round3(data.newStock);
   const oldStock = round3(Number(batch.stock));
@@ -413,7 +425,7 @@ export async function adjustBatchStock(input: AdjustBatchStockInput) {
 
   // Expiry-tracked batches can't hold positive stock without a date.
   if (batch.product.trackExpiry && newStock > 0 && !batch.expiryDate) {
-    return { error: "Assign an expiry date to this batch before adding stock." };
+    return { error: t("assignExpiryBeforeStock") };
   }
 
   // Status precedence: ARCHIVED (blocked above) > zero stock → DEPLETED >
@@ -483,9 +495,9 @@ export async function adjustBatchStock(input: AdjustBatchStockInput) {
     revalidateBatchRoutes(batch.productId);
     return { success: true as const, unchanged: false as const };
   } catch (error) {
-    if (error instanceof Conflict) return { error: "The batch changed while you were editing — reload and try again." };
-    if (error instanceof NegativeStock) return { error: "That adjustment would make aggregate stock negative." };
-    if (error instanceof Unreconciled) return { error: "Adjustment failed: stock reconciliation error." };
+    if (error instanceof Conflict) return { error: t("conflictReload") };
+    if (error instanceof NegativeStock) return { error: t("negativeStock") };
+    if (error instanceof Unreconciled) return { error: t("reconciliationErrorAdjustment") };
     throw error;
   }
 }
@@ -494,16 +506,18 @@ export async function adjustBatchStock(input: AdjustBatchStockInput) {
 
 export async function getBatchReconciliation(productId: string) {
   const session = await requireInventoryManager();
-  const feature = await ensureFeatureEnabled(session.storeId);
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
+  const feature = await ensureFeatureEnabled(session.storeId, t);
   if (feature !== true) return feature;
   const view = await getProductBatchView(productId, session.storeId);
-  if (!view) return { error: "Product not found" };
+  if (!view) return { error: t("productNotFound") };
   return { success: true as const, reconciliation: view.reconciliation };
 }
 
 export async function reconcileStoreBatchInventory() {
   const session = await requireInventoryManager();
-  const feature = await ensureFeatureEnabled(session.storeId);
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
+  const feature = await ensureFeatureEnabled(session.storeId, t);
   if (feature !== true) return feature;
   const result = await getStoreBatchReconciliation(session.storeId);
   return { success: true as const, ...result };
@@ -515,11 +529,14 @@ const dateOnly = (key: string) => new Date(key + "T00:00:00.000Z");
 
 export async function enableProductExpiryTracking(input: EnableExpiryTrackingInput) {
   const session = await requireInventoryManager();
-  const parsed = enableExpiryTrackingSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid request" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "batches.actions" });
+  const parsed = buildEnableExpiryTrackingSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidRequest") };
   const { storeId, userId } = session;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const product = await prisma.product.findFirst({
@@ -532,8 +549,8 @@ export async function enableProductExpiryTracking(input: EnableExpiryTrackingInp
       batches: { select: { id: true, stock: true, status: true } },
     },
   });
-  if (!product) return { error: "Product not found" };
-  if (!product.trackBatch) return { error: "Enable batch tracking first." };
+  if (!product) return { error: t("productNotFound") };
+  if (!product.trackBatch) return { error: t("enableBatchFirst") };
   if (product.trackExpiry) return { success: true as const, alreadyEnabled: true as const };
 
   // Every positive-stock, non-archived batch must receive a valid date.
@@ -584,27 +601,30 @@ export async function enableProductExpiryTracking(input: EnableExpiryTrackingInp
 
 export async function updateBatchExpiryDate(input: UpdateBatchExpiryInput) {
   const session = await requireInventoryManager();
-  const parsed = updateBatchExpirySchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid request" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "batches.actions" });
+  const parsed = buildUpdateBatchExpirySchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidRequest") };
   const { storeId, userId } = session;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const batch = await prisma.productBatch.findFirst({
     where: { id: parsed.data.batchId, storeId },
     select: { id: true, stock: true, status: true, expiryDate: true, productId: true, product: { select: { trackExpiry: true } } },
   });
-  if (!batch) return { error: "Batch not found" };
-  if (!batch.product.trackExpiry) return { error: "This product does not use expiry tracking." };
+  if (!batch) return { error: t("batchNotFound") };
+  if (!batch.product.trackExpiry) return { error: t("productNoExpiryTracking") };
 
   const newKey = parsed.data.expiryDate;
-  if (!isValidDateKey(newKey)) return { error: "Invalid date." };
+  if (!isValidDateKey(newKey)) return { error: t("invalidDate") };
   const storeToday = await getStoreToday(storeId);
   // A positive-stock batch can't be moved to a past date (that would make live
   // stock retroactively expired); correcting an already-expired date is deferred.
   if (round3(Number(batch.stock)) > 0 && newKey < storeToday) {
-    return { error: "A batch with stock cannot be given a past expiry date." };
+    return { error: t("pastExpiryWithStock") };
   }
   const oldKey = batch.expiryDate ? toDateKey(batch.expiryDate) : null;
 
@@ -645,7 +665,8 @@ export async function updateBatchExpiryDate(input: UpdateBatchExpiryInput) {
  */
 export async function markExpiredBatches() {
   const session = await requireInventoryManager();
-  const feature = await ensureFeatureEnabled(session.storeId);
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
+  const feature = await ensureFeatureEnabled(session.storeId, t);
   if (feature !== true) return feature;
   const { storeId, userId } = session;
 
@@ -686,7 +707,8 @@ export async function markExpiredBatches() {
  */
 export async function refreshExpiryStatusAndNotifications() {
   const session = await requireInventoryManager();
-  const feature = await ensureFeatureEnabled(session.storeId);
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
+  const feature = await ensureFeatureEnabled(session.storeId, t);
   if (feature !== true) return feature;
   const { storeId, userId } = session;
 
@@ -722,18 +744,21 @@ export async function refreshExpiryStatusAndNotifications() {
  */
 export async function archiveBatch(input: ArchiveBatchInput) {
   const session = await requireInventoryManager();
-  const parsed = archiveBatchSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid request" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "batches.actions" });
+  const parsed = buildArchiveBatchSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidRequest") };
   const { storeId, userId } = session;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const batch = await prisma.productBatch.findFirst({
     where: { id: parsed.data.batchId, storeId },
     select: { id: true, status: true, productId: true, batchCode: true },
   });
-  if (!batch) return { error: "Batch not found" };
+  if (!batch) return { error: t("batchNotFound") };
   if (batch.status === "ARCHIVED") return { success: true as const, alreadyArchived: true as const };
 
   await prisma.$transaction(async (tx) => {
@@ -767,22 +792,23 @@ export async function archiveBatch(input: ArchiveBatchInput) {
  */
 export async function disableProductBatchTracking(productId: string) {
   const session = await requireInventoryManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "batches.actions" });
   const { storeId, userId } = session;
 
-  const feature = await ensureFeatureEnabled(storeId);
+  const feature = await ensureFeatureEnabled(storeId, t);
   if (feature !== true) return feature;
 
   const product = await prisma.product.findFirst({
     where: { id: productId, storeId },
     select: { id: true, name: true, trackBatch: true },
   });
-  if (!product) return { error: "Product not found" };
+  if (!product) return { error: t("productNotFound") };
   if (!product.trackBatch) return { success: true as const, alreadyDisabled: true as const };
 
   // Block on any pre-existing reconciliation drift (aggregate vs Σ all batches).
   const view = await getProductBatchView(productId, storeId);
   if (view && !view.reconciliation.ok) {
-    return { error: "Stock doesn't reconcile with batches — resolve the discrepancy before disabling." };
+    return { error: t("reconciliationDriftBeforeDisable") };
   }
 
   const result = await prisma.$transaction(async (tx) => {

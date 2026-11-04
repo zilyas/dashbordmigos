@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Providers } from "@/components/providers";
 import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
@@ -50,24 +52,32 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Both static-resolve to "en" with no request data read (see
+  // src/i18n/request.ts) -- this must not make the route dynamic. Verified
+  // with `next build`: /offline/pos must keep printing `○`.
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>
-          <OfflineBanner />
-          {children}
-          <InstallPrompt />
-        </Providers>
-        <ServiceWorkerRegistrar />
+        <NextIntlClientProvider messages={messages}>
+          <Providers>
+            <OfflineBanner />
+            {children}
+            <InstallPrompt />
+          </Providers>
+          <ServiceWorkerRegistrar />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

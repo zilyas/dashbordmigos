@@ -1,0 +1,210 @@
+{
+  "users": {
+    "page": {
+      "title": "Vendeurs",
+      "description": "{count, plural, one {# vendeur} other {# vendeurs}} dans votre boutique"
+    },
+    "table": {
+      "searchPlaceholder": "Rechercher par nom ou e-mail...",
+      "emptyTitle": "Aucun vendeur trouvé",
+      "newSeller": "Nouveau vendeur"
+    },
+    "columns": {
+      "seller": "Vendeur",
+      "phone": "Téléphone",
+      "sales": "Ventes",
+      "revenue": "Chiffre d'affaires",
+      "status": "Statut",
+      "lastLogin": "Dernière connexion",
+      "never": "Jamais",
+      "actionsLabel": "Actions sur le vendeur",
+      "edit": "Modifier",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "delete": "Supprimer"
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "description": "Si ce vendeur a effectué des ventes, il sera désactivé plutôt que supprimé pour préserver les registres.",
+      "toastDeactivated": "Vendeur désactivé (historique associé)",
+      "toastDeleted": "Vendeur supprimé"
+    },
+    "toastActivated": "Vendeur activé",
+    "toastDeactivated": "Vendeur désactivé",
+    "createDialog": {
+      "title": "Nouveau vendeur",
+      "description": "Créez un nouveau compte vendeur pour votre boutique.",
+      "fullNameLabel": "Nom complet",
+      "emailLabel": "E-mail",
+      "tempPasswordLabel": "Mot de passe temporaire",
+      "phoneLabel": "Téléphone",
+      "create": "Créer le vendeur",
+      "toastCreated": "Vendeur créé"
+    },
+    "editDialog": {
+      "title": "Modifier le vendeur",
+      "description": "Mettez à jour les détails de ce vendeur.",
+      "saveChanges": "Enregistrer les modifications",
+      "toastUpdated": "Vendeur mis à jour"
+    }
+  },
+  "managers": {
+    "page": {
+      "title": "Gérants",
+      "description": "{count, plural, one {# gérant} other {# gérants}} sur la plateforme"
+    },
+    "table": {
+      "searchPlaceholder": "Rechercher par nom ou e-mail...",
+      "emptyTitle": "Aucun gérant pour le moment",
+      "newManager": "Nouveau gérant"
+    },
+    "columns": {
+      "manager": "Gérant",
+      "store": "Boutique",
+      "unassigned": "Non assigné",
+      "phone": "Téléphone",
+      "status": "Statut",
+      "lastLogin": "Dernière connexion",
+      "never": "Jamais",
+      "actionsLabel": "Actions sur le gérant",
+      "edit": "Modifier",
+      "transfer": "Transférer vers une autre boutique",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "delete": "Supprimer"
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "description": "Si ce gérant a un historique lié à la boutique, il sera désactivé plutôt que supprimé pour préserver les registres.",
+      "toastDeactivated": "Gérant désactivé (historique associé)",
+      "toastDeleted": "Gérant supprimé"
+    },
+    "toastActivated": "Gérant activé",
+    "toastDeactivated": "Gérant désactivé",
+    "createDialog": {
+      "title": "Nouveau gérant",
+      "description": "Créez un compte gérant et assignez une boutique.",
+      "fullNameLabel": "Nom complet",
+      "emailLabel": "E-mail",
+      "tempPasswordLabel": "Mot de passe temporaire",
+      "phoneLabel": "Téléphone",
+      "storeLabel": "Boutique",
+      "storePlaceholder": "Sélectionner une boutique",
+      "create": "Créer le gérant",
+      "toastCreated": "Gérant créé"
+    },
+    "editDialog": {
+      "title": "Modifier le gérant",
+      "description": "Mettez à jour les détails de ce gérant.",
+      "saveChanges": "Enregistrer les modifications",
+      "toastUpdated": "Gérant mis à jour"
+    },
+    "transferDialog": {
+      "title": "Transférer le gérant",
+      "description": "Déplacer {name} de {storeName} vers une autre boutique.",
+      "currentStoreFallback": "sa boutique actuelle",
+      "destinationLabel": "Boutique de destination",
+      "storePlaceholder": "Sélectionner une boutique",
+      "transfer": "Transférer",
+      "errorSelectStore": "Sélectionnez une boutique de destination",
+      "toastTransferred": "{name} transféré"
+    }
+  },
+  "stores": {
+    "page": {
+      "title": "Boutiques",
+      "description": "{count, plural, one {# boutique} other {# boutiques}} sur la plateforme"
+    },
+    "table": {
+      "searchPlaceholder": "Rechercher des boutiques...",
+      "emptyTitle": "Aucune boutique pour le moment",
+      "emptyDescription": "Créez votre première boutique pour commencer.",
+      "newStore": "Nouvelle boutique"
+    },
+    "columns": {
+      "store": "Boutique",
+      "location": "Emplacement",
+      "manager": "Gérant",
+      "unassigned": "Non assigné",
+      "products": "Produits",
+      "employees": "Employés",
+      "status": "Statut",
+      "actionsLabel": "Actions sur la boutique",
+      "viewDetails": "Voir les détails",
+      "edit": "Modifier",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "delete": "Supprimer"
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "description": "Si cette boutique a des données réelles (produits, ventes, personnel), elle sera désactivée plutôt que supprimée pour préserver les registres.",
+      "toastDeactivated": "Boutique désactivée (données associées)",
+      "toastDeleted": "Boutique supprimée"
+    },
+    "toastActivated": "Boutique activée",
+    "toastDeactivated": "Boutique désactivée",
+    "dialog": {
+      "editTitle": "Modifier la boutique",
+      "newTitle": "Nouvelle boutique",
+      "editDescription": "Mettez à jour les détails de cette boutique.",
+      "newDescription": "Créez une nouvelle boutique sur la plateforme.",
+      "logoLabel": "Logo",
+      "storeNameLabel": "Nom de la boutique",
+      "storeCodeLabel": "Code de la boutique",
+      "currencyLabel": "Devise",
+      "taxRateLabel": "Taux de taxe (%)",
+      "cityLabel": "Ville",
+      "countryLabel": "Pays",
+      "addressLabel": "Adresse",
+      "phoneLabel": "Téléphone",
+      "emailLabel": "E-mail",
+      "advancedFeaturesTitle": "Fonctionnalités avancées",
+      "features": {
+        "units": "Unités de mesure",
+        "categoryAttributes": "Attributs de catégorie (bientôt)",
+        "customVariantAxes": "Axes de variantes personnalisés (bientôt)",
+        "expiryBatch": "Expiration et lots (bientôt)",
+        "storefrontApi": "API boutique"
+      },
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer la boutique",
+      "toastUpdated": "Boutique mise à jour",
+      "toastCreated": "Boutique créée"
+    }
+  },
+  "resetPasswordDialog": {
+    "title": "Réinitialiser le mot de passe",
+    "descriptionShare": "Partagez ce mot de passe temporaire avec {name} de manière sécurisée. Il ne sera plus affiché.",
+    "descriptionGenerate": "Générer un nouveau mot de passe temporaire pour {name}.",
+    "toastCopied": "Copié dans le presse-papiers",
+    "toastFailed": "Échec de la réinitialisation du mot de passe.",
+    "done": "Terminé",
+    "cancel": "Annuler",
+    "generate": "Générer le mot de passe"
+  },
+  "actions": {
+    "invalidSellerData": "Données de vendeur invalides",
+    "sellerEmailExists": "Un utilisateur avec cet e-mail existe déjà.",
+    "sellerNotFound": "Vendeur introuvable",
+    "welcomeNotificationTitle": "Bienvenue dans l'équipe",
+    "welcomeNotificationMessage": "Votre compte vendeur a été créé. Connectez-vous pour commencer.",
+    "resetPasswordFailed": "Échec de la réinitialisation du mot de passe.",
+    "invalidManagerData": "Données de gérant invalides",
+    "managerEmailExists": "Un utilisateur avec cet e-mail existe déjà.",
+    "storeNotFound": "Boutique introuvable",
+    "managerNotFound": "Gérant introuvable",
+    "assignedNotificationTitle": "Une boutique vous a été assignée",
+    "assignedNotificationMessage": "Vous gérez maintenant {storeName}. Connectez-vous pour commencer.",
+    "transferredNotificationTitle": "Vous avez été transféré",
+    "transferredNotificationMessage": "Vous gérez maintenant {storeName}.",
+    "invalidStoreData": "Données de boutique invalides",
+    "storeCodeExists": "Une boutique avec ce code existe déjà.",
+    "newStoreNotificationTitle": "Nouvelle boutique créée",
+    "newStoreNotificationMessage": "{name} ({code}) a été ajoutée à la plateforme.",
+    "resetConfirmationMismatch": "Tapez « {confirmText} » pour confirmer.",
+    "resetFailed": "Échec de la réinitialisation de la boutique. Veuillez réessayer."
+  }
+}

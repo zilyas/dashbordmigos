@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Megaphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -13,6 +14,7 @@ export type UnreadAnnouncementItem = {
 };
 
 export function UnreadAnnouncementsCard({ announcements }: { announcements: UnreadAnnouncementItem[] }) {
+  const t = useTranslations("dashboard.announcements");
   if (announcements.length === 0) return null;
 
   return (
@@ -20,13 +22,13 @@ export function UnreadAnnouncementsCard({ announcements }: { announcements: Unre
       <CardHeader className="flex flex-col items-start gap-2 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
           <Megaphone className="size-4 text-primary" />
-          {announcements.length} unread announcement{announcements.length === 1 ? "" : "s"}
+          {t("unreadCount", { count: announcements.length })}
         </CardTitle>
         <Link
           href="/announcements"
           className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          View all
+          {t("viewAll")}
           <ArrowRight className="size-3" />
         </Link>
       </CardHeader>
@@ -44,7 +46,7 @@ export function UnreadAnnouncementsCard({ announcements }: { announcements: Unre
               </p>
             </div>
             <StatusBadge variant={announcement.scope === "PLATFORM" ? "info" : "neutral"}>
-              {announcement.scope === "PLATFORM" ? "Platform" : "Store"}
+              {announcement.scope === "PLATFORM" ? t("platform") : t("store")}
             </StatusBadge>
           </Link>
         ))}

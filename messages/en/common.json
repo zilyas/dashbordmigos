@@ -1,0 +1,11 @@
+{
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "delete": "Delete",
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "superAdmin": {
+    "title": "Platform Overview",
+    "description": "Revenue, profit and activity across every store.",
+    "manageStores": "Manage Stores",
+    "stats": {
+      "activeStores": "Active Stores",
+      "totalUsers": "Total Users",
+      "todaysRevenue": "Today's Revenue",
+      "todaysOrders": "Today's Orders",
+      "monthlyRevenue": "Monthly Revenue",
+      "monthlyProfit": "Monthly Profit",
+      "monthlyOrders": "Monthly Orders",
+      "vsLastMonth": "vs last month"
+    },
+    "topStoresTitle": "Top stores this month",
+    "topStoresDescription": "By revenue",
+    "noSalesYet": "No sales yet",
+    "recentActivityTitle": "Recent activity",
+    "recentActivityDescriptionPlatform": "Latest actions across the platform"
+  },
+  "seller": {
+    "title": "Welcome back",
+    "description": "Here's how your sales are looking.",
+    "newSale": "New Sale",
+    "lowStockWarning": "{count, plural, one {# product} other {# products}} running low on stock store-wide.",
+    "stats": {
+      "todaysSales": "Today's Sales",
+      "todaysOrders": "Today's Orders",
+      "monthlySales": "This Month's Sales",
+      "monthlyOrders": "This Month's Orders"
+    },
+    "recentSalesTitle": "My recent sales",
+    "recentSalesDescription": "Your last 8 completed sales",
+    "viewAll": "View all",
+    "noSalesYet": "No sales yet — start your first one from the sidebar.",
+    "walkInCustomer": "Walk-in customer"
+  },
+  "manager": {
+    "description": "Overview of {storeName}",
+    "newSale": "New Sale",
+    "stats": {
+      "todaysRevenue": "Today's Revenue",
+      "todaysProfit": "Today's Profit",
+      "todaysOrders": "Today's Orders",
+      "monthlyRevenue": "Monthly Revenue",
+      "monthlyProfit": "Monthly Profit",
+      "unitsInStock": "Units In Stock",
+      "lowStockItems": "Low Stock Items",
+      "topSeller": "Top Seller",
+      "averageOrder": "Average Order",
+      "vsLastMonth": "vs last month"
+    },
+    "revenueProfitTitle": "Revenue & profit",
+    "revenueProfitDescription": "Last 14 days",
+    "salesByCategoryTitle": "Sales by category",
+    "salesByCategoryDescription": "Last 30 days",
+    "bestSellersTitle": "Best selling products",
+    "bestSellersDescription": "By units sold, last 30 days",
+    "recentActivityTitle": "Recent activity",
+    "recentActivityDescriptionStore": "Latest actions across the store"
+  },
+  "announcements": {
+    "unreadCount": "{count, plural, one {# unread announcement} other {# unread announcements}}",
+    "viewAll": "View all",
+    "platform": "Platform",
+    "store": "Store"
+  },
+  "activityFeed": {
+    "noActivityYet": "No activity yet"
+  },
+  "charts": {
+    "revenue": "Revenue",
+    "profit": "Profit",
+    "unitsSold": "Units sold",
+    "noSalesYet": "No sales yet"
+  }
+}

@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { NextIntlClientProvider } from "next-intl";
 import { auth } from "@/lib/auth";
 import { getSessionContext } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
 import { getTotalUnreadMessageCount } from "@/lib/queries/messages";
+import { messagesByLocale, toAppLocale } from "@/i18n/messages";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
@@ -46,25 +48,34 @@ export default async function DashboardLayout({
     type: n.type,
   }));
 
+  // Overrides the root layout's fixed-English provider for everything under
+  // the dashboard, so a signed-in user renders in their own stored language.
+  // Resolved fresh from the DB on every request (not the JWT -- see
+  // src/lib/store-context.ts), so a language change takes effect on the next
+  // navigation with no re-login.
+  const locale = toAppLocale(context.locale);
+
   return (
-    <SidebarProvider>
-      <CommandPaletteProvider role={session.user.role}>
-        <AppSidebar role={session.user.role} unreadMessageCount={unreadMessageCount} features={features} />
-        <SidebarInset>
-          <AppTopbar
-            user={{
-              name: session.user.name ?? "User",
-              email: session.user.email ?? "",
-              role: session.user.role,
-              avatar: session.user.image,
-            }}
-            notifications={notifications}
-          />
-          <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageTransition>{children}</PageTransition>
-          </main>
-        </SidebarInset>
-      </CommandPaletteProvider>
-    </SidebarProvider>
+    <NextIntlClientProvider locale={locale} messages={messagesByLocale[locale]}>
+      <SidebarProvider>
+        <CommandPaletteProvider role={session.user.role}>
+          <AppSidebar role={session.user.role} unreadMessageCount={unreadMessageCount} features={features} />
+          <SidebarInset>
+            <AppTopbar
+              user={{
+                name: session.user.name ?? "User",
+                email: session.user.email ?? "",
+                role: session.user.role,
+                avatar: session.user.image,
+              }}
+              notifications={notifications}
+            />
+            <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+              <PageTransition>{children}</PageTransition>
+            </main>
+          </SidebarInset>
+        </CommandPaletteProvider>
+      </SidebarProvider>
+    </NextIntlClientProvider>
   );
 }

@@ -1,0 +1,38 @@
+{
+  "allStores": "All stores",
+  "noLocationSet": "No location set",
+  "stats": {
+    "monthlyRevenue": "Monthly Revenue",
+    "monthlyProfit": "Monthly Profit",
+    "inventoryValue": "Inventory Value",
+    "employees": "Employees"
+  },
+  "recentSales": {
+    "title": "Recent sales",
+    "description": "Last 8 sales at this store",
+    "emptyTitle": "No sales yet"
+  },
+  "managerSection": {
+    "title": "Manager",
+    "description": "The person running this store day-to-day.",
+    "manageInManagers": "Manage in Managers",
+    "emptyTitle": "No manager assigned",
+    "emptyDescription": "This store needs a manager to operate.",
+    "assignButton": "Assign manager"
+  },
+  "assignManagerDialog": {
+    "title": "Assign a manager",
+    "description": "Create a manager account for {storeName}.",
+    "submit": "Assign manager",
+    "toastAssigned": "Manager assigned"
+  },
+  "dangerZone": {
+    "title": "Danger zone",
+    "description": "Clears this store's trading history — sales, inventory movements and expenses. Products, categories, staff and settings are kept.",
+    "resetButton": "Reset store data",
+    "resetTitle": "Reset \"{storeName}\"?",
+    "resetDescription": "This permanently deletes every sale, inventory movement and expense for this store. Products, categories, staff and settings survive. Stock levels stay where they are — adjust them afterwards if needed. This cannot be undone. Type <strong>{confirmText}</strong> to confirm.",
+    "cancel": "Cancel",
+    "toastReset": "{storeName} reset — {count, plural, one {# sale} other {# sales}} cleared"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
 
 export function ThemeToggle() {
   const { setTheme } = useTheme();
+  const t = useTranslations("common.theme");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Toggle theme">
+        <Button variant="ghost" size="icon-sm" aria-label={t("toggle")}>
           {mounted ? (
             <>
               <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
@@ -35,9 +37,9 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("light")}>{t("light")}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>{t("dark")}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>{t("system")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

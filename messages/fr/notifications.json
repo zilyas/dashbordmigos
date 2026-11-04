@@ -1,0 +1,16 @@
+{
+  "page": {
+    "title": "Notifications",
+    "description": "{count, plural, one {# notification} other {# notifications}}"
+  },
+  "markAllRead": {
+    "button": "Tout marquer comme lu"
+  },
+  "list": {
+    "emptyTitle": "Aucune notification",
+    "deleteAriaLabel": "Supprimer la notification"
+  },
+  "actions": {
+    "notAuthenticated": "Non authentifié"
+  }
+}

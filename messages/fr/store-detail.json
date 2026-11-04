@@ -1,0 +1,38 @@
+{
+  "allStores": "Toutes les boutiques",
+  "noLocationSet": "Aucun emplacement défini",
+  "stats": {
+    "monthlyRevenue": "Chiffre d'affaires mensuel",
+    "monthlyProfit": "Profit mensuel",
+    "inventoryValue": "Valeur de l'inventaire",
+    "employees": "Employés"
+  },
+  "recentSales": {
+    "title": "Ventes récentes",
+    "description": "8 dernières ventes de cette boutique",
+    "emptyTitle": "Aucune vente pour le moment"
+  },
+  "managerSection": {
+    "title": "Gérant",
+    "description": "La personne qui gère cette boutique au quotidien.",
+    "manageInManagers": "Gérer dans Gérants",
+    "emptyTitle": "Aucun gérant assigné",
+    "emptyDescription": "Cette boutique a besoin d'un gérant pour fonctionner.",
+    "assignButton": "Assigner un gérant"
+  },
+  "assignManagerDialog": {
+    "title": "Assigner un gérant",
+    "description": "Créez un compte gérant pour {storeName}.",
+    "submit": "Assigner le gérant",
+    "toastAssigned": "Gérant assigné"
+  },
+  "dangerZone": {
+    "title": "Zone de danger",
+    "description": "Efface l'historique commercial de cette boutique — ventes, mouvements de stock et dépenses. Les produits, catégories, le personnel et les paramètres sont conservés.",
+    "resetButton": "Réinitialiser les données de la boutique",
+    "resetTitle": "Réinitialiser « {storeName} » ?",
+    "resetDescription": "Ceci supprime définitivement toutes les ventes, mouvements de stock et dépenses de cette boutique. Les produits, catégories, le personnel et les paramètres sont conservés. Les niveaux de stock restent inchangés — ajustez-les ensuite si nécessaire. Cette action est irréversible. Tapez <strong>{confirmText}</strong> pour confirmer.",
+    "cancel": "Annuler",
+    "toastReset": "{storeName} réinitialisée — {count, plural, one {# vente effacée} other {# ventes effacées}}"
+  }
+}

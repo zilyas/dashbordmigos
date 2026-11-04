@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Loader2, PackagePlus, SlidersHorizontal, CheckCircle2, AlertTriangle, Boxes, CalendarClock, Archive, PowerOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   disableProductBatchTracking,
 } from "@/actions/batches";
 import { cn } from "@/lib/utils";
+import { batchStatusLabel } from "@/lib/labels";
 import type { ProductBatchView, BatchRow } from "@/lib/queries/batches";
 import type { BatchExpiryState } from "@/lib/batches";
 
@@ -34,15 +36,17 @@ function fmt(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(3).replace(/\.?0+$/, "");
 }
 
-const EXPIRY_BADGE: Record<BatchExpiryState, { label: string; className: string }> = {
-  valid: { label: "Valid", className: "text-emerald-700 dark:text-emerald-400" },
-  expires_today: { label: "Expires today", className: "text-amber-700 dark:text-amber-400" },
-  expired: { label: "Expired", className: "text-red-700 dark:text-red-400" },
-  missing_date: { label: "No date", className: "text-red-700 dark:text-red-400" },
+const EXPIRY_BADGE_CLASS: Record<BatchExpiryState, string> = {
+  valid: "text-emerald-700 dark:text-emerald-400",
+  expires_today: "text-amber-700 dark:text-amber-400",
+  expired: "text-red-700 dark:text-red-400",
+  missing_date: "text-red-700 dark:text-red-400",
 };
 
 /** Enable-tracking card, shown for an untracked product when the store feature is on. */
 function EnableCard({ productId, hasVariants }: { productId: string; hasVariants: boolean }) {
+  const t = useTranslations("batches.enableCard");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
 
@@ -54,9 +58,7 @@ function EnableCard({ productId, hasVariants }: { productId: string; hasVariants
         return;
       }
       setOpen(false);
-      toast.success(
-        res.alreadyEnabled ? "Batch tracking already enabled." : "Batch tracking enabled — opening stock captured."
-      );
+      toast.success(res.alreadyEnabled ? t("toastAlreadyEnabled") : t("toastEnabled"));
     });
   }
 
@@ -64,37 +66,34 @@ function EnableCard({ productId, hasVariants }: { productId: string; hasVariants
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Boxes className="size-4" /> Batch &amp; lot tracking
+          <Boxes className="size-4" /> {t("title")}
         </CardTitle>
-        <CardDescription>
-          Track stock as dated lots/batches with automatic oldest-first (FIFO) allocation on sales.
-        </CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="mb-3 text-sm text-muted-foreground">
-          Enabling this captures the product&apos;s current stock
-          {hasVariants ? " (per variant)" : ""} as an <strong>Opening</strong> batch, then all future
-          stock changes go through batch receiving and adjustments. Aggregate stock is preserved.
+          {t.rich("body", {
+            variantSuffix: hasVariants ? t("bodyVariantSuffix") : "",
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
           <br />
-          Tracking <strong>cannot be turned off</strong> in this release, so enable it deliberately.
+          {t.rich("cannotDisable", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
-        <Button onClick={() => setOpen(true)}>Enable batch tracking…</Button>
+        <Button onClick={() => setOpen(true)}>{t("enableButton")}</Button>
       </CardContent>
 
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enable batch tracking?</DialogTitle>
-            <DialogDescription>
-              Current stock becomes an Opening batch. This can&apos;t be undone in this release.
-            </DialogDescription>
+            <DialogTitle>{t("dialog.title")}</DialogTitle>
+            <DialogDescription>{t("dialog.description")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-              Cancel
+              {tCancel("cancel")}
             </Button>
             <Button onClick={enable} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Enable
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("dialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -114,6 +113,8 @@ function AdjustDialog({
   allowDecimalQuantity: boolean;
   onDone: () => void;
 }) {
+  const t = useTranslations("batches.adjustDialog");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [newStock, setNewStock] = useState(String(batch.stock));
@@ -121,8 +122,8 @@ function AdjustDialog({
 
   function submit() {
     const value = Number(newStock);
-    if (!Number.isFinite(value) || value < 0) return toast.error("Enter a valid non-negative quantity.");
-    if (!reason.trim()) return toast.error("A reason is required.");
+    if (!Number.isFinite(value) || value < 0) return toast.error(t("errorInvalidQuantity"));
+    if (!reason.trim()) return toast.error(t("errorReasonRequired"));
     start(async () => {
       const res = await adjustBatchStock({ batchId: batch.id, newStock: value, reason: reason.trim() });
       if ("error" in res) {
@@ -131,7 +132,7 @@ function AdjustDialog({
       }
       setOpen(false);
       setReason("");
-      toast.success("Batch stock adjusted.");
+      toast.success(t("toastAdjusted"));
       onDone();
     });
   }
@@ -139,17 +140,17 @@ function AdjustDialog({
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)} disabled={batch.status === "ARCHIVED"}>
-        <SlidersHorizontal className="size-3.5" /> Adjust
+        <SlidersHorizontal className="size-3.5" /> {t("button")}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adjust counted stock — {batch.batchCode}</DialogTitle>
-            <DialogDescription>Enter the counted quantity; the difference is logged.</DialogDescription>
+            <DialogTitle>{t("title", { batchCode: batch.batchCode })}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <Field>
-              <FieldLabel htmlFor="adj-stock">Counted stock ({unit})</FieldLabel>
+              <FieldLabel htmlFor="adj-stock">{t("countedStockLabel", { unit })}</FieldLabel>
               <Input
                 id="adj-stock"
                 type="number"
@@ -160,14 +161,14 @@ function AdjustDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="adj-reason">Reason</FieldLabel>
-              <Input id="adj-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. stock count correction" />
+              <FieldLabel htmlFor="adj-reason">{t("reasonLabel")}</FieldLabel>
+              <Input id="adj-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("reasonPlaceholder")} />
             </Field>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>{tCancel("cancel")}</Button>
             <Button onClick={submit} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Save adjustment
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -177,6 +178,7 @@ function AdjustDialog({
 }
 
 function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => void }) {
+  const t = useTranslations("batches.receiveForm");
   const [isPending, start] = useTransition();
   const [variantId, setVariantId] = useState(view.hasVariants ? view.variants[0]?.id ?? "" : "");
   const [batchCode, setBatchCode] = useState("");
@@ -186,10 +188,10 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
 
   function submit() {
     const qty = Number(quantity);
-    if (!batchCode.trim()) return toast.error("Enter a batch code.");
-    if (!Number.isFinite(qty) || qty <= 0) return toast.error("Quantity must be greater than zero.");
-    if (view.hasVariants && !variantId) return toast.error("Choose a variant.");
-    if (view.trackExpiry && !expiryDate) return toast.error("Enter an expiry date.");
+    if (!batchCode.trim()) return toast.error(t("errorBatchCodeRequired"));
+    if (!Number.isFinite(qty) || qty <= 0) return toast.error(t("errorQuantityPositive"));
+    if (view.hasVariants && !variantId) return toast.error(t("errorChooseVariant"));
+    if (view.trackExpiry && !expiryDate) return toast.error(t("errorExpiryRequired"));
     start(async () => {
       const res = await receiveBatchStock({
         productId: view.productId,
@@ -207,7 +209,7 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
       setQuantity("");
       setCostPrice("");
       setExpiryDate("");
-      toast.success(res.reused ? "Stock added to existing batch." : "New batch received.");
+      toast.success(res.reused ? t("toastReused") : t("toastReceived"));
       onDone();
     });
   }
@@ -218,10 +220,10 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
     return (
       <div className="rounded-lg border border-border p-3">
         <p className="mb-2 flex items-center gap-2 text-sm font-medium">
-          <PackagePlus className="size-4" /> Receive stock
+          <PackagePlus className="size-4" /> {t("title")}
         </p>
         <p className="text-sm text-muted-foreground">
-          Add at least one variant above before receiving stock — every batch belongs to a variant.
+          {t("needVariantFirst")}
         </p>
       </div>
     );
@@ -230,14 +232,14 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
   return (
     <div className="rounded-lg border border-border p-3">
       <p className="mb-2 flex items-center gap-2 text-sm font-medium">
-        <PackagePlus className="size-4" /> Receive stock
+        <PackagePlus className="size-4" /> {t("title")}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {view.hasVariants && (
           <Field>
-            <FieldLabel>Variant</FieldLabel>
+            <FieldLabel>{t("variantLabel")}</FieldLabel>
             <Select value={variantId} onValueChange={setVariantId}>
-              <SelectTrigger><SelectValue placeholder="Choose variant" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("variantPlaceholder")} /></SelectTrigger>
               <SelectContent>
                 {view.variants.map((v) => (
                   <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>
@@ -247,11 +249,11 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
           </Field>
         )}
         <Field>
-          <FieldLabel htmlFor="rc-code">Batch code</FieldLabel>
-          <Input id="rc-code" value={batchCode} onChange={(e) => setBatchCode(e.target.value)} placeholder="e.g. LOT-2026-01" />
+          <FieldLabel htmlFor="rc-code">{t("batchCodeLabel")}</FieldLabel>
+          <Input id="rc-code" value={batchCode} onChange={(e) => setBatchCode(e.target.value)} placeholder={t("batchCodePlaceholder")} />
         </Field>
         <Field>
-          <FieldLabel htmlFor="rc-qty">Quantity ({view.unit})</FieldLabel>
+          <FieldLabel htmlFor="rc-qty">{t("quantityLabel", { unit: view.unit })}</FieldLabel>
           <Input
             id="rc-qty"
             type="number"
@@ -262,18 +264,18 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="rc-cost">Cost price (optional)</FieldLabel>
+          <FieldLabel htmlFor="rc-cost">{t("costPriceLabel")}</FieldLabel>
           <Input id="rc-cost" type="number" min={0} step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
         </Field>
         {view.trackExpiry && (
           <Field>
-            <FieldLabel htmlFor="rc-exp">Expiry date</FieldLabel>
+            <FieldLabel htmlFor="rc-exp">{t("expiryDateLabel")}</FieldLabel>
             <Input id="rc-exp" type="date" min={view.storeToday} value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
           </Field>
         )}
       </div>
       <Button className="mt-3" onClick={submit} disabled={isPending}>
-        {isPending && <Loader2 className="size-4 animate-spin" />} Receive
+        {isPending && <Loader2 className="size-4 animate-spin" />} {t("receiveButton")}
       </Button>
     </div>
   );
@@ -281,12 +283,14 @@ function ReceiveForm({ view, onDone }: { view: ProductBatchView; onDone: () => v
 
 /** Correct a single batch's expiry date (trackExpiry products only). */
 function ExpiryEditDialog({ batch, storeToday, onDone }: { batch: BatchRow; storeToday: string; onDone: () => void }) {
+  const t = useTranslations("batches.expiryEditDialog");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(batch.expiryDate ?? "");
 
   function submit() {
-    if (!date) return toast.error("Enter a date.");
+    if (!date) return toast.error(t("errorDateRequired"));
     start(async () => {
       const res = await updateBatchExpiryDate({ batchId: batch.id, expiryDate: date });
       if ("error" in res) {
@@ -294,7 +298,7 @@ function ExpiryEditDialog({ batch, storeToday, onDone }: { batch: BatchRow; stor
         return;
       }
       setOpen(false);
-      toast.success("Expiry date updated.");
+      toast.success(t("toastUpdated"));
       onDone();
     });
   }
@@ -302,22 +306,22 @@ function ExpiryEditDialog({ batch, storeToday, onDone }: { batch: BatchRow; stor
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <CalendarClock className="size-3.5" /> Date
+        <CalendarClock className="size-3.5" /> {t("button")}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Correct expiry date — {batch.batchCode}</DialogTitle>
-            <DialogDescription>A batch with stock cannot be set to a past date.</DialogDescription>
+            <DialogTitle>{t("title", { batchCode: batch.batchCode })}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel htmlFor="ed-date">Expiry date</FieldLabel>
+            <FieldLabel htmlFor="ed-date">{t("dateLabel")}</FieldLabel>
             <Input id="ed-date" type="date" min={batch.stock > 0 ? storeToday : undefined} value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>{tCancel("cancel")}</Button>
             <Button onClick={submit} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Save
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -328,6 +332,8 @@ function ExpiryEditDialog({ batch, storeToday, onDone }: { batch: BatchRow; stor
 
 /** Card to activate expiry tracking on an already batch-tracked product. */
 function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: () => void }) {
+  const t = useTranslations("batches.enableExpiryCard");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
   // Positive-stock, non-archived batches all need a date.
@@ -338,7 +344,7 @@ function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: ()
 
   function submit() {
     const assignments = needDates.map((b) => ({ batchId: b.id, expiryDate: dates[b.id] ?? "" }));
-    if (assignments.some((a) => !a.expiryDate)) return toast.error("Give every batch an expiry date.");
+    if (assignments.some((a) => !a.expiryDate)) return toast.error(t("errorAllDatesRequired"));
     start(async () => {
       const res = await enableProductExpiryTracking({ productId: view.productId, assignments });
       if ("error" in res) {
@@ -346,7 +352,7 @@ function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: ()
         return;
       }
       setOpen(false);
-      toast.success(res.alreadyEnabled ? "Expiry tracking already on." : "Expiry tracking enabled.");
+      toast.success(res.alreadyEnabled ? t("toastAlreadyOn") : t("toastEnabled"));
       onDone();
     });
   }
@@ -355,27 +361,27 @@ function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: ()
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CalendarClock className="size-4" /> Expiry tracking
+          <CalendarClock className="size-4" /> {t("title")}
         </CardTitle>
-        <CardDescription>Track a use-by date per batch and block selling expired stock.</CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="mb-3 list-disc pl-5 text-sm text-muted-foreground">
-          <li>Every current batch with stock needs an expiry date.</li>
-          <li>Expired batches can&apos;t be sold; a batch expiring today is sellable all day.</li>
-          <li>Expiry tracking <strong>cannot be disabled</strong> in this release.</li>
+          <li>{t("bullet1")}</li>
+          <li>{t("bullet2")}</li>
+          <li>{t.rich("bullet3", { strong: (chunks) => <strong>{chunks}</strong> })}</li>
         </ul>
-        <Button onClick={() => setOpen(true)}>Enable expiry tracking…</Button>
+        <Button onClick={() => setOpen(true)}>{t("enableButton")}</Button>
       </CardContent>
 
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Assign expiry dates</DialogTitle>
-            <DialogDescription>Set a date for each batch that currently has stock.</DialogDescription>
+            <DialogTitle>{t("dialog.title")}</DialogTitle>
+            <DialogDescription>{t("dialog.description")}</DialogDescription>
           </DialogHeader>
           {needDates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No batches with stock — you can enable directly.</p>
+            <p className="text-sm text-muted-foreground">{t("dialog.noneNeeded")}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {needDates.map((b) => (
@@ -395,9 +401,9 @@ function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: ()
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>{tCancel("cancel")}</Button>
             <Button onClick={submit} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Enable
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("dialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -408,12 +414,14 @@ function EnableExpiryCard({ view, onDone }: { view: ProductBatchView; onDone: ()
 
 /** Archive (terminally retire) a batch. Stock is not changed by archiving. */
 function ArchiveDialog({ batch, onDone }: { batch: BatchRow; onDone: () => void }) {
+  const t = useTranslations("batches.archiveDialog");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
 
   function submit() {
-    if (!reason.trim()) return toast.error("A reason is required.");
+    if (!reason.trim()) return toast.error(t("errorReasonRequired"));
     start(async () => {
       const res = await archiveBatch({ batchId: batch.id, reason: reason.trim() });
       if ("error" in res) {
@@ -421,7 +429,7 @@ function ArchiveDialog({ batch, onDone }: { batch: BatchRow; onDone: () => void 
         return;
       }
       setOpen(false);
-      toast.success("Batch archived.");
+      toast.success(t("toastArchived"));
       onDone();
     });
   }
@@ -429,26 +437,27 @@ function ArchiveDialog({ batch, onDone }: { batch: BatchRow; onDone: () => void 
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} disabled={batch.status === "ARCHIVED"}>
-        <Archive className="size-3.5" /> Archive
+        <Archive className="size-3.5" /> {t("button")}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Archive batch {batch.batchCode}?</DialogTitle>
+            <DialogTitle>{t("title", { batchCode: batch.batchCode })}</DialogTitle>
             <DialogDescription>
-              Archiving retires this batch so it can no longer be sold or received. It{" "}
-              <strong>does not change its stock</strong> — if you mean to write off {fmt(batch.stock)} unit(s),
-              adjust the batch to 0 first. This can&apos;t be undone.
+              {t.rich("description", {
+                quantity: fmt(batch.stock),
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel htmlFor="ar-reason">Reason</FieldLabel>
-            <Input id="ar-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. damaged / recalled" />
+            <FieldLabel htmlFor="ar-reason">{t("reasonLabel")}</FieldLabel>
+            <Input id="ar-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("reasonPlaceholder")} />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>{tCancel("cancel")}</Button>
             <Button onClick={submit} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Archive
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -459,6 +468,8 @@ function ArchiveDialog({ batch, onDone }: { batch: BatchRow; onDone: () => void 
 
 /** Danger-zone card to revert a tracked product back to a simple product. */
 function DisableTrackingCard({ view, onDone }: { view: ProductBatchView; onDone: () => void }) {
+  const t = useTranslations("batches.disableTrackingCard");
+  const tCancel = useTranslations("batches");
   const [isPending, start] = useTransition();
   const [open, setOpen] = useState(false);
 
@@ -470,7 +481,7 @@ function DisableTrackingCard({ view, onDone }: { view: ProductBatchView; onDone:
         return;
       }
       setOpen(false);
-      toast.success("Batch tracking disabled — product is now a simple product.");
+      toast.success(t("toastDisabled"));
       onDone();
     });
   }
@@ -478,28 +489,25 @@ function DisableTrackingCard({ view, onDone }: { view: ProductBatchView; onDone:
   return (
     <div className="rounded-lg border border-destructive/30 p-3">
       <p className="mb-1 flex items-center gap-2 text-sm font-medium text-destructive">
-        <PowerOff className="size-4" /> Disable batch tracking
+        <PowerOff className="size-4" /> {t("title")}
       </p>
       <p className="mb-3 text-xs text-muted-foreground">
-        Turns this back into a simple product. Existing batches are archived (kept for history,
-        no longer sellable), current total stock is preserved as a plain number, and you can edit
-        stock directly again. You can re-enable tracking later (a new Opening batch is captured).
+        {t("description")}
       </p>
-      <Button variant="outline" onClick={() => setOpen(true)}>Disable batch tracking…</Button>
+      <Button variant="outline" onClick={() => setOpen(true)}>{t("button")}</Button>
 
       <Dialog open={open} onOpenChange={(o) => !isPending && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Disable batch tracking?</DialogTitle>
+            <DialogTitle>{t("dialog.title")}</DialogTitle>
             <DialogDescription>
-              Existing batches will be archived and this product reverts to a simple product with its
-              current total stock preserved. Tracking can be re-enabled later.
+              {t("dialog.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>{tCancel("cancel")}</Button>
             <Button onClick={submit} disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin" />} Disable tracking
+              {isPending && <Loader2 className="size-4 animate-spin" />} {t("dialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -513,6 +521,9 @@ function DisableTrackingCard({ view, onDone }: { view: ProductBatchView; onDone:
  * VariantManager itself). Only rendered when the store's batch feature is on.
  */
 export function BatchManager({ view }: { view: ProductBatchView }) {
+  const t = useTranslations("batches.manager");
+  const tExpiryBadge = useTranslations("batches.expiryBadge");
+  const tLabels = useTranslations("labels");
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -528,10 +539,10 @@ export function BatchManager({ view }: { view: ProductBatchView }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Boxes className="size-4" /> Batch inventory
+          <Boxes className="size-4" /> {t("title")}
         </CardTitle>
         <CardDescription>
-          Stock is tracked per batch. Sales allocate {view.trackExpiry ? "the earliest-expiring" : "the oldest"} batch first automatically.
+          {view.trackExpiry ? t("descriptionExpiry") : t("descriptionFifo")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -544,13 +555,13 @@ export function BatchManager({ view }: { view: ProductBatchView }) {
         >
           {reconciled ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}
           {reconciled ? (
-            "Aggregate stock reconciles with batch totals."
+            t("reconciled")
           ) : (
             <span>
-              Reconciliation mismatch:{" "}
+              {t("mismatchPrefix")}{" "}
               {view.reconciliation.lines
                 .filter((l) => !l.reconciled)
-                .map((l) => `${l.label} (agg ${fmt(l.aggregateStock)} vs batches ${fmt(l.batchTotal)})`)
+                .map((l) => t("mismatchLine", { label: l.label, aggregate: fmt(l.aggregateStock), batchTotal: fmt(l.batchTotal) }))
                 .join("; ")}
             </span>
           )}
@@ -559,19 +570,19 @@ export function BatchManager({ view }: { view: ProductBatchView }) {
         <ReceiveForm view={view} onDone={refresh} />
 
         {view.batches.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No batches yet. Receive stock to create one.</p>
+          <p className="text-sm text-muted-foreground">{t("noBatchesYet")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="py-2 pr-3">Batch</th>
-                  {view.hasVariants && <th className="py-2 pr-3">Variant</th>}
-                  <th className="py-2 pr-3">Received</th>
-                  {view.trackExpiry && <th className="py-2 pr-3">Expiry</th>}
-                  <th className="py-2 pr-3">Stock</th>
-                  <th className="py-2 pr-3">Cost</th>
-                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">{t("table.batch")}</th>
+                  {view.hasVariants && <th className="py-2 pr-3">{t("table.variant")}</th>}
+                  <th className="py-2 pr-3">{t("table.received")}</th>
+                  {view.trackExpiry && <th className="py-2 pr-3">{t("table.expiry")}</th>}
+                  <th className="py-2 pr-3">{t("table.stock")}</th>
+                  <th className="py-2 pr-3">{t("table.cost")}</th>
+                  <th className="py-2 pr-3">{t("table.status")}</th>
                   <th className="py-2" />
                 </tr>
               </thead>
@@ -584,14 +595,14 @@ export function BatchManager({ view }: { view: ProductBatchView }) {
                     {view.trackExpiry && (
                       <td className="py-2 pr-3">
                         <span className="tabular-nums">{b.expiryDate ?? "—"}</span>{" "}
-                        <span className={`text-xs ${EXPIRY_BADGE[b.expiryState].className}`}>
-                          {EXPIRY_BADGE[b.expiryState].label}
+                        <span className={`text-xs ${EXPIRY_BADGE_CLASS[b.expiryState]}`}>
+                          {tExpiryBadge(b.expiryState)}
                         </span>
                       </td>
                     )}
                     <td className="py-2 pr-3">{fmt(b.stock)} {view.unit}</td>
                     <td className="py-2 pr-3">{b.costPrice != null ? b.costPrice.toFixed(2) : "—"}</td>
-                    <td className="py-2 pr-3">{b.status}</td>
+                    <td className="py-2 pr-3">{batchStatusLabel(tLabels, b.status)}</td>
                     <td className="py-2 text-right whitespace-nowrap">
                       {view.trackExpiry && b.status !== "ARCHIVED" && (
                         <ExpiryEditDialog batch={b} storeToday={view.storeToday} onDone={refresh} />

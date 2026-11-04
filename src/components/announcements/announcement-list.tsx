@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,6 +21,7 @@ export type AnnouncementItem = {
 };
 
 export function AnnouncementList({ announcements }: { announcements: AnnouncementItem[] }) {
+  const t = useTranslations("announcements.list");
   const [readIds, setReadIds] = useState<Set<string>>(
     new Set(announcements.filter((a) => a.readAt).map((a) => a.id))
   );
@@ -34,7 +36,7 @@ export function AnnouncementList({ announcements }: { announcements: Announcemen
   }
 
   if (announcements.length === 0) {
-    return <EmptyState icon={<Megaphone />} title="No announcements yet" className="py-16" />;
+    return <EmptyState icon={<Megaphone />} title={t("emptyTitle")} className="py-16" />;
   }
 
   return (
@@ -54,7 +56,7 @@ export function AnnouncementList({ announcements }: { announcements: Announcemen
                   <h3 className="text-sm font-semibold">{announcement.title}</h3>
                 </div>
                 <StatusBadge variant={announcement.scope === "PLATFORM" ? "info" : "neutral"}>
-                  {announcement.scope === "PLATFORM" ? "Platform" : "Store"}
+                  {announcement.scope === "PLATFORM" ? t("platform") : t("store")}
                 </StatusBadge>
               </div>
               <p className="text-sm whitespace-pre-wrap text-muted-foreground">{announcement.body}</p>

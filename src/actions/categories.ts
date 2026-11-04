@@ -1,30 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
-import { categorySchema, type CategoryInput } from "@/lib/validations/category";
+import { buildCategorySchema, type CategoryInput } from "@/lib/validations/category";
+import { toAppLocale } from "@/i18n/messages";
 import { slugify } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
 
 const requireCategoryManager = requireStorePermission("category.manage");
 
 /** Validates an optional parent id belongs to the store and isn't self. */
-async function resolveParent(storeId: string, parentId?: string, selfId?: string) {
+async function resolveParent(
+  storeId: string,
+  t: Awaited<ReturnType<typeof getTranslations>>,
+  parentId?: string,
+  selfId?: string
+) {
   const clean = parentId || null;
   if (!clean) return { parentId: null as string | null };
-  if (clean === selfId) return { error: "A category cannot be its own parent" as const };
+  if (clean === selfId) return { error: t("cannotBeOwnParent") };
   const parent = await prisma.category.findFirst({ where: { id: clean, storeId }, select: { id: true } });
-  if (!parent) return { error: "Parent category not found" as const };
+  if (!parent) return { error: t("parentNotFound") };
   return { parentId: clean };
 }
 
 export async function createCategory(input: CategoryInput) {
   const session = await requireCategoryManager();
-  const parsed = categorySchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid category data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "catalog.actions.categories" });
+  const parsed = buildCategorySchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
 
-  const parent = await resolveParent(session.storeId, parsed.data.parentId || undefined);
+  const parent = await resolveParent(session.storeId, t, parsed.data.parentId || undefined);
   if ("error" in parent) return { error: parent.error };
 
   try {
@@ -44,7 +54,7 @@ export async function createCategory(input: CategoryInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A category with that name already exists." };
+      return { error: t("nameExists") };
     }
     throw error;
   }
@@ -52,13 +62,16 @@ export async function createCategory(input: CategoryInput) {
 
 export async function updateCategory(id: string, input: CategoryInput) {
   const session = await requireCategoryManager();
-  const parsed = categorySchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid category data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "catalog.actions.categories" });
+  const parsed = buildCategorySchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidData") };
 
   const existing = await prisma.category.findFirst({ where: { id, storeId: session.storeId } });
-  if (!existing) return { error: "Category not found" };
+  if (!existing) return { error: t("notFound") };
 
-  const parent = await resolveParent(session.storeId, parsed.data.parentId || undefined, id);
+  const parent = await resolveParent(session.storeId, t, parsed.data.parentId || undefined, id);
   if ("error" in parent) return { error: parent.error };
 
   try {
@@ -78,7 +91,7 @@ export async function updateCategory(id: string, input: CategoryInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A category with that name already exists." };
+      return { error: t("nameExists") };
     }
     throw error;
   }
@@ -86,8 +99,9 @@ export async function updateCategory(id: string, input: CategoryInput) {
 
 export async function deleteCategory(id: string) {
   const session = await requireCategoryManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "catalog.actions.categories" });
   const existing = await prisma.category.findFirst({ where: { id, storeId: session.storeId } });
-  if (!existing) return { error: "Category not found" };
+  if (!existing) return { error: t("notFound") };
 
   try {
     await prisma.category.delete({ where: { id } });
@@ -95,6 +109,6 @@ export async function deleteCategory(id: string) {
     revalidatePath("/products");
     return { success: true as const };
   } catch {
-    return { error: "Failed to delete category." };
+    return { error: t("deleteFailed") };
   }
 }

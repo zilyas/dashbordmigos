@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronLeft, Check, CheckCheck, Loader2, MessageCircle, Send, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export function ThreadView({
   /** Present only in the mobile single-pane layout — renders a back button that returns to the conversation list. */
   onBack?: () => void;
 }) {
+  const t = useTranslations("messaging.threadView");
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +41,7 @@ export function ThreadView({
   if (!conversation) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <EmptyState icon={<MessageCircle />} title="Select a conversation" className="border-none py-6" />
+        <EmptyState icon={<MessageCircle />} title={t("selectConversation")} className="border-none py-6" />
       </div>
     );
   }
@@ -73,7 +75,7 @@ export function ThreadView({
             size="icon-sm"
             className="-ml-1 shrink-0"
             onClick={onBack}
-            aria-label="Back to conversations"
+            aria-label={t("backAriaLabel")}
           >
             <ChevronLeft className="size-4" />
           </Button>
@@ -87,14 +89,14 @@ export function ThreadView({
         <div>
           <p className="text-sm font-medium">{label}</p>
           {conversation.isGroup && (
-            <p className="text-xs text-muted-foreground">{conversation.participants.length} members</p>
+            <p className="text-xs text-muted-foreground">{t("members", { count: conversation.participants.length })}</p>
           )}
         </div>
       </div>
 
       <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
-          <EmptyState icon={<MessageCircle />} title="No messages yet — say hello" className="border-none py-10" />
+          <EmptyState icon={<MessageCircle />} title={t("noMessagesYet")} className="border-none py-10" />
         ) : (
           messages.map((message, i) => {
             const isOwn = message.senderId === currentUserId;
@@ -126,12 +128,12 @@ export function ThreadView({
             {seenByOthers ? (
               <>
                 <CheckCheck className="size-3.5 text-primary" />
-                Seen
+                {t("seen")}
               </>
             ) : (
               <>
                 <Check className="size-3.5" />
-                Sent
+                {t("sent")}
               </>
             )}
           </div>
@@ -148,7 +150,7 @@ export function ThreadView({
               handleSubmit();
             }
           }}
-          placeholder="Write a message..."
+          placeholder={t("composerPlaceholder")}
           className="max-h-32 min-h-10 flex-1 resize-none"
           rows={1}
         />

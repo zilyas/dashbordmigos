@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
@@ -12,16 +13,18 @@ import {
   verifyTotpCode,
 } from "@/lib/security/two-factor";
 import { encryptTOTPSecret, decryptTOTPSecret } from "@/lib/security/totp-encryption";
+import { toAppLocale } from "@/i18n/messages";
 
 export async function startTwoFactorEnrollment() {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "account.twoFactor.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const existing = await prisma.twoFactorCredential.findUnique({ where: { userId: context.userId } });
-  if (existing?.enabled) return { error: "Two-factor authentication is already enabled." };
+  if (existing?.enabled) return { error: t("alreadyEnabled") };
 
   const user = await prisma.user.findUnique({ where: { id: context.userId }, select: { email: true } });
-  if (!user) return { error: "Not authorized" };
+  if (!user) return { error: t("notAuthorized") };
 
   const secret = generateTotpSecret();
   const encryptedSecret = await encryptTOTPSecret(secret);
@@ -37,7 +40,10 @@ export async function startTwoFactorEnrollment() {
 
 export async function cancelTwoFactorEnrollment() {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "account.twoFactor.actions" });
+    return { error: t("notAuthorized") };
+  }
   await prisma.twoFactorCredential.deleteMany({ where: { userId: context.userId, enabled: false } });
   revalidatePath("/account");
   return { success: true as const };
@@ -45,15 +51,16 @@ export async function cancelTwoFactorEnrollment() {
 
 export async function confirmTwoFactorEnrollment(code: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "account.twoFactor.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const credential = await prisma.twoFactorCredential.findUnique({ where: { userId: context.userId } });
-  if (!credential) return { error: "Start enrollment first." };
-  if (credential.enabled) return { error: "Two-factor authentication is already enabled." };
+  if (!credential) return { error: t("startEnrollmentFirst") };
+  if (credential.enabled) return { error: t("alreadyEnabled") };
 
   const decryptedSecret = await decryptTOTPSecret(credential.secret);
   const valid = await verifyTotpCode(decryptedSecret, code.trim());
-  if (!valid) return { error: "Invalid code. Check your authenticator app and try again." };
+  if (!valid) return { error: t("invalidCode") };
 
   const rawCodes = generateRecoveryCodes();
   const hashedCodes = await Promise.all(rawCodes.map((c) => hashPassword(c)));
@@ -83,16 +90,17 @@ export async function confirmTwoFactorEnrollment(code: string) {
 
 export async function disableTwoFactor(password: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "account.twoFactor.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const user = await prisma.user.findUnique({ where: { id: context.userId }, select: { passwordHash: true } });
-  if (!user) return { error: "Not authorized" };
+  if (!user) return { error: t("notAuthorized") };
 
   const credential = await prisma.twoFactorCredential.findUnique({ where: { userId: context.userId } });
-  if (!credential?.enabled) return { error: "Two-factor authentication is not enabled." };
+  if (!credential?.enabled) return { error: t("notEnabled") };
 
   const validPassword = await verifyPassword(password, user.passwordHash);
-  if (!validPassword) return { error: "Incorrect password." };
+  if (!validPassword) return { error: t("incorrectPassword") };
 
   await prisma.twoFactorCredential.delete({ where: { userId: context.userId } });
 
@@ -110,16 +118,17 @@ export async function disableTwoFactor(password: string) {
 
 export async function regenerateRecoveryCodes(password: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "account.twoFactor.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const user = await prisma.user.findUnique({ where: { id: context.userId }, select: { passwordHash: true } });
-  if (!user) return { error: "Not authorized" };
+  if (!user) return { error: t("notAuthorized") };
 
   const credential = await prisma.twoFactorCredential.findUnique({ where: { userId: context.userId } });
-  if (!credential?.enabled) return { error: "Two-factor authentication is not enabled." };
+  if (!credential?.enabled) return { error: t("notEnabled") };
 
   const validPassword = await verifyPassword(password, user.passwordHash);
-  if (!validPassword) return { error: "Incorrect password." };
+  if (!validPassword) return { error: t("incorrectPassword") };
 
   const rawCodes = generateRecoveryCodes();
   const hashedCodes = await Promise.all(rawCodes.map((c) => hashPassword(c)));

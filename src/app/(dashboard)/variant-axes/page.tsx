@@ -5,11 +5,14 @@ import { VariantAxesManager } from "@/components/variant-axes/variant-axes-manag
 import { getVariantAxes } from "@/lib/queries/variant-axes";
 import { getSessionContext, requireStoreId } from "@/lib/store-context";
 import { getStoreFeatures } from "@/lib/features";
+import { getTranslations } from "next-intl/server";
+import { toAppLocale } from "@/i18n/messages";
 
 export const metadata: Metadata = { title: "Variant Axes" };
 
 export default async function VariantAxesPage() {
   const context = await getSessionContext();
+  const t = await getTranslations({ locale: toAppLocale(context!.locale), namespace: "catalog.variantAxes.page" });
   const storeId = requireStoreId(context!);
 
   // The screen only exists when the store enabled custom variant axes.
@@ -21,8 +24,8 @@ export default async function VariantAxesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Variant axes"
-        description="Custom axes (Storage, Voltage, Flavor…) for variant products."
+        title={t("title")}
+        description={t("description")}
       />
       <VariantAxesManager axes={axes} />
     </div>

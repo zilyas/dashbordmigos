@@ -3,20 +3,37 @@
 import { useState } from "react";
 import { Printer, Download, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { renderReceiptImage, receiptFileName } from "@/lib/receipt-image";
+import { paymentMethodLabel } from "@/lib/labels";
 import type { SaleReceipt } from "@/lib/queries/sales";
 
 export function ReceiptActions({ receipt }: { receipt: NonNullable<SaleReceipt> }) {
   const [busy, setBusy] = useState<"print" | "download" | "share" | null>(null);
+  const t = useTranslations("receipt.actions");
+  const tReceipt = useTranslations("receipt");
+  const tLabels = useTranslations("labels");
 
   const withImage = async (kind: "print" | "download" | "share", run: (blob: Blob) => Promise<void> | void) => {
     setBusy(kind);
     try {
-      await run(await renderReceiptImage(receipt));
+      await run(
+        await renderReceiptImage(receipt, paymentMethodLabel(tLabels, receipt.paymentMethod), {
+          invoice: tReceipt("invoice"),
+          servedBy: tReceipt("servedBy"),
+          customer: tReceipt("customer"),
+          subtotal: tReceipt("subtotal"),
+          discount: tReceipt("discount"),
+          tax: tReceipt("tax"),
+          total: tReceipt("total"),
+          paymentMethod: tReceipt("paymentMethod"),
+          thankYou: tReceipt("thankYou"),
+        })
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not prepare the receipt.");
+      toast.error(error instanceof Error ? error.message : t("toastPrepareFailed"));
     } finally {
       setBusy(null);
     }
@@ -30,7 +47,7 @@ export function ReceiptActions({ receipt }: { receipt: NonNullable<SaleReceipt> 
       const win = window.open("", "_blank", "width=420,height=640");
       if (!win) {
         URL.revokeObjectURL(url);
-        toast.error("Allow pop-ups for this site to print the receipt.");
+        toast.error(t("toastAllowPopups"));
         return;
       }
       win.document.write(
@@ -85,22 +102,22 @@ export function ReceiptActions({ receipt }: { receipt: NonNullable<SaleReceipt> 
       link.click();
       URL.revokeObjectURL(url);
       window.open("https://wa.me/", "_blank", "noopener");
-      toast.success("Receipt saved. Attach it in WhatsApp.");
+      toast.success(t("toastSavedForWhatsapp"));
     });
 
   return (
     <div className="mt-2 grid grid-cols-3 gap-2">
       <Button className="gap-1.5" onClick={handlePrint} disabled={busy !== null}>
         <Printer className="size-4" />
-        Print
+        {t("print")}
       </Button>
       <Button variant="outline" className="gap-1.5" onClick={handleDownload} disabled={busy !== null}>
         <Download className="size-4" />
-        Download
+        {t("download")}
       </Button>
       <Button variant="outline" className="gap-1.5" onClick={handleShare} disabled={busy !== null}>
         <Share2 className="size-4" />
-        WhatsApp
+        {t("whatsapp")}
       </Button>
     </div>
   );

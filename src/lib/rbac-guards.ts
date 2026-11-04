@@ -24,6 +24,7 @@ export function requirePermission(permission: Permission) {
         storeId: context.storeId,
       },
       sid: context.sid,
+      locale: context.locale,
     };
   };
 }

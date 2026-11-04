@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Plus, Store as StoreIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
@@ -14,6 +15,11 @@ import type { StoreListItem } from "@/lib/queries/stores";
 
 export function StoresTable({ stores }: { stores: StoreListItem[] }) {
   const router = useRouter();
+  const t = useTranslations("people.stores");
+  const tTable = useTranslations("people.stores.table");
+  const tColumns = useTranslations("people.stores.columns");
+  const tLabels = useTranslations("labels");
+  const tCommon = useTranslations("common");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<StoreListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StoreListItem | null>(null);
@@ -23,7 +29,7 @@ export function StoresTable({ stores }: { stores: StoreListItem[] }) {
     if (result?.error) {
       toast.error(result.error);
     } else {
-      toast.success(result?.status === "ACTIVE" ? "Store activated" : "Store deactivated");
+      toast.success(result?.status === "ACTIVE" ? t("toastActivated") : t("toastDeactivated"));
     }
   }
 
@@ -33,8 +39,10 @@ export function StoresTable({ stores }: { stores: StoreListItem[] }) {
         onEdit: setEditing,
         onToggleStatus: handleToggleStatus,
         onDelete: setDeleteTarget,
+        tLabels,
+        t: tColumns,
       }),
-    []
+    [tLabels, tColumns]
   );
 
   return (
@@ -42,15 +50,15 @@ export function StoresTable({ stores }: { stores: StoreListItem[] }) {
       <DataTable
         columns={columns}
         data={stores}
-        searchPlaceholder="Search stores..."
+        searchPlaceholder={tTable("searchPlaceholder")}
         emptyIcon={<StoreIcon />}
-        emptyTitle="No stores yet"
-        emptyDescription="Create your first store to get started."
+        emptyTitle={tTable("emptyTitle")}
+        emptyDescription={tTable("emptyDescription")}
         onRowClick={(store) => router.push(`/stores/${store.id}`)}
         toolbar={
           <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            New Store
+            {tTable("newStore")}
           </Button>
         }
       />
@@ -63,18 +71,18 @@ export function StoresTable({ stores }: { stores: StoreListItem[] }) {
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
-          description="If this store has real data (products, sales, staff), it will be deactivated instead of deleted to preserve records."
-          confirmLabel="Delete"
+          title={t("deleteDialog.title", { name: deleteTarget.name })}
+          description={t("deleteDialog.description")}
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteStore(deleteTarget.id);
             if (result?.error) {
               toast.error(result.error);
             } else if (result?.deactivated) {
-              toast.success("Store deactivated (has related data)");
+              toast.success(t("deleteDialog.toastDeactivated"));
             } else {
-              toast.success("Store deleted");
+              toast.success(t("deleteDialog.toastDeleted"));
             }
           }}
         />

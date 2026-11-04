@@ -1,0 +1,89 @@
+{
+  "name": {
+    "min2": "Name must be at least 2 characters",
+    "required": "Name is required",
+    "max60": "Name must be 60 characters or fewer"
+  },
+  "email": {
+    "invalid": "Enter a valid email address"
+  },
+  "password": {
+    "required": "Password is required",
+    "minLength": "Password must be at least {min} characters",
+    "maxLength": "Password is too long",
+    "lowercase": "Password must include a lowercase letter",
+    "uppercase": "Password must include an uppercase letter",
+    "number": "Password must include a number",
+    "symbol": "Password must include a symbol",
+    "atLeast8": "Must be at least 8 characters",
+    "mismatch": "Passwords do not match",
+    "currentRequired": "Current password is required",
+    "mustDiffer": "New password must be different from your current password",
+    "policyHint": "At least 10 characters, with uppercase, lowercase, a number and a symbol."
+  },
+  "sku": {
+    "required": "SKU is required"
+  },
+  "label": {
+    "required": "Label is required"
+  },
+  "store": {
+    "select": "Select a store"
+  },
+  "stock": {
+    "min0": "Must be 0 or more",
+    "negative": "Stock cannot be negative",
+    "tooLarge": "Stock is too large"
+  },
+  "price": {
+    "min0": "Must be 0 or more",
+    "greaterThanZero": "Must be greater than 0",
+    "tooLarge": "Price is too large"
+  },
+  "quantity": {
+    "positive": "Quantity must be greater than zero"
+  },
+  "reason": {
+    "required": "A reason is required"
+  },
+  "date": {
+    "format": "Use a YYYY-MM-DD date"
+  },
+  "currency": {
+    "format": "Use a 3-letter currency code, e.g. USD"
+  },
+  "timezone": {
+    "invalid": "Choose a valid IANA timezone"
+  },
+  "hexColor": {
+    "format": "Use a hex color like #1A2B3C"
+  },
+  "storeCode": {
+    "short": "Use a short code, e.g. NYC-01",
+    "format": "Letters, numbers and dashes only"
+  },
+  "images": {
+    "max6": "Up to 6 images"
+  },
+  "colors": {
+    "max20": "Up to 20 colors"
+  },
+  "sizes": {
+    "max20": "Up to 20 sizes"
+  },
+  "permissions": {
+    "atLeastOne": "Choose at least one permission",
+    "duplicate": "Duplicate permission"
+  },
+  "attribute": {
+    "selectOption": "Add at least one option for a Select attribute."
+  },
+  "sale": {
+    "atLeastOneProduct": "Add at least one product",
+    "atLeastOneReturnItem": "Select at least one item to return"
+  },
+  "batchCode": {
+    "required": "Batch code is required",
+    "tooLong": "Batch code is too long"
+  }
+}

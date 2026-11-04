@@ -4,7 +4,12 @@ import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/lib/auth";
 import { getSessionContext } from "@/lib/store-context";
 import { logActivity } from "@/lib/audit";
-import { loginSchema } from "@/lib/validations/auth";
+import { buildLoginSchema } from "@/lib/validations/auth";
+
+// Pre-sign-in: no session to resolve a locale from. A failed parse returns
+// this function's own fixed message below, never the schema's internal one,
+// so a fixed identity translator is correct here too (see src/lib/auth.ts).
+const loginSchema = buildLoginSchema((key) => key);
 
 export async function loginAction(values: {
   email: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -10,13 +11,14 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { BarChart3 } from "lucide-react";
 
-const chartConfig = {
-  quantity: { label: "Units sold", color: "var(--chart-1)" },
-} satisfies ChartConfig;
-
 export function BestSellersChart({ data }: { data: { name: string; quantity: number }[] }) {
+  const t = useTranslations("dashboard.charts");
+  const chartConfig = {
+    quantity: { label: t("unitsSold"), color: "var(--chart-1)" },
+  } satisfies ChartConfig;
+
   if (data.length === 0) {
-    return <EmptyState icon={<BarChart3 />} title="No sales yet" className="h-72 border-none" />;
+    return <EmptyState icon={<BarChart3 />} title={t("noSalesYet")} className="h-72 border-none" />;
   }
 
   return (

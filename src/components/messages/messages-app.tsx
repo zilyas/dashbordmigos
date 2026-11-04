@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { MessageSquarePlus, Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function MessagesApp({
   initialConversations: ConversationSummary[];
   messageableUsers: MessageableUser[];
 }) {
+  const t = useTranslations("messaging.app");
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(initialConversations[0]?.id ?? null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -123,13 +125,13 @@ export function MessagesApp({
   return (
     <div className="flex h-[calc(100dvh-10rem)] min-h-[28rem] flex-col gap-4">
       <PageHeader
-        title="Messages"
-        description="Direct messages across your team."
+        title={t("title")}
+        description={t("description")}
         className={cn(isMobile && selectedId && "hidden")}
         actions={
           <Button onClick={() => setNewConversationOpen(true)}>
             <MessageSquarePlus className="size-4" />
-            New message
+            {t("newMessage")}
           </Button>
         }
       />
@@ -142,7 +144,7 @@ export function MessagesApp({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search conversations"
+                  placeholder={t("searchPlaceholder")}
                   className="pl-8"
                 />
               </div>

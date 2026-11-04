@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Boxes, Check, ChevronDown, Loader2, Package, Scale } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,10 +25,9 @@ import { Switch } from "@/components/ui/switch";
 import { ImageUploader } from "@/components/products/image-uploader";
 import { createProduct, updateProduct } from "@/actions/products";
 import {
-  productSchema,
+  buildProductSchema,
   type ProductInput,
   PRODUCT_UNITS,
-  PRODUCT_UNIT_LABELS,
 } from "@/lib/validations/product";
 import { formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,11 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("products.form");
+  const tUnit = useTranslations("products.unit");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const productSchema = useMemo(() => buildProductSchema(tValidation), [tValidation]);
 
   // Attribute values live outside RHF (keyed by definition id) and are merged
   // into the payload on submit.
@@ -153,7 +158,7 @@ export function ProductForm({
   const categoryAttributes = categories.find((c) => c.id === categoryId)?.attributes ?? [];
   const showSpecs = attributesEnabled && categoryAttributes.length > 0;
   const quantityStep = unitsEnabled && allowDecimalQuantity ? "0.001" : "1";
-  const unitLabel = PRODUCT_UNIT_LABELS[selectedUnit];
+  const unitLabel = tUnit(selectedUnit);
 
   function onSubmit(values: ProductInput) {
     // Merge attribute values for the selected category into the payload.
@@ -176,11 +181,11 @@ export function ProductForm({
           toast.error(result.error);
           return;
         }
-        toast.success(productId ? "Product updated" : "Product created");
+        toast.success(productId ? t("toastUpdated") : t("toastCreated"));
         router.push("/products");
         router.refresh();
       } catch {
-        toast.error("Could not save the product. Please try again.");
+        toast.error(t("toastSaveFailed"));
       }
     });
   }
@@ -190,9 +195,9 @@ export function ProductForm({
       {!productId && (
         <Card className="border-primary/20 bg-primary/3">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Choose the simplest setup that fits</CardTitle>
+            <CardTitle className="text-base">{t("setup.title")}</CardTitle>
             <CardDescription>
-              Pick one. It sets the options below for you — you can still change them by hand.
+              {t("setup.description")}
             </CardDescription>
           </CardHeader>
           {/* These tiles used to be plain <div>s that described the modes but
@@ -201,24 +206,24 @@ export function ProductForm({
           <CardContent className="grid gap-3 md:grid-cols-3">
             <SetupTile
               icon={<Package className="mt-0.5 size-5 shrink-0" />}
-              title="Simple item"
-              description="Charger, shampoo, canned food, or any item sold as one SKU."
+              title={t("setup.simpleTitle")}
+              description={t("setup.simpleDescription")}
               selected={setupMode === "simple"}
               onSelect={() => chooseSetup("simple")}
             />
             {unitsEnabled && (
               <SetupTile
                 icon={<Scale className="mt-0.5 size-5 shrink-0" />}
-                title="Measured item"
-                description="Rice by kilogram, fabric by meter, or oil by liter."
+                title={t("setup.measuredTitle")}
+                description={t("setup.measuredDescription")}
                 selected={setupMode === "measured"}
                 onSelect={() => chooseSetup("measured")}
               />
             )}
             <SetupTile
               icon={<Boxes className="mt-0.5 size-5 shrink-0" />}
-              title="Item with variants"
-              description="Clothing sizes, phone storage, cosmetic shades, or flavors."
+              title={t("setup.variantsTitle")}
+              description={t("setup.variantsDescription")}
               selected={setupMode === "variants"}
               onSelect={() => chooseSetup("variants")}
             />
@@ -228,19 +233,19 @@ export function ProductForm({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Product identity</CardTitle>
-          <CardDescription>Only the name and SKU are required. Add a category to unlock its specifications.</CardDescription>
+          <CardTitle>{t("identity.title")}</CardTitle>
+          <CardDescription>{t("identity.description")}</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <FieldGroup>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.name}>
-                <FieldLabel htmlFor="name">Product name</FieldLabel>
-                <Input id="name" placeholder="e.g. Organic rice, T-shirt, Wireless headset" autoFocus {...form.register("name")} />
+                <FieldLabel htmlFor="name">{t("identity.nameLabel")}</FieldLabel>
+                <Input id="name" placeholder={t("identity.namePlaceholder")} autoFocus {...form.register("name")} />
                 {form.formState.errors.name && <FieldError>{form.formState.errors.name.message}</FieldError>}
               </Field>
               <Field>
-                <FieldLabel htmlFor="categoryId">Category</FieldLabel>
+                <FieldLabel htmlFor="categoryId">{t("identity.categoryLabel")}</FieldLabel>
                 <Controller
                   control={form.control}
                   name="categoryId"
@@ -250,10 +255,10 @@ export function ProductForm({
                       onValueChange={(value) => field.onChange(value === NO_CATEGORY ? "" : value)}
                     >
                       <SelectTrigger id="categoryId" className="w-full">
-                        <SelectValue placeholder="No category" />
+                        <SelectValue placeholder={t("identity.noCategory")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_CATEGORY}>No category</SelectItem>
+                        <SelectItem value={NO_CATEGORY}>{t("identity.noCategory")}</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -264,26 +269,26 @@ export function ProductForm({
                   )}
                 />
                 {categories.length === 0 && (
-                  <p className="text-xs text-muted-foreground">You can save now and organize the product into a category later.</p>
+                  <p className="text-xs text-muted-foreground">{t("identity.noCategoryHint")}</p>
                 )}
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.sku}>
-                <FieldLabel htmlFor="sku">SKU</FieldLabel>
-                <Input id="sku" placeholder="Your internal stock code" {...form.register("sku")} />
+                <FieldLabel htmlFor="sku">{t("identity.skuLabel")}</FieldLabel>
+                <Input id="sku" placeholder={t("identity.skuPlaceholder")} {...form.register("sku")} />
                 {form.formState.errors.sku && <FieldError>{form.formState.errors.sku.message}</FieldError>}
               </Field>
               <Field>
-                <FieldLabel htmlFor="barcode">Barcode <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
-                <Input id="barcode" inputMode="numeric" placeholder="Scan or enter a barcode" {...form.register("barcode")} />
+                <FieldLabel htmlFor="barcode">{t("identity.barcodeLabel")} <span className="font-normal text-muted-foreground">{t("identity.optional")}</span></FieldLabel>
+                <Input id="barcode" inputMode="numeric" placeholder={t("identity.barcodePlaceholder")} {...form.register("barcode")} />
               </Field>
             </div>
 
             <Field>
-              <FieldLabel htmlFor="description">Description <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
-              <Textarea id="description" rows={3} placeholder="Useful details for staff and catalog records" {...form.register("description")} />
+              <FieldLabel htmlFor="description">{t("identity.descriptionLabel")} <span className="font-normal text-muted-foreground">{t("identity.optional")}</span></FieldLabel>
+              <Textarea id="description" rows={3} placeholder={t("identity.descriptionPlaceholder")} {...form.register("description")} />
             </Field>
           </FieldGroup>
         </CardContent>
@@ -291,8 +296,8 @@ export function ProductForm({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>How this product is sold</CardTitle>
-          <CardDescription>Keep a single SKU, sell by a unit of measure, or manage separate variant SKUs.</CardDescription>
+          <CardTitle>{t("selling.title")}</CardTitle>
+          <CardDescription>{t("selling.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           <Controller
@@ -301,20 +306,20 @@ export function ProductForm({
             render={({ field }) => (
               <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div>
-                  <p className="text-sm font-medium">This product has variants</p>
+                  <p className="text-sm font-medium">{t("selling.hasVariantsLabel")}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Use for options with their own SKU, price, or stock—such as size, color, storage, shade, or flavor.
+                    {t("selling.hasVariantsHint")}
                   </p>
                   {field.value && (
                     <p className="mt-2 text-xs font-medium text-primary">
                       {productId
-                        ? "Save changes, then manage each variant below."
-                        : "Create the base product first; you will add individual variants from its edit page."}
+                        ? t("selling.saveThenManageVariants")
+                        : t("selling.createBaseFirst")}
                     </p>
                   )}
                 </div>
                 <Switch
-                  aria-label="Product has variants"
+                  aria-label={t("selling.hasVariantsAriaLabel")}
                   checked={!!field.value}
                   onCheckedChange={(on) => {
                     field.onChange(on);
@@ -335,7 +340,7 @@ export function ProductForm({
           {unitsEnabled && (
             <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="unit">Unit of measure</FieldLabel>
+                <FieldLabel htmlFor="unit">{t("selling.unitLabel")}</FieldLabel>
                 <Controller
                   control={form.control}
                   name="unit"
@@ -347,14 +352,14 @@ export function ProductForm({
                       <SelectContent>
                         {PRODUCT_UNITS.map((unit) => (
                           <SelectItem key={unit} value={unit}>
-                            {PRODUCT_UNIT_LABELS[unit]}
+                            {tUnit(unit)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
-                <p className="text-xs text-muted-foreground">Choose how stock and sale quantities are counted.</p>
+                <p className="text-xs text-muted-foreground">{t("selling.unitHint")}</p>
               </Field>
               <Controller
                 control={form.control}
@@ -362,10 +367,10 @@ export function ProductForm({
                 render={({ field }) => (
                   <div className="flex items-center justify-between gap-4 self-start rounded-lg bg-muted/50 px-4 py-3 sm:self-end">
                     <div>
-                      <p className="text-sm font-medium">Allow partial quantities</p>
-                      <p className="text-xs text-muted-foreground">Enable for values such as 0.5 kg or 1.25 L.</p>
+                      <p className="text-sm font-medium">{t("selling.partialQuantitiesLabel")}</p>
+                      <p className="text-xs text-muted-foreground">{t("selling.partialQuantitiesHint")}</p>
                     </div>
-                    <Switch aria-label="Allow partial quantities" checked={!!field.value} onCheckedChange={field.onChange} />
+                    <Switch aria-label={t("selling.partialQuantitiesAriaLabel")} checked={!!field.value} onCheckedChange={field.onChange} />
                   </div>
                 )}
               />
@@ -382,14 +387,13 @@ export function ProductForm({
           <CardHeader className="border-b pb-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle>Sizes</CardTitle>
+                <CardTitle>{t("sizes.title")}</CardTitle>
                 <CardDescription>
-                  Pick every size you sell. Combined with the colors below, one variant is created per
-                  combination.
+                  {t("sizes.description")}
                 </CardDescription>
               </div>
               <Switch
-                aria-label="This product comes in sizes"
+                aria-label={t("sizes.ariaLabel")}
                 checked={sizesOn}
                 onCheckedChange={(on) => {
                   setSizesOn(on);
@@ -402,11 +406,11 @@ export function ProductForm({
             <CardContent className="pt-4">
               {sizes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No sizes yet.{" "}
+                  {t("sizes.emptyPrefix")}{" "}
                   <Link href="/sizes" className="font-medium text-primary underline-offset-4 hover:underline">
-                    Add them in Sizes
+                    {t("sizes.emptyLink")}
                   </Link>{" "}
-                  first, then come back.
+                  {t("sizes.emptySuffix")}
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -435,10 +439,10 @@ export function ProductForm({
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {sizeIds.length === 0
-                      ? "Pick one or more, or leave this off if the product has no sizes."
-                      : `${sizeIds.length} size${sizeIds.length === 1 ? "" : "s"} selected.`}{" "}
+                      ? t("sizes.pickHint")
+                      : t("sizes.selectedCount", { count: sizeIds.length })}{" "}
                     <Link href="/sizes" className="text-primary underline-offset-4 hover:underline">
-                      Manage sizes
+                      {t("sizes.manageLink")}
                     </Link>
                   </p>
                 </div>
@@ -457,13 +461,13 @@ export function ProductForm({
           <CardHeader className="border-b pb-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle>Colors</CardTitle>
+                <CardTitle>{t("colors.title")}</CardTitle>
                 <CardDescription>
-                  Pick every color you sell. Each one becomes a variant with its own SKU and stock.
+                  {t("colors.description")}
                 </CardDescription>
               </div>
               <Switch
-                aria-label="This product comes in colors"
+                aria-label={t("colors.ariaLabel")}
                 checked={colorsOn}
                 onCheckedChange={(on) => {
                   setColorsOn(on);
@@ -476,11 +480,11 @@ export function ProductForm({
             <CardContent className="pt-4">
               {colors.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No colors yet.{" "}
+                  {t("colors.emptyPrefix")}{" "}
                   <Link href="/colors" className="font-medium text-primary underline-offset-4 hover:underline">
-                    Add them in Colors
+                    {t("colors.emptyLink")}
                   </Link>{" "}
-                  first, then come back.
+                  {t("colors.emptySuffix")}
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -507,8 +511,8 @@ export function ProductForm({
                           {color.name}
                           {/* The order of picking is what makes one color primary
                               and the next secondary — nothing else records it. */}
-                          {rank === 0 && <span className="text-xs font-medium text-primary">Primary</span>}
-                          {rank === 1 && <span className="text-xs font-medium text-muted-foreground">Secondary</span>}
+                          {rank === 0 && <span className="text-xs font-medium text-primary">{t("colors.primary")}</span>}
+                          {rank === 1 && <span className="text-xs font-medium text-muted-foreground">{t("colors.secondary")}</span>}
                           {selected && <Check className="size-3.5 text-primary" />}
                         </button>
                       );
@@ -516,10 +520,10 @@ export function ProductForm({
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {colorIds.length === 0
-                      ? "Pick one or more. The first is the primary color."
-                      : `${colorIds.length} color${colorIds.length === 1 ? "" : "s"} selected.`}{" "}
+                      ? t("colors.pickHint")
+                      : t("colors.selectedCount", { count: colorIds.length })}{" "}
                     <Link href="/colors" className="text-primary underline-offset-4 hover:underline">
-                      Manage colors
+                      {t("colors.manageLink")}
                     </Link>
                   </p>
                 </div>
@@ -533,20 +537,22 @@ export function ProductForm({
           3 colors x 4 sizes is 12 rows, not 7. */}
       {!productId && hasVariants && (sizeIds.length > 0 || colorIds.length > 0) && (
         <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-          <span className="font-medium">{variantCount}</span> variant{variantCount === 1 ? "" : "s"} will be
-          created with zero stock
-          {sizeIds.length > 0 && colorIds.length > 0
-            ? ` (${sizeIds.length} size${sizeIds.length === 1 ? "" : "s"} × ${colorIds.length} color${colorIds.length === 1 ? "" : "s"})`
-            : ""}
-          . Set their stock and prices from the product&apos;s edit page.
+          {t.rich("variantCountNote", {
+            count: variantCount,
+            combo:
+              sizeIds.length > 0 && colorIds.length > 0
+                ? t("variantCountCombo", { sizeCount: sizeIds.length, colorCount: colorIds.length })
+                : "",
+            strong: (chunks) => <span className="font-medium">{chunks}</span>,
+          })}
         </p>
       )}
 
       {showSpecs && (
         <Card>
           <CardHeader className="border-b pb-4">
-            <CardTitle>Category specifications</CardTitle>
-            <CardDescription>Details configured for {categories.find((category) => category.id === categoryId)?.name}.</CardDescription>
+            <CardTitle>{t("specs.title")}</CardTitle>
+            <CardDescription>{t("specs.description", { categoryName: categories.find((category) => category.id === categoryId)?.name ?? "" })}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -570,7 +576,7 @@ export function ProductForm({
                     ) : attribute.type === "SELECT" ? (
                       <Select value={value || undefined} onValueChange={(nextValue) => setAttr(attribute.id, nextValue)}>
                         <SelectTrigger className="w-full" id={fieldId}>
-                          <SelectValue placeholder="Select…" />
+                          <SelectValue placeholder={t("specs.selectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
                           {attribute.options.map((option) => (
@@ -598,18 +604,20 @@ export function ProductForm({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Pricing and inventory</CardTitle>
+          <CardTitle>{t("pricing.title")}</CardTitle>
           <CardDescription>
             {hasVariants
-              ? "Set default prices here. Stock is entered separately for each variant after the product is saved."
-              : `Set the prices and available stock${unitsEnabled ? ` in ${unitLabel.toLowerCase()}` : ""}.`}
+              ? t("pricing.descriptionVariants")
+              : t("pricing.descriptionSimple", {
+                  unitSuffix: unitsEnabled ? t("pricing.descriptionUnitSuffix", { unit: unitLabel.toLowerCase() }) : "",
+                })}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <FieldGroup>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.fabricationPrice}>
-                <FieldLabel htmlFor="fabricationPrice">Cost price</FieldLabel>
+                <FieldLabel htmlFor="fabricationPrice">{t("pricing.costPriceLabel")}</FieldLabel>
                 <Input
                   id="fabricationPrice"
                   type="number"
@@ -622,7 +630,7 @@ export function ProductForm({
                 )}
               </Field>
               <Field data-invalid={!!form.formState.errors.sellingPrice}>
-                <FieldLabel htmlFor="sellingPrice">Selling price</FieldLabel>
+                <FieldLabel htmlFor="sellingPrice">{t("pricing.sellingPriceLabel")}</FieldLabel>
                 <Input
                   id="sellingPrice"
                   type="number"
@@ -643,15 +651,15 @@ export function ProductForm({
                 margin < 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
               }`}
             >
-              Estimated profit margin: <span className="font-semibold">{formatPercent(margin)}</span>
-              {margin < 0 && <span>— the cost price is above the selling price.</span>}
+              {t("pricing.marginLabel")} <span className="font-semibold">{formatPercent(margin)}</span>
+              {margin < 0 && <span>{t("pricing.marginNegativeWarning")}</span>}
             </div>
 
             <div className={`grid grid-cols-1 gap-4 ${hasVariants ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
               {!hasVariants && (
                 <>
                   <Field data-invalid={!!form.formState.errors.stock}>
-                    <FieldLabel htmlFor="stock">Opening stock{unitsEnabled ? ` (${selectedUnit})` : ""}</FieldLabel>
+                    <FieldLabel htmlFor="stock">{t("pricing.openingStockLabel", { unitSuffix: unitsEnabled ? ` (${selectedUnit})` : "" })}</FieldLabel>
                     <Input
                       id="stock"
                       type="number"
@@ -662,7 +670,7 @@ export function ProductForm({
                     {form.formState.errors.stock && <FieldError>{form.formState.errors.stock.message}</FieldError>}
                   </Field>
                   <Field data-invalid={!!form.formState.errors.minimumStock}>
-                    <FieldLabel htmlFor="minimumStock">Low-stock alert{unitsEnabled ? ` (${selectedUnit})` : ""}</FieldLabel>
+                    <FieldLabel htmlFor="minimumStock">{t("pricing.lowStockAlertLabel", { unitSuffix: unitsEnabled ? ` (${selectedUnit})` : "" })}</FieldLabel>
                     <Input
                       id="minimumStock"
                       type="number"
@@ -677,7 +685,7 @@ export function ProductForm({
                 </>
               )}
               <Field>
-                <FieldLabel htmlFor="status">Status</FieldLabel>
+                <FieldLabel htmlFor="status">{t("pricing.statusLabel")}</FieldLabel>
                 <Controller
                   control={form.control}
                   name="status"
@@ -687,9 +695,9 @@ export function ProductForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ACTIVE">Active — available for sale</SelectItem>
-                        <SelectItem value="DRAFT">Draft — still being prepared</SelectItem>
-                        <SelectItem value="ARCHIVED">Archived — hidden from sale</SelectItem>
+                        <SelectItem value="ACTIVE">{t("pricing.statusActive")}</SelectItem>
+                        <SelectItem value="DRAFT">{t("pricing.statusDraft")}</SelectItem>
+                        <SelectItem value="ARCHIVED">{t("pricing.statusArchived")}</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -704,25 +712,25 @@ export function ProductForm({
         <details className="group rounded-xl border bg-card text-card-foreground shadow-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
             <div>
-              <p className="font-semibold leading-none">Optional legacy details</p>
+              <p className="font-semibold leading-none">{t("legacy.title")}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Use only if your catalog already relies on a single product type, size, or color.
+                {t("legacy.description")}
               </p>
             </div>
             <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid grid-cols-1 gap-4 border-t p-5 sm:grid-cols-3">
             <Field>
-              <FieldLabel htmlFor="type">Type or model</FieldLabel>
-              <Input id="type" placeholder="e.g. Hoodie, Pro, Organic" {...form.register("type")} />
+              <FieldLabel htmlFor="type">{t("legacy.typeLabel")}</FieldLabel>
+              <Input id="type" placeholder={t("legacy.typePlaceholder")} {...form.register("type")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="size">Size or format</FieldLabel>
-              <Input id="size" placeholder="e.g. M, 500 ml, 13-inch" {...form.register("size")} />
+              <FieldLabel htmlFor="size">{t("legacy.sizeLabel")}</FieldLabel>
+              <Input id="size" placeholder={t("legacy.sizePlaceholder")} {...form.register("size")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="color">Color or finish</FieldLabel>
-              <Input id="color" placeholder="e.g. Black, Matte, Natural" {...form.register("color")} />
+              <FieldLabel htmlFor="color">{t("legacy.colorLabel")}</FieldLabel>
+              <Input id="color" placeholder={t("legacy.colorPlaceholder")} {...form.register("color")} />
             </Field>
           </div>
         </details>
@@ -730,8 +738,8 @@ export function ProductForm({
 
       <Card>
         <CardHeader className="border-b pb-4">
-          <CardTitle>Product images</CardTitle>
-          <CardDescription>Optional. Add up to 6 images; the first image becomes the cover.</CardDescription>
+          <CardTitle>{t("images.title")}</CardTitle>
+          <CardDescription>{t("images.description")}</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <Controller
@@ -743,10 +751,10 @@ export function ProductForm({
       </Card>
 
       <div className="sticky bottom-4 z-10 flex items-center justify-end gap-2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80">
-        <Button type="button" variant="outline" onClick={() => router.push("/products")}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={() => router.push("/products")}>{tCommon("cancel")}</Button>
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          {productId ? "Save changes" : "Create product"}
+          {productId ? t("saveChanges") : t("create")}
         </Button>
       </div>
     </form>

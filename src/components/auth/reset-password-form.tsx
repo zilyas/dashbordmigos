@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -14,8 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { resetPassword } from "@/actions/password-reset";
 import {
-  resetPasswordSchema,
-  PASSWORD_POLICY_HINT,
+  buildResetPasswordSchema,
   type ResetPasswordInput,
 } from "@/lib/validations/password";
 
@@ -24,6 +24,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const tValidation = useTranslations("validation");
+  const resetPasswordSchema = useMemo(() => buildResetPasswordSchema(tValidation), [tValidation]);
 
   const form = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -89,7 +91,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
                   aria-invalid={!!form.formState.errors.password}
                   {...form.register("password")}
                 />
-                <FieldDescription>{PASSWORD_POLICY_HINT}</FieldDescription>
+                <FieldDescription>{tValidation("password.policyHint")}</FieldDescription>
                 {form.formState.errors.password && (
                   <FieldError>{form.formState.errors.password.message}</FieldError>
                 )}

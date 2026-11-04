@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { productSchema } from "./product";
+import { buildProductSchema } from "./product";
+
+// Rules only -- message text isn't under test here, so an identity
+// translator (key passed straight through) keeps every assertion about
+// min/max/trim/Decimal-bounds behavior unaffected by this file's locale.
+const productSchema = buildProductSchema((key) => key);
 
 const base = {
   name: "Rice",

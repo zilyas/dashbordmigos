@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,7 +21,7 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ImageUploader } from "@/components/products/image-uploader";
 import { createStore, updateStore } from "@/actions/stores";
-import { storeSchema, type StoreInput } from "@/lib/validations/store";
+import { buildStoreSchema, type StoreInput } from "@/lib/validations/store";
 import type { StoreFeaturesInput } from "@/lib/validations/settings";
 import type { StoreListItem } from "@/lib/queries/stores";
 
@@ -32,12 +33,12 @@ const DEFAULT_FEATURES: StoreFeaturesInput = {
   storefront_api_enabled: false,
 };
 
-const STORE_FEATURE_TOGGLES: { key: keyof StoreFeaturesInput; label: string }[] = [
-  { key: "units_enabled", label: "Units of measure" },
-  { key: "category_attributes_enabled", label: "Category attributes (soon)" },
-  { key: "custom_variant_axes_enabled", label: "Custom variant axes (soon)" },
-  { key: "expiry_batch_enabled", label: "Expiry & batch (soon)" },
-  { key: "storefront_api_enabled", label: "Storefront API" },
+const STORE_FEATURE_KEYS: { key: keyof StoreFeaturesInput; i18nKey: string }[] = [
+  { key: "units_enabled", i18nKey: "units" },
+  { key: "category_attributes_enabled", i18nKey: "categoryAttributes" },
+  { key: "custom_variant_axes_enabled", i18nKey: "customVariantAxes" },
+  { key: "expiry_batch_enabled", i18nKey: "expiryBatch" },
+  { key: "storefront_api_enabled", i18nKey: "storefrontApi" },
 ];
 
 export function StoreDialog({
@@ -51,6 +52,10 @@ export function StoreDialog({
 }) {
   const [isPending, startTransition] = useTransition();
   const isEdit = !!store;
+  const t = useTranslations("people.stores.dialog");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const storeSchema = useMemo(() => buildStoreSchema(tValidation), [tValidation]);
 
   const form = useForm<StoreInput>({
     resolver: zodResolver(storeSchema),
@@ -91,7 +96,7 @@ export function StoreDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(isEdit ? "Store updated" : "Store created");
+      toast.success(isEdit ? t("toastUpdated") : t("toastCreated"));
       onOpenChange(false);
       form.reset();
     });
@@ -101,15 +106,15 @@ export function StoreDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit store" : "New store"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("editTitle") : t("newTitle")}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this store's details." : "Create a new store on the platform."}
+            {isEdit ? t("editDescription") : t("newDescription")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <FieldGroup>
             <Field>
-              <FieldLabel>Logo</FieldLabel>
+              <FieldLabel>{t("logoLabel")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="logo"
@@ -125,14 +130,14 @@ export function StoreDialog({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.name}>
-                <FieldLabel htmlFor="store-name">Store name</FieldLabel>
+                <FieldLabel htmlFor="store-name">{t("storeNameLabel")}</FieldLabel>
                 <Input id="store-name" {...form.register("name")} />
                 {form.formState.errors.name && (
                   <FieldError>{form.formState.errors.name.message}</FieldError>
                 )}
               </Field>
               <Field data-invalid={!!form.formState.errors.code}>
-                <FieldLabel htmlFor="store-code">Store code</FieldLabel>
+                <FieldLabel htmlFor="store-code">{t("storeCodeLabel")}</FieldLabel>
                 <Input id="store-code" placeholder="NYC-01" {...form.register("code")} />
                 {form.formState.errors.code && (
                   <FieldError>{form.formState.errors.code.message}</FieldError>
@@ -142,14 +147,14 @@ export function StoreDialog({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={!!form.formState.errors.currency}>
-                <FieldLabel htmlFor="store-currency">Currency</FieldLabel>
+                <FieldLabel htmlFor="store-currency">{t("currencyLabel")}</FieldLabel>
                 <Input id="store-currency" placeholder="MAD" maxLength={3} {...form.register("currency")} />
                 {form.formState.errors.currency && (
                   <FieldError>{form.formState.errors.currency.message}</FieldError>
                 )}
               </Field>
               <Field data-invalid={!!form.formState.errors.taxRate}>
-                <FieldLabel htmlFor="store-taxRate">Tax rate (%)</FieldLabel>
+                <FieldLabel htmlFor="store-taxRate">{t("taxRateLabel")}</FieldLabel>
                 <Input
                   id="store-taxRate"
                   type="number"
@@ -164,27 +169,27 @@ export function StoreDialog({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="store-city">City</FieldLabel>
+                <FieldLabel htmlFor="store-city">{t("cityLabel")}</FieldLabel>
                 <Input id="store-city" {...form.register("city")} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="store-country">Country</FieldLabel>
+                <FieldLabel htmlFor="store-country">{t("countryLabel")}</FieldLabel>
                 <Input id="store-country" {...form.register("country")} />
               </Field>
             </div>
 
             <Field>
-              <FieldLabel htmlFor="store-address">Address</FieldLabel>
+              <FieldLabel htmlFor="store-address">{t("addressLabel")}</FieldLabel>
               <Input id="store-address" {...form.register("address")} />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="store-phone">Phone</FieldLabel>
+                <FieldLabel htmlFor="store-phone">{t("phoneLabel")}</FieldLabel>
                 <Input id="store-phone" {...form.register("phone")} />
               </Field>
               <Field data-invalid={!!form.formState.errors.email}>
-                <FieldLabel htmlFor="store-email">Email</FieldLabel>
+                <FieldLabel htmlFor="store-email">{t("emailLabel")}</FieldLabel>
                 <Input id="store-email" type="email" {...form.register("email")} />
                 {form.formState.errors.email && (
                   <FieldError>{form.formState.errors.email.message}</FieldError>
@@ -193,10 +198,10 @@ export function StoreDialog({
             </div>
 
             <div className="flex flex-col gap-2 rounded-lg border p-3">
-              <p className="text-sm font-medium">Advanced features</p>
-              {STORE_FEATURE_TOGGLES.map((f) => (
+              <p className="text-sm font-medium">{t("advancedFeaturesTitle")}</p>
+              {STORE_FEATURE_KEYS.map((f) => (
                 <div key={f.key} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-muted-foreground">{f.label}</span>
+                  <span className="text-sm text-muted-foreground">{t(`features.${f.i18nKey}`)}</span>
                   <Controller
                     control={form.control}
                     name={`features.${f.key}` as const}
@@ -210,11 +215,11 @@ export function StoreDialog({
           </FieldGroup>
           <DialogFooter className="mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              {isEdit ? "Save changes" : "Create store"}
+              {isEdit ? t("saveChanges") : t("create")}
             </Button>
           </DialogFooter>
         </form>

@@ -1,0 +1,73 @@
+{
+  "page": {
+    "title": "Storefront API",
+    "description": "Connect an e-commerce website to this shop's catalogue, stock and orders."
+  },
+  "scopes": {
+    "productsRead": "Read the catalogue (products, prices, images)",
+    "stockRead": "Read stock levels",
+    "ordersCreate": "Place orders, which lowers stock"
+  },
+  "manager": {
+    "newKey": "New key",
+    "emptyTitle": "No API keys yet",
+    "emptyDescription": "Make a key and give it to the person who builds your website.",
+    "table": {
+      "name": "Name",
+      "key": "Key",
+      "permissions": "Permissions",
+      "status": "Status",
+      "expires": "Expires",
+      "lastUsed": "Last used",
+      "madeBy": "Made by"
+    },
+    "active": "Active",
+    "revoked": "Revoked",
+    "never": "Never",
+    "unknown": "Unknown",
+    "revokeDialog": {
+      "title": "Revoke \"{name}\"?",
+      "description": "The key stops working immediately and cannot be put back. Every website that uses it loses access until you make a new key.",
+      "confirm": "Revoke",
+      "toastRevoked": "Key revoked"
+    }
+  },
+  "newKeyDialog": {
+    "title": "New key",
+    "description": "A key lets one website read this shop's data. Give each website its own key.",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Main website",
+    "permissionsLabel": "Permissions",
+    "expiresAfterLabel": "Expires after",
+    "daysOption": "{days} days",
+    "cancel": "Cancel",
+    "createButton": "Create key",
+    "toastCopied": "Key copied",
+    "toastCopyFailed": "Could not copy. Select the key and copy it by hand.",
+    "minted": {
+      "title": "Your new key",
+      "description": "This is the only time the key is shown. Store it somewhere safe. If you lose it, revoke this key and make a new one.",
+      "copyButton": "Copy key",
+      "doneButton": "I have saved it"
+    }
+  },
+  "guide": {
+    "title": "Connect your website",
+    "description": "Send the key as <code>Authorization: Bearer &lt;key&gt;</code> from your server, never from the browser.",
+    "secretWarningTitle": "The key is a server secret.",
+    "secretWarningBody": "This API sends no CORS headers on purpose, so a call from browser JavaScript will fail. A key put into front-end code is public: anyone can read it and use it.",
+    "variantFootnote": "For a product with variants, add the variantId of the chosen variant to each order item.",
+    "examples": {
+      "readCatalogue": { "title": "Read the catalogue", "description": "Walk the full catalogue with nextCursor, or pass updatedSince to poll for what changed." },
+      "readStock": { "title": "Read stock levels", "description": "The cheap, frequent call. Pass ids for the items in a cart, or updatedSince to poll for movement." },
+      "placeOrder": { "title": "Place an order", "description": "Stock goes down at once. Send the same idempotencyKey again after a timeout: the order is not counted twice." }
+    }
+  },
+  "actions": {
+    "invalidKeyData": "Invalid key data",
+    "apiNotEnabled": "The storefront API is not enabled for this store.",
+    "maxKeysReached": "This store already has 10 active keys. Revoke one first.",
+    "keyCollision": "Key collision, please try again.",
+    "keyNotFound": "Key not found or already revoked."
+  }
+}

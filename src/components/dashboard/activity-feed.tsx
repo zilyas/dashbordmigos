@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
+import { useTranslations } from "next-intl";
 import { Package, ShoppingCart, UserPlus, Store, Activity as ActivityIcon, type LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { describeActivity } from "@/lib/activity-format";
@@ -24,8 +25,12 @@ const ACTION_ICON: Record<string, LucideIcon> = {
 };
 
 export function ActivityFeed({ items }: { items: ActivityLogItem[] }) {
+  const t = useTranslations("dashboard.activityFeed");
+  const tActivity = useTranslations("activity");
+  const tLabels = useTranslations("labels");
+
   if (items.length === 0) {
-    return <EmptyState icon={<ActivityIcon />} title="No activity yet" className="h-72 border-none" />;
+    return <EmptyState icon={<ActivityIcon />} title={t("noActivityYet")} className="h-72 border-none" />;
   }
 
   return (
@@ -44,7 +49,7 @@ export function ActivityFeed({ items }: { items: ActivityLogItem[] }) {
               <p className="text-sm">
                 <span className="font-medium">{item.userName}</span>{" "}
                 <span className="text-muted-foreground">
-                  {describeActivity(item.action, item.entity, item.metadata)}
+                  {describeActivity(tActivity, tLabels, item.action, item.entity, item.metadata)}
                 </span>
               </p>
               <span className="text-xs text-muted-foreground/70">

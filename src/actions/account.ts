@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionContext } from "@/lib/store-context";
 import { checkPasswordHistory, hashPassword, recordPasswordHistory, verifyPassword } from "@/lib/security/password";
 import { logActivity } from "@/lib/audit";
-import { changePasswordSchema } from "@/lib/validations/password";
+import { buildChangePasswordSchema } from "@/lib/validations/password";
+import { toAppLocale } from "@/i18n/messages";
+import type { Locale } from "@/generated/prisma/enums";
 
 export async function changePassword(input: {
   currentPassword: string;
@@ -13,24 +16,27 @@ export async function changePassword(input: {
   confirmPassword: string;
 }) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const locale = toAppLocale(context?.locale);
+  const t = await getTranslations({ locale, namespace: "account.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
-  const parsed = changePasswordSchema.safeParse(input);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const parsed = buildChangePasswordSchema(tValidation).safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return { error: parsed.error.issues[0]?.message ?? t("invalidInput") };
   }
 
   const user = await prisma.user.findUnique({
     where: { id: context.userId },
     select: { passwordHash: true },
   });
-  if (!user) return { error: "Not authorized" };
+  if (!user) return { error: t("notAuthorized") };
 
   const validCurrent = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
-  if (!validCurrent) return { error: "Current password is incorrect." };
+  if (!validCurrent) return { error: t("currentPasswordIncorrect") };
 
   if (await checkPasswordHistory(context.userId, parsed.data.newPassword)) {
-    return { error: "You've used that password before. Choose a different one." };
+    return { error: t("passwordReused") };
   }
 
   const newHash = await hashPassword(parsed.data.newPassword);
@@ -57,8 +63,8 @@ export async function changePassword(input: {
       storeId: context.storeId,
       userId: context.userId,
       type: "PASSWORD_CHANGED",
-      title: "Password changed",
-      message: "Your password was changed. If this wasn't you, contact your administrator immediately.",
+      title: t("passwordChangedNotificationTitle"),
+      message: t("passwordChangedNotificationMessage"),
     },
   });
 
@@ -67,12 +73,13 @@ export async function changePassword(input: {
 
 export async function terminateSession(sessionId: string) {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  const t = await getTranslations({ locale: toAppLocale(context?.locale), namespace: "account.actions" });
+  if (!context) return { error: t("notAuthorized") };
 
   const session = await prisma.userSession.findFirst({
     where: { id: sessionId, userId: context.userId, revokedAt: null },
   });
-  if (!session) return { error: "Session not found." };
+  if (!session) return { error: t("sessionNotFound") };
 
   await prisma.userSession.update({
     where: { id: sessionId },
@@ -91,9 +98,34 @@ export async function terminateSession(sessionId: string) {
   return { success: true as const, isCurrent: session.tokenId === context.sid };
 }
 
+export async function setLocale(locale: Locale) {
+  const context = await getSessionContext();
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "account.actions" });
+    return { error: t("notAuthorized") };
+  }
+
+  await prisma.user.update({ where: { id: context.userId }, data: { locale } });
+
+  await logActivity({
+    storeId: context.storeId,
+    userId: context.userId,
+    action: "user.locale_changed",
+    entity: "User",
+    entityId: context.userId,
+    metadata: { locale },
+  });
+
+  revalidatePath("/account");
+  return { success: true as const };
+}
+
 export async function terminateAllOtherSessions() {
   const context = await getSessionContext();
-  if (!context) return { error: "Not authorized" };
+  if (!context) {
+    const t = await getTranslations({ locale: toAppLocale(null), namespace: "account.actions" });
+    return { error: t("notAuthorized") };
+  }
 
   await prisma.userSession.updateMany({
     where: { userId: context.userId, tokenId: { not: context.sid }, revokedAt: null },

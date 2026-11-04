@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
@@ -50,6 +51,7 @@ export type NotificationHistoryItem = {
 };
 
 export function NotificationHistoryList({ notifications }: { notifications: NotificationHistoryItem[] }) {
+  const t = useTranslations("notifications.list");
   const [isPending, startTransition] = useTransition();
 
   // Only clears the unread flag — the <Link> does the navigating, so an
@@ -68,7 +70,7 @@ export function NotificationHistoryList({ notifications }: { notifications: Noti
   }
 
   if (notifications.length === 0) {
-    return <EmptyState icon={<PackageX />} title="No notifications" className="py-16" />;
+    return <EmptyState icon={<PackageX />} title={t("emptyTitle")} className="py-16" />;
   }
 
   return (
@@ -110,7 +112,7 @@ export function NotificationHistoryList({ notifications }: { notifications: Noti
             size="icon-sm"
             disabled={isPending}
             onClick={() => handleDelete(n.id)}
-            aria-label="Delete notification"
+            aria-label={t("deleteAriaLabel")}
           >
             <Trash2 className="size-3.5" />
           </Button>

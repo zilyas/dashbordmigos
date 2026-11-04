@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Package, Archive, ArchiveRestore } from "lucide-react";
 import {
   Select,
@@ -15,7 +16,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { buildProductColumns } from "@/components/products/product-columns";
 import { bulkUpdateProductStatus, deleteProduct } from "@/actions/products";
-import { PRODUCT_UNITS, PRODUCT_UNIT_LABELS } from "@/lib/validations/product";
+import { PRODUCT_UNITS } from "@/lib/validations/product";
 import type { ProductListItem } from "@/lib/queries/products";
 import type { CategoryListItem } from "@/lib/queries/categories";
 
@@ -37,6 +38,10 @@ export function ProductsTable({
   /** Store has units_enabled — show the unit filter. */
   unitsEnabled?: boolean;
 }) {
+  const tLabels = useTranslations("labels");
+  const t = useTranslations("products.table");
+  const tUnit = useTranslations("products.unit");
+  const tCommon = useTranslations("common");
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [unitFilter, setUnitFilter] = useState(ALL);
@@ -60,10 +65,11 @@ export function ProductsTable({
     if (result?.error) {
       toast.error(result.error);
     } else {
-      toast.success(nextStatus === "ARCHIVED" ? "Product archived" : "Product activated");
+      toast.success(nextStatus === "ARCHIVED" ? t("toastArchived") : t("toastActivated"));
     }
   }
 
+  const tColumns = useTranslations("products.columns");
   const columns = useMemo(
     () =>
       buildProductColumns({
@@ -72,8 +78,10 @@ export function ProductsTable({
         canViewCost,
         onArchiveToggle: handleArchiveToggle,
         onDelete: setDeleteTarget,
+        tLabels,
+        t: tColumns,
       }),
-    [currency, canEdit, canViewCost]
+    [currency, canEdit, canViewCost, tLabels, tColumns]
   );
 
   return (
@@ -81,19 +89,19 @@ export function ProductsTable({
       <DataTable
         columns={columns}
         data={filtered}
-        searchPlaceholder="Search products..."
+        searchPlaceholder={t("searchPlaceholder")}
         enableRowSelection={canEdit}
         emptyIcon={<Package />}
-        emptyTitle="No products found"
-        emptyDescription="Try adjusting your filters, or add a new product."
+        emptyTitle={t("emptyTitle")}
+        emptyDescription={t("emptyDescription")}
         toolbar={
           <>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t("filters.categoryPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>All categories</SelectItem>
+                <SelectItem value={ALL}>{t("filters.allCategories")}</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
@@ -103,25 +111,25 @@ export function ProductsTable({
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-36">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("filters.statusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>All statuses</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="ARCHIVED">Archived</SelectItem>
+                <SelectItem value={ALL}>{t("filters.allStatuses")}</SelectItem>
+                <SelectItem value="ACTIVE">{tLabels("productStatus.ACTIVE")}</SelectItem>
+                <SelectItem value="DRAFT">{tLabels("productStatus.DRAFT")}</SelectItem>
+                <SelectItem value="ARCHIVED">{tLabels("productStatus.ARCHIVED")}</SelectItem>
               </SelectContent>
             </Select>
             {unitsEnabled && (
               <Select value={unitFilter} onValueChange={setUnitFilter}>
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Unit" />
+                  <SelectValue placeholder={t("filters.unitPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>All units</SelectItem>
+                  <SelectItem value={ALL}>{t("filters.allUnits")}</SelectItem>
                   {PRODUCT_UNITS.map((u) => (
                     <SelectItem key={u} value={u}>
-                      {PRODUCT_UNIT_LABELS[u]}
+                      {tUnit(u)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -129,12 +137,12 @@ export function ProductsTable({
             )}
             <Select value={variantsFilter} onValueChange={setVariantsFilter}>
               <SelectTrigger className="w-36">
-                <SelectValue placeholder="Variants" />
+                <SelectValue placeholder={t("filters.variantsPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>All products</SelectItem>
-                <SelectItem value="yes">Has variants</SelectItem>
-                <SelectItem value="no">No variants</SelectItem>
+                <SelectItem value={ALL}>{t("filters.allProducts")}</SelectItem>
+                <SelectItem value="yes">{t("filters.hasVariants")}</SelectItem>
+                <SelectItem value="no">{t("filters.noVariants")}</SelectItem>
               </SelectContent>
             </Select>
           </>
@@ -152,12 +160,12 @@ export function ProductsTable({
                         selected.map((p) => p.id),
                         "ACTIVE"
                       );
-                      toast.success(`${selected.length} product(s) activated`);
+                      toast.success(t("toastBulkActivated", { count: selected.length }));
                       clearSelection();
                     }}
                   >
                     <ArchiveRestore className="size-3.5" />
-                    Activate
+                    {t("bulkActivate")}
                   </Button>
                   <Button
                     variant="outline"
@@ -168,12 +176,12 @@ export function ProductsTable({
                         selected.map((p) => p.id),
                         "ARCHIVED"
                       );
-                      toast.success(`${selected.length} product(s) archived`);
+                      toast.success(t("toastBulkArchived", { count: selected.length }));
                       clearSelection();
                     }}
                   >
                     <Archive className="size-3.5" />
-                    Archive
+                    {t("bulkArchive")}
                   </Button>
                 </>
               )
@@ -185,18 +193,18 @@ export function ProductsTable({
         <ConfirmDialog
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title={`Delete "${deleteTarget.name}"?`}
-          description="If this product has sale or inventory history, it will be archived instead of deleted to preserve your records."
-          confirmLabel="Delete"
+          title={t("deleteTitle", { name: deleteTarget.name })}
+          description={t("deleteDescription")}
+          confirmLabel={tCommon("delete")}
           destructive
           onConfirm={async () => {
             const result = await deleteProduct(deleteTarget.id);
             if (result?.error) {
               toast.error(result.error);
             } else if (result?.archived) {
-              toast.success("Product archived (has related history)");
+              toast.success(t("toastArchivedInstead"));
             } else {
-              toast.success("Product deleted");
+              toast.success(t("toastDeleted"));
             }
           }}
         />

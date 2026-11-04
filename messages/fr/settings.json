@@ -1,0 +1,73 @@
+{
+  "page": {
+    "title": "Paramètres",
+    "description": "Configuration et préférences de la boutique."
+  },
+  "storeDetails": {
+    "title": "Détails de la boutique",
+    "description": "Affiché sur les reçus, factures et rapports exportés.",
+    "logoLabel": "Logo",
+    "storeNameLabel": "Nom de la boutique",
+    "currencyCodeLabel": "Code de devise",
+    "timezoneLabel": "Fuseau horaire",
+    "timezonePlaceholder": "Sélectionner le fuseau horaire",
+    "timezoneHint": "Utilisé pour les règles basées sur la date, comme l'expiration des lots.",
+    "taxRateLabel": "Taux de taxe (%)",
+    "phoneLabel": "Téléphone",
+    "cityLabel": "Ville",
+    "countryLabel": "Pays",
+    "addressLabel": "Adresse",
+    "emailLabel": "E-mail de la boutique",
+    "allowSellerViewCostLabel": "Les vendeurs peuvent voir le coût de fabrication",
+    "allowSellerViewCostHint": "Lorsqu'activé, les vendeurs voient le prix de revient à côté du prix de vente dans Produits.",
+    "advancedFeaturesTitle": "Fonctionnalités avancées",
+    "advancedFeaturesHint": "Désactivées par défaut. Activez uniquement ce dont votre boutique a besoin — les boutiques simples peuvent les ignorer.",
+    "features": {
+      "units": { "label": "Unités de mesure", "description": "Vendez à la pièce, au kg, g, L ou lot. Ajoute un champ unité sur les produits." },
+      "categoryAttributes": { "label": "Attributs de catégorie", "description": "Ajoutez des spécifications structurées par catégorie (marque, garantie, poids…). Disponible dans une prochaine mise à jour." },
+      "customVariantAxes": { "label": "Axes de variantes personnalisés", "description": "Définissez vos propres axes de variantes au-delà de Taille/Couleur (Stockage, Tension…). Disponible dans une prochaine mise à jour." },
+      "expiryBatch": { "label": "Suivi des lots et expirations", "description": "Suivez les dates d'expiration et les lots pour les produits périssables. Disponible dans une prochaine mise à jour." },
+      "storefrontApi": { "label": "API boutique" }
+    },
+    "saveChanges": "Enregistrer les modifications",
+    "toastSaved": "Paramètres enregistrés"
+  },
+  "appearance": {
+    "title": "Apparence",
+    "description": "Choisissez l'apparence du tableau de bord sur cet appareil.",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "starterCatalog": {
+    "title": "Catalogue de démarrage",
+    "description": "Optionnel. Configurez les catégories, attributs et options de variantes pour un type de boutique courant en un clic. Ne crée jamais de produits ou de stock, et n'écrase jamais les données existantes.",
+    "alreadySetUp": "Votre catalogue est déjà configuré — ouvrez pour appliquer un autre modèle de démarrage",
+    "cancel": "Annuler",
+    "applyButton": "Appliquer le modèle",
+    "done": "Terminé",
+    "appliedTitle": "{templateName} appliqué",
+    "appliedDescription": "Voici ce qui a changé pour votre boutique.",
+    "featuresEnabledPrefix": "Fonctionnalités activées : ",
+    "nothingChanged": "Tout était déjà configuré — rien n'a changé.",
+    "countCategories": "Catégories",
+    "countAttributes": "Attributs",
+    "countAxes": "Axes de variantes",
+    "countSizes": "Tailles",
+    "countColors": "Couleurs",
+    "countAdded": "{count} ajouté(s)",
+    "countReused": "{count} réutilisé(s)",
+    "toastApplied": "Catalogue de démarrage {templateName} appliqué.",
+    "previewFeaturesTitle": "Fonctionnalités qui seront activées",
+    "previewCategoriesTitle": "Catégories",
+    "previewAxesTitle": "Axes de variantes",
+    "previewSizesTitle": "Tailles",
+    "previewColorsTitle": "Couleurs",
+    "previewFooter": "Ceci configure uniquement la structure du catalogue. Aucun produit, stock ou vente n'est créé, et vos données existantes ne sont jamais écrasées."
+  },
+  "actions": {
+    "notAuthorized": "Non autorisé",
+    "invalidSettingsData": "Données de paramètres invalides",
+    "unknownTemplate": "Modèle inconnu."
+  }
+}

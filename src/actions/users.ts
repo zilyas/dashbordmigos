@@ -1,16 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireStorePermission } from "@/lib/rbac-guards";
 import { generateTempPassword, hashPassword } from "@/lib/security/password";
 import { logActivity } from "@/lib/audit";
 import {
-  createSellerSchema,
-  updateSellerSchema,
+  buildCreateSellerSchema,
+  buildUpdateSellerSchema,
   type CreateSellerInput,
   type UpdateSellerInput,
 } from "@/lib/validations/user";
+import { toAppLocale } from "@/i18n/messages";
 import { Prisma } from "@/generated/prisma/client";
 import { isForeignKeyConstraintError } from "@/lib/prisma-errors";
 
@@ -24,8 +26,11 @@ async function requireOwnedSeller(id: string, storeId: string) {
 
 export async function createSeller(input: CreateSellerInput) {
   const session = await requireSellerManager();
-  const parsed = createSellerSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid seller data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildCreateSellerSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidSellerData") };
   const data = parsed.data;
 
   try {
@@ -56,8 +61,8 @@ export async function createSeller(input: CreateSellerInput) {
         storeId: session.storeId,
         userId: seller.id,
         type: "SELLER_ADDED",
-        title: "Welcome to the team",
-        message: "Your seller account has been created. Sign in to get started.",
+        title: t("welcomeNotificationTitle"),
+        message: t("welcomeNotificationMessage"),
       },
     });
 
@@ -65,7 +70,7 @@ export async function createSeller(input: CreateSellerInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A user with that email already exists." };
+      return { error: t("sellerEmailExists") };
     }
     throw error;
   }
@@ -73,12 +78,15 @@ export async function createSeller(input: CreateSellerInput) {
 
 export async function updateSeller(id: string, input: UpdateSellerInput) {
   const session = await requireSellerManager();
-  const parsed = updateSellerSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid seller data" };
+  const locale = toAppLocale(session.locale);
+  const tValidation = await getTranslations({ locale, namespace: "validation" });
+  const t = await getTranslations({ locale, namespace: "people.actions" });
+  const parsed = buildUpdateSellerSchema(tValidation).safeParse(input);
+  if (!parsed.success) return { error: t("invalidSellerData") };
   const data = parsed.data;
 
   const seller = await requireOwnedSeller(id, session.storeId);
-  if (!seller) return { error: "Seller not found" };
+  if (!seller) return { error: t("sellerNotFound") };
 
   try {
     await prisma.user.update({
@@ -103,7 +111,7 @@ export async function updateSeller(id: string, input: UpdateSellerInput) {
     return { success: true as const };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "A user with that email already exists." };
+      return { error: t("sellerEmailExists") };
     }
     throw error;
   }
@@ -111,8 +119,9 @@ export async function updateSeller(id: string, input: UpdateSellerInput) {
 
 export async function toggleSellerStatus(id: string) {
   const session = await requireSellerManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const seller = await requireOwnedSeller(id, session.storeId);
-  if (!seller) return { error: "Seller not found" };
+  if (!seller) return { error: t("sellerNotFound") };
 
   const nextStatus = seller.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
   await prisma.user.update({ where: { id }, data: { status: nextStatus } });
@@ -132,8 +141,9 @@ export async function toggleSellerStatus(id: string) {
 
 export async function deleteSeller(id: string) {
   const session = await requireSellerManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const seller = await requireOwnedSeller(id, session.storeId);
-  if (!seller) return { error: "Seller not found" };
+  if (!seller) return { error: t("sellerNotFound") };
 
   try {
     await prisma.user.delete({ where: { id } });
@@ -171,8 +181,9 @@ export async function deleteSeller(id: string) {
 
 export async function resetSellerPassword(id: string) {
   const session = await requireSellerManager();
+  const t = await getTranslations({ locale: toAppLocale(session.locale), namespace: "people.actions" });
   const seller = await requireOwnedSeller(id, session.storeId);
-  if (!seller) return { error: "Seller not found" };
+  if (!seller) return { error: t("sellerNotFound") };
 
   const tempPassword = generateTempPassword();
 
@@ -192,6 +203,6 @@ export async function resetSellerPassword(id: string) {
     revalidatePath("/users");
     return { success: true as const, tempPassword };
   } catch {
-    return { error: "Failed to reset password." };
+    return { error: t("resetPasswordFailed") };
   }
 }

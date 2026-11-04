@@ -1,0 +1,79 @@
+{
+  "search": {
+    "placeholder": "Rechercher par nom, SKU ou scanner un code-barres..."
+  },
+  "connectivity": {
+    "offline": "Hors ligne",
+    "online": "En ligne",
+    "pendingToSync": "{count} vente(s) en attente de synchronisation",
+    "nothingToSync": "Rien à synchroniser",
+    "lastSync": "Dernière synchro {time}",
+    "noSyncYet": "Pas encore synchronisé",
+    "syncNow": "Synchroniser"
+  },
+  "toast": {
+    "stillNoConnection": "Toujours pas de connexion. Vérifiez le réseau et réessayez.",
+    "offlineAccessInactive": "L'accès hors ligne de cette boutique n'est pas actif. Contactez le propriétaire.",
+    "offlineAccessRenewed": "Accès hors ligne renouvelé.",
+    "couldNotReachServer": "Impossible de joindre le serveur. Vérifiez le réseau et réessayez.",
+    "syncStopped": "Synchronisation arrêtée.",
+    "syncAlreadyRunning": "Une synchronisation est déjà en cours.",
+    "nothingToSync": "Rien à synchroniser.",
+    "salesSent": "{count} vente(s) envoyée(s).",
+    "salesNeedReview": "{count} vente(s) à vérifier.",
+    "productBlocked": "{name} : {reason}",
+    "noOfflineCatalogue": "Cet appareil n'a pas encore de catalogue hors ligne. Reconnectez-vous une fois en ligne.",
+    "outOfStockNamed": "{name} est en rupture de stock",
+    "noMoreStock": "Plus de stock disponible",
+    "cartEmpty": "Ajoutez au moins un produit au panier",
+    "saleFailed": "Échec de la vente",
+    "saleCompleted": "Vente terminée"
+  },
+  "grid": {
+    "noCachedMatch": "Aucun produit en cache ne correspond à votre recherche",
+    "noCatalogueStored": "Cet appareil n'a pas encore de catalogue enregistré",
+    "noMatch": "Aucun produit ne correspond à votre recherche",
+    "variantCount": "{count} variante(s)",
+    "unitsAvailable": "{count} {unit} disponible(s)",
+    "outOfStock": "Rupture de stock",
+    "chooseVariant": "Choisir une variante"
+  },
+  "cart": {
+    "title": "Panier ({count})",
+    "empty": "Ajoutez des produits à gauche pour commencer une vente.",
+    "quantityAriaLabel": "Quantité pour {name}",
+    "customerNamePlaceholder": "Nom du client (facultatif)",
+    "customerPhonePlaceholder": "Téléphone du client (facultatif)",
+    "percentOff": "% de remise",
+    "subtotal": "Sous-total",
+    "discount": "Remise",
+    "tax": "Taxe ({rate}%)",
+    "total": "Total",
+    "processing": "Traitement...",
+    "completeSale": "Finaliser la vente · {amount}"
+  },
+  "variantDialog": {
+    "description": "Choisissez une variante à ajouter au panier.",
+    "noActiveVariants": "Ce produit n'a aucune variante active.",
+    "noCachedVariants": "Ce produit n'a aucune variante en cache.",
+    "inStock": "{count} en stock",
+    "outOfStock": "en rupture de stock"
+  },
+  "leaseDialog": {
+    "title": "Connexion internet requise",
+    "description": "Votre période d'accès hors ligne a expiré. Connectez-vous à internet pour vérifier votre abonnement et continuer à vendre. Vos ventes en attente sont enregistrées sur cet appareil.",
+    "accessInactive": "L'accès hors ligne de cette boutique n'est pas actif. Se reconnecter ne le rétablira pas tant que le compte n'est pas réactivé — contactez le propriétaire.",
+    "pendingSaved": "{count} vente(s) enregistrée(s) sur cet appareil, en attente d'envoi. Elles sont conservées jusqu'à confirmation par le serveur.",
+    "viewPendingSales": "Voir les ventes en attente",
+    "checking": "Vérification...",
+    "retryConnection": "Réessayer la connexion"
+  },
+  "expiredStockDialog": {
+    "title": "Vendre quand même le stock expiré ?",
+    "description": "Le stock non expiré ne suffit pas pour cette vente. En tant que gérant, vous pouvez la finaliser sciemment en utilisant du stock expiré. Ceci est enregistré sur la vente et dans le journal d'activité.",
+    "confirmLabel": "Vendre le stock expiré"
+  },
+  "saleCompleteDialog": {
+    "title": "Vente terminée"
+  }
+}

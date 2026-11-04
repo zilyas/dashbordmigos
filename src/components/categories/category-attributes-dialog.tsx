@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,10 +34,10 @@ import {
   deleteAttributeDefinition,
 } from "@/actions/category-attributes";
 import {
-  attributeDefinitionSchema,
+  buildAttributeDefinitionSchema,
   type AttributeDefinitionInput,
 } from "@/lib/validations/category-attribute";
-import { ATTRIBUTE_TYPES, ATTRIBUTE_TYPE_LABELS } from "@/lib/attributes";
+import { ATTRIBUTE_TYPES } from "@/lib/attributes";
 import type { CategoryAttribute, CategoryListItem } from "@/lib/queries/categories";
 
 export function CategoryAttributesDialog({
@@ -49,6 +50,8 @@ export function CategoryAttributesDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("catalog.categories.attributesDialog");
+  const tCommon = useTranslations("common");
   const [editing, setEditing] = useState<CategoryAttribute | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CategoryAttribute | null>(null);
@@ -57,15 +60,15 @@ export function CategoryAttributesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Attributes · {category.name}</DialogTitle>
+          <DialogTitle>{t("title", { name: category.name })}</DialogTitle>
           <DialogDescription>
-            Define specification fields (brand, warranty, weight…) for products in this category.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col divide-y">
           {category.attributes.length === 0 && (
-            <p className="py-3 text-sm text-muted-foreground">No attributes defined yet.</p>
+            <p className="py-3 text-sm text-muted-foreground">{t("noAttributes")}</p>
           )}
           {category.attributes.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2 py-2.5">
@@ -75,8 +78,8 @@ export function CategoryAttributesDialog({
                   {a.required && <span className="text-destructive"> *</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {ATTRIBUTE_TYPE_LABELS[a.type]}
-                  {a.type === "SELECT" ? ` · ${a.options.length} option(s)` : ""}
+                  {t(`types.${a.type}`)}
+                  {a.type === "SELECT" ? ` · ${t("optionsCount", { count: a.options.length })}` : ""}
                 </p>
               </div>
               <div className="flex gap-1">
@@ -129,7 +132,7 @@ export function CategoryAttributesDialog({
             }}
           >
             <Plus className="size-4" />
-            Add attribute
+            {t("addAttribute")}
           </Button>
         )}
 
@@ -137,15 +140,15 @@ export function CategoryAttributesDialog({
           <ConfirmDialog
             open={!!deleteTarget}
             onOpenChange={(o) => !o && setDeleteTarget(null)}
-            title={`Delete "${deleteTarget.label}"?`}
-            description="Any product values stored for this attribute will be removed."
-            confirmLabel="Delete"
+            title={t("deleteTitle", { label: deleteTarget.label })}
+            description={t("deleteDescription")}
+            confirmLabel={tCommon("delete")}
             destructive
             onConfirm={async () => {
               const result = await deleteAttributeDefinition(deleteTarget.id);
               if (result?.error) toast.error(result.error);
               else {
-                toast.success("Attribute deleted");
+                toast.success(t("toastDeleted"));
                 router.refresh();
               }
             }}
@@ -168,6 +171,14 @@ function AttributeForm({
   onCancel: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations("catalog.categories.attributesDialog");
+  const tForm = useTranslations("catalog.categories.attributesDialog.form");
+  const tCommon = useTranslations("common");
+  const tValidation = useTranslations("validation");
+  const attributeDefinitionSchema = useMemo(
+    () => buildAttributeDefinitionSchema(tValidation),
+    [tValidation]
+  );
   const form = useForm<AttributeDefinitionInput>({
     resolver: zodResolver(attributeDefinitionSchema),
     defaultValues: {
@@ -189,7 +200,7 @@ function AttributeForm({
         toast.error(result.error);
         return;
       }
-      toast.success(attribute ? "Attribute updated" : "Attribute added");
+      toast.success(attribute ? tForm("toastUpdated") : tForm("toastAdded"));
       onDone();
     });
   }
@@ -199,14 +210,14 @@ function AttributeForm({
       <FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={!!form.formState.errors.label}>
-            <FieldLabel htmlFor="attr-label">Label</FieldLabel>
-            <Input id="attr-label" placeholder="e.g. Brand" {...form.register("label")} />
+            <FieldLabel htmlFor="attr-label">{tForm("labelLabel")}</FieldLabel>
+            <Input id="attr-label" placeholder={tForm("labelPlaceholder")} {...form.register("label")} />
             {form.formState.errors.label && (
               <FieldError>{form.formState.errors.label.message}</FieldError>
             )}
           </Field>
           <Field>
-            <FieldLabel>Type</FieldLabel>
+            <FieldLabel>{tForm("typeLabel")}</FieldLabel>
             <Controller
               control={form.control}
               name="type"
@@ -216,9 +227,9 @@ function AttributeForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ATTRIBUTE_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {ATTRIBUTE_TYPE_LABELS[t]}
+                    {ATTRIBUTE_TYPES.map((attrType) => (
+                      <SelectItem key={attrType} value={attrType}>
+                        {t(`types.${attrType}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -230,7 +241,7 @@ function AttributeForm({
 
         {type === "SELECT" && (
           <Field data-invalid={!!form.formState.errors.options}>
-            <FieldLabel htmlFor="attr-options">Options (one per line)</FieldLabel>
+            <FieldLabel htmlFor="attr-options">{tForm("optionsLabel")}</FieldLabel>
             <Controller
               control={form.control}
               name="options"
@@ -261,12 +272,12 @@ function AttributeForm({
             render={({ field }) => (
               <label className="flex items-center gap-2 text-sm font-medium">
                 <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                Required
+                {tForm("requiredLabel")}
               </label>
             )}
           />
           <Field className="w-28">
-            <FieldLabel htmlFor="attr-position">Order</FieldLabel>
+            <FieldLabel htmlFor="attr-position">{tForm("orderLabel")}</FieldLabel>
             <Input
               id="attr-position"
               type="number"
@@ -278,11 +289,11 @@ function AttributeForm({
 
       <div className="mt-3 flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
+          {tCommon("cancel")}
         </Button>
         <Button type="submit" size="sm" disabled={isPending}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          {attribute ? "Save" : "Add"}
+          {attribute ? tForm("save") : tForm("add")}
         </Button>
       </div>
     </form>

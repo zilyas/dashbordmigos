@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Image from "next/image";
 import { useOffline } from "next/offline";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Search,
@@ -55,7 +56,7 @@ import {
 import { round3 } from "@/lib/sale-math";
 import { matchesAny } from "@/lib/text";
 import { formatCurrency } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
+import { PAYMENT_METHODS, paymentMethodLabel } from "@/lib/labels";
 import type { POSProduct, POSVariant } from "@/lib/queries/sales";
 import type { PaymentMethod } from "@/generated/prisma/enums";
 import type { SaleReceipt } from "@/lib/queries/sales";
@@ -180,6 +181,8 @@ export function POSTerminal({
   cacheOnly?: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations("sales.pos");
+  const tLabels = useTranslations("labels");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerName, setCustomerName] = useState("");
@@ -192,6 +195,15 @@ export function POSTerminal({
   // Manager expired-stock override confirmation (Phase 5).
   const [expiredPromptOpen, setExpiredPromptOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Desktop relies on this to keep a barcode scanner (which types into whatever
+  // has focus) always targeting the search box. On mobile, focusing on load pops
+  // the virtual keyboard open over the product grid, so it's skipped there --
+  // the user taps the field manually to search. Checked once on mount (not
+  // react-ive to resize) since this is only ever about the initial page load.
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 767px)").matches) searchRef.current?.focus();
+  }, []);
 
   /* ---------- offline selling ---------- */
 
@@ -295,24 +307,24 @@ export function POSTerminal({
     try {
       const result = await refreshSnapshot();
       if (!result.ok) {
-        toast.error("Still no connection. Check the network and try again.");
+        toast.error(t("toast.stillNoConnection"));
         return;
       }
       setLeaseDenied(result.leaseDenied);
       if (result.leaseDenied) {
-        toast.error("This store's offline access is not active. Contact the owner.");
+        toast.error(t("toast.offlineAccessInactive"));
       } else {
-        toast.success("Offline access renewed.");
+        toast.success(t("toast.offlineAccessRenewed"));
       }
     } catch {
-      toast.error("Could not reach the server. Check the network and try again.");
+      toast.error(t("toast.couldNotReachServer"));
     } finally {
       setRenewing(false);
       // Re-reads the lease from IndexedDB, which is what closes the dialog:
       // the gate recomputes from the newly stored permit, not from a flag.
       await readOffline();
     }
-  }, [readOffline]);
+  }, [readOffline, t]);
 
   const runSync = useCallback(
     async (manual: boolean) => {
@@ -321,18 +333,18 @@ export function POSTerminal({
         const summary = await syncNow();
         if (summary.ran && !summary.stopped) setLastSyncAt(new Date());
         if (manual) {
-          if (summary.stopped) toast.error(summary.message ?? "Sync stopped.");
-          else if (!summary.ran) toast.info("A sync is already running.");
-          else if (summary.uploaded === 0) toast.info("Nothing to sync.");
-          else toast.success(`${summary.uploaded} sale(s) sent.`);
+          if (summary.stopped) toast.error(summary.message ?? t("toast.syncStopped"));
+          else if (!summary.ran) toast.info(t("toast.syncAlreadyRunning"));
+          else if (summary.uploaded === 0) toast.info(t("toast.nothingToSync"));
+          else toast.success(t("toast.salesSent", { count: summary.uploaded }));
         }
-        if (summary.review > 0) toast.error(`${summary.review} sale(s) need review.`);
+        if (summary.review > 0) toast.error(t("toast.salesNeedReview", { count: summary.review }));
       } finally {
         setSyncing(false);
         await readOffline();
       }
     },
-    [readOffline]
+    [readOffline, t]
   );
 
   // Cart length read via ref inside the timer below, not as an effect
@@ -449,7 +461,7 @@ export function POSTerminal({
 
   function addOfflineProduct(row: OfflineProductRow) {
     if (row.blocked) {
-      toast.error(`${row.product.name}: ${row.blocked}`);
+      toast.error(t("toast.productBlocked", { name: row.product.name, reason: row.blocked }));
       return;
     }
     if (row.product.hasVariants) {
@@ -470,7 +482,7 @@ export function POSTerminal({
    */
   async function completeOfflineSale() {
     if (!offlineData) {
-      toast.error("This device has no offline catalogue yet. Reconnect once while online.");
+      toast.error(t("toast.noOfflineCatalogue"));
       return;
     }
     if (offlineGate && !offlineGate.allowed) {
@@ -536,14 +548,14 @@ export function POSTerminal({
 
   function addLine(line: CartLine) {
     if (line.stock <= 0) {
-      toast.error(`${line.name} is out of stock`);
+      toast.error(t("toast.outOfStockNamed", { name: line.name }));
       return;
     }
     setCart((prev) => {
       const existing = prev.find((i) => i.lineKey === line.lineKey);
       if (existing) {
         if (existing.quantity >= line.stock) {
-          toast.error("No more stock available");
+          toast.error(t("toast.noMoreStock"));
           return prev;
         }
         return prev.map((i) => (i.lineKey === line.lineKey ? { ...i, quantity: i.quantity + 1 } : i));
@@ -571,7 +583,7 @@ export function POSTerminal({
           if (i.lineKey !== lineKey) return i;
           const nextQty = round3(i.quantity + delta);
           if (nextQty > i.stock) {
-            toast.error("No more stock available");
+            toast.error(t("toast.noMoreStock"));
             return i;
           }
           return { ...i, quantity: nextQty };
@@ -609,7 +621,7 @@ export function POSTerminal({
         const variant = p.variants.find((v) => v.sku === value || v.barcode === value);
         if (!variant) continue;
         if (row.blocked) {
-          toast.error(`${p.name}: ${row.blocked}`);
+          toast.error(t("toast.productBlocked", { name: p.name, reason: row.blocked }));
           setSearch("");
           return;
         }
@@ -651,7 +663,7 @@ export function POSTerminal({
 
   function handleCompleteSale(allowExpiredOverride = false) {
     if (cart.length === 0) {
-      toast.error("Add at least one product to the cart");
+      toast.error(t("toast.cartEmpty"));
       return;
     }
 
@@ -674,7 +686,7 @@ export function POSTerminal({
       });
 
       if (!result || "error" in result) {
-        const msg = result?.error ?? "Failed to complete sale";
+        const msg = result?.error ?? t("toast.saleFailed");
         // Manager-only: offer to knowingly sell expired stock when that's the
         // only thing blocking the sale. Sellers never see this path.
         if (isManager && !allowExpiredOverride && /non-expired stock/i.test(msg)) {
@@ -712,7 +724,7 @@ export function POSTerminal({
       setCustomerPhone("");
       setDiscountPercent(0);
       setPaymentMethod("CASH");
-      toast.success("Sale completed");
+      toast.success(t("toast.saleCompleted"));
       router.refresh();
     });
   }
@@ -724,11 +736,10 @@ export function POSTerminal({
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
-            autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search by name, SKU, or scan a barcode..."
+            placeholder={t("search.placeholder")}
             className="h-11 pl-10"
           />
           <ScanLine className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -741,19 +752,21 @@ export function POSTerminal({
             {isOffline ? (
               <>
                 <CloudOff className="mr-1 size-3" />
-                Offline
+                {t("connectivity.offline")}
               </>
             ) : (
-              "Online"
+              t("connectivity.online")
             )}
           </StatusBadge>
           <span className="text-muted-foreground">
             {(offlineData?.pending ?? 0) > 0
-              ? `${offlineData?.pending} sale(s) waiting to sync`
-              : "Nothing waiting to sync"}
+              ? t("connectivity.pendingToSync", { count: offlineData?.pending ?? 0 })
+              : t("connectivity.nothingToSync")}
           </span>
           <span className="text-muted-foreground">
-            {lastSyncAt ? `Last sync ${lastSyncAt.toLocaleTimeString()}` : "No sync yet"}
+            {lastSyncAt
+              ? t("connectivity.lastSync", { time: lastSyncAt.toLocaleTimeString() })
+              : t("connectivity.noSyncYet")}
           </span>
           <Button
             type="button"
@@ -764,7 +777,7 @@ export function POSTerminal({
             onClick={() => void runSync(true)}
           >
             <RefreshCw className={`mr-1 size-3 ${syncing ? "animate-spin" : ""}`} />
-            Sync now
+            {t("connectivity.syncNow")}
           </Button>
         </div>
 
@@ -775,8 +788,8 @@ export function POSTerminal({
               icon={<CloudOff />}
               title={
                 offlineData
-                  ? "No cached products match your search"
-                  : "This device has no catalogue stored yet"
+                  ? t("grid.noCachedMatch")
+                  : t("grid.noCatalogueStored")
               }
             />
           ) : (
@@ -799,7 +812,7 @@ export function POSTerminal({
                   </p>
                   {row.product.hasVariants && (
                     <p className="truncate text-xs text-muted-foreground">
-                      {row.product.variants.length} variant(s)
+                      {t("grid.variantCount", { count: row.product.variants.length })}
                     </p>
                   )}
                   <p className="mt-0.5 text-sm font-semibold tabular-nums">
@@ -809,15 +822,15 @@ export function POSTerminal({
                     {row.blocked
                       ? row.blocked
                       : row.stock > 0
-                        ? `${row.stock} ${row.product.unit} available`
-                        : "Out of stock"}
+                        ? t("grid.unitsAvailable", { count: row.stock, unit: row.product.unit })
+                        : t("grid.outOfStock")}
                   </p>
                 </button>
               ))}
             </div>
           )
         ) : filteredProducts.length === 0 ? (
-          <EmptyState icon={<Search />} title="No products match your search" />
+          <EmptyState icon={<Search />} title={t("grid.noMatch")} />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product) => (
@@ -838,7 +851,7 @@ export function POSTerminal({
                   )}
                   {product.stock <= 0 && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                      <StatusBadge variant="destructive">Out of stock</StatusBadge>
+                      <StatusBadge variant="destructive">{t("grid.outOfStock")}</StatusBadge>
                     </div>
                   )}
                   {product.hasVariants && product.stock > 0 && (
@@ -854,7 +867,7 @@ export function POSTerminal({
                   <p className="truncate text-sm font-medium">{product.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {product.hasVariants
-                      ? "Choose a variant"
+                      ? t("grid.chooseVariant")
                       : [product.size, product.color].filter(Boolean).join(" · ") || product.sku}
                   </p>
                   <p className="mt-0.5 text-sm font-semibold tabular-nums">
@@ -871,13 +884,13 @@ export function POSTerminal({
         <CardHeader className="border-b pb-4">
           <CardTitle className="flex items-center gap-2">
             <ShoppingCart className="size-4" />
-            Cart ({cart.length})
+            {t("cart.title", { count: cart.length })}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 pt-4">
           {cart.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Add products from the left to start a sale.
+              {t("cart.empty")}
             </p>
           ) : (
             <div className="flex max-h-64 flex-col gap-3 overflow-y-auto pr-1">
@@ -903,7 +916,7 @@ export function POSTerminal({
                         value={item.quantity}
                         onChange={(e) => setExactQty(item.lineKey, Number(e.target.value) || 0, item.stock)}
                         className="h-7 w-20 text-right tabular-nums"
-                        aria-label={`Quantity for ${item.name}`}
+                        aria-label={t("cart.quantityAriaLabel", { name: item.name })}
                       />
                       <span className="w-6 text-xs text-muted-foreground">{item.unit}</span>
                     </div>
@@ -946,12 +959,12 @@ export function POSTerminal({
 
           <div className="flex flex-col gap-2 border-t pt-3">
             <Input
-              placeholder="Customer name (optional)"
+              placeholder={t("cart.customerNamePlaceholder")}
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
             />
             <Input
-              placeholder="Customer phone (optional)"
+              placeholder={t("cart.customerPhonePlaceholder")}
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
             />
@@ -965,16 +978,16 @@ export function POSTerminal({
                   onChange={(e) => setDiscountPercent(Number(e.target.value) || 0)}
                   className="w-full"
                 />
-                <span className="text-sm text-muted-foreground">% off</span>
+                <span className="text-sm text-muted-foreground">{t("cart.percentOff")}</span>
               </div>
               <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                  {PAYMENT_METHODS.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {label}
+                      {paymentMethodLabel(tLabels, value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -984,19 +997,19 @@ export function POSTerminal({
 
           <div className="flex flex-col gap-1.5 border-t pt-3 text-sm">
             <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
+              <span>{t("cart.subtotal")}</span>
               <span className="tabular-nums">{formatCurrency(subtotal, currency)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
-              <span>Discount</span>
+              <span>{t("cart.discount")}</span>
               <span className="tabular-nums">-{formatCurrency(discountAmount, currency)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
-              <span>Tax ({taxRate}%)</span>
+              <span>{t("cart.tax", { rate: taxRate })}</span>
               <span className="tabular-nums">{formatCurrency(tax, currency)}</span>
             </div>
             <div className="flex justify-between text-base font-semibold">
-              <span>Total</span>
+              <span>{t("cart.total")}</span>
               <span className="tabular-nums">{formatCurrency(total, currency)}</span>
             </div>
           </div>
@@ -1007,8 +1020,8 @@ export function POSTerminal({
             onClick={() => handleCompleteSale()}
           >
             {isPending || offlineSaving
-              ? "Processing..."
-              : `Complete Sale · ${formatCurrency(total, currency)}`}
+              ? t("cart.processing")
+              : t("cart.completeSale", { amount: formatCurrency(total, currency) })}
           </Button>
         </CardContent>
       </Card>
@@ -1018,12 +1031,12 @@ export function POSTerminal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{pickerProduct?.name}</DialogTitle>
-            <DialogDescription>Choose a variant to add to the cart.</DialogDescription>
+            <DialogDescription>{t("variantDialog.description")}</DialogDescription>
           </DialogHeader>
           <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
             {pickerProduct?.variants.length === 0 && (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                This product has no active variants.
+                {t("variantDialog.noActiveVariants")}
               </p>
             )}
             {pickerProduct?.variants.map((variant) => (
@@ -1049,7 +1062,10 @@ export function POSTerminal({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{variant.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    SKU {variant.sku} · {variant.stock > 0 ? `${variant.stock} in stock` : "out of stock"}
+                    SKU {variant.sku} ·{" "}
+                    {variant.stock > 0
+                      ? t("variantDialog.inStock", { count: variant.stock })
+                      : t("variantDialog.outOfStock")}
                   </p>
                 </div>
                 <span className="text-sm font-semibold tabular-nums">
@@ -1067,12 +1083,12 @@ export function POSTerminal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{offlinePicker?.name}</DialogTitle>
-            <DialogDescription>Choose a variant to add to the cart.</DialogDescription>
+            <DialogDescription>{t("variantDialog.description")}</DialogDescription>
           </DialogHeader>
           <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
             {offlinePicker?.variants.length === 0 && (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                This product has no cached variants.
+                {t("variantDialog.noCachedVariants")}
               </p>
             )}
             {offlinePicker?.variants.map((variant) => {
@@ -1099,7 +1115,10 @@ export function POSTerminal({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{variant.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      SKU {variant.sku} · {left > 0 ? `${left} in stock` : "out of stock"}
+                      SKU {variant.sku} ·{" "}
+                      {left > 0
+                        ? t("variantDialog.inStock", { count: left })
+                        : t("variantDialog.outOfStock")}
                     </p>
                   </div>
                   <span className="text-sm font-semibold tabular-nums">
@@ -1126,17 +1145,13 @@ export function POSTerminal({
       <Dialog open={leaseBlocked} onOpenChange={() => {}}>
         <DialogContent showCloseButton={false} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Internet connection required</DialogTitle>
-            <DialogDescription>
-              Your offline access period has expired. Connect to the internet to verify your
-              subscription and continue making sales. Your pending sales are saved on this device.
-            </DialogDescription>
+            <DialogTitle>{t("leaseDialog.title")}</DialogTitle>
+            <DialogDescription>{t("leaseDialog.description")}</DialogDescription>
           </DialogHeader>
 
           {leaseDenied ? (
             <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              This store&apos;s offline access is not active. Reconnecting will not restore it until
-              the account is reactivated — contact the owner.
+              {t("leaseDialog.accessInactive")}
             </p>
           ) : offlineGate && !offlineGate.allowed ? (
             <p className="text-xs text-muted-foreground">{offlineGate.message}</p>
@@ -1144,19 +1159,18 @@ export function POSTerminal({
 
           {offlineData && offlineData.pending > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {offlineData.pending} sale(s) saved on this device, waiting to be sent. They are kept
-              until the server confirms them.
+              {t("leaseDialog.pendingSaved", { count: offlineData.pending })}
             </p>
           ) : null}
 
           <DialogFooter className="gap-2 sm:gap-2">
             {offlineData && offlineData.pending > 0 && (
               <Button variant="outline" onClick={() => setPendingPeek(true)}>
-                View pending sales
+                {t("leaseDialog.viewPendingSales")}
               </Button>
             )}
             <Button onClick={() => void retryConnection()} disabled={renewing}>
-              {renewing ? "Checking..." : "Retry connection"}
+              {renewing ? t("leaseDialog.checking") : t("leaseDialog.retryConnection")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1166,9 +1180,9 @@ export function POSTerminal({
       <ConfirmDialog
         open={expiredPromptOpen}
         onOpenChange={setExpiredPromptOpen}
-        title="Sell expired stock anyway?"
-        description="Non-expired stock isn't enough to cover this sale. As a manager, you can knowingly complete it using expired stock instead. This is recorded on the sale and in the activity log."
-        confirmLabel="Sell expired stock"
+        title={t("expiredStockDialog.title")}
+        description={t("expiredStockDialog.description")}
+        confirmLabel={t("expiredStockDialog.confirmLabel")}
         destructive
         onConfirm={() => handleCompleteSale(true)}
       />
@@ -1176,7 +1190,7 @@ export function POSTerminal({
       <Dialog open={!!receipt} onOpenChange={(open) => !open && setReceipt(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Sale complete</DialogTitle>
+            <DialogTitle>{t("saleCompleteDialog.title")}</DialogTitle>
           </DialogHeader>
           {receipt && (
             <>

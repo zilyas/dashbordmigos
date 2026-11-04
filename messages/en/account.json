@@ -1,0 +1,110 @@
+{
+  "page": {
+    "title": "Account",
+    "description": "Manage your profile, security and active sessions.",
+    "tabs": {
+      "profile": "Profile",
+      "password": "Password",
+      "preferences": "Preferences",
+      "twoFactor": "Two-Factor",
+      "sessions": "Sessions",
+      "history": "Login History"
+    },
+    "languageTitle": "Language",
+    "languageDescription": "The language the dashboard is shown in for you."
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "Your account details.",
+    "role": "Role",
+    "store": "Store",
+    "memberSince": "Member since",
+    "lastLogin": "Last login"
+  },
+  "loginHistory": {
+    "title": "Login history",
+    "description": "Recent sign-in attempts on your account.",
+    "emptyTitle": "No login attempts yet",
+    "success": "Success",
+    "failed": "Failed",
+    "unknownIp": "Unknown IP"
+  },
+  "changePassword": {
+    "title": "Change password",
+    "description": "Update the password used to sign in to your account.",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "confirmPasswordLabel": "Confirm new password",
+    "submit": "Update password",
+    "toastUpdated": "Password updated. Your other sessions have been signed out."
+  },
+  "sessions": {
+    "title": "Active sessions",
+    "description": "Devices and browsers currently signed in to your account.",
+    "signOutOthers": "Sign out other sessions",
+    "unknownBrowser": "Unknown browser",
+    "unknownOs": "Unknown OS",
+    "thisDevice": "This device",
+    "remembered": "Remembered",
+    "unknownIp": "Unknown IP",
+    "lastActive": "Last active {date}",
+    "signOut": "Sign out",
+    "toastTerminated": "Session terminated",
+    "toastAllTerminated": "Signed out of all other sessions",
+    "terminateOneTitle": "Sign out this session?",
+    "terminateOneDescription": "This immediately signs out {browser} on {os}.",
+    "terminateConfirm": "Sign out",
+    "terminateAllTitle": "Sign out all other sessions?",
+    "terminateAllDescription": "This immediately signs you out everywhere except this device.",
+    "terminateAllConfirm": "Sign out others"
+  },
+  "localeSelect": {
+    "en": "English",
+    "fr": "Français",
+    "toastFailed": "Could not change language."
+  },
+  "twoFactor": {
+    "title": "Two-factor authentication",
+    "description": "Require a verification code from an authenticator app when signing in.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enableButton": "Enable two-factor authentication",
+    "viewRecoveryCodes": "View new recovery codes",
+    "regenerateTitle": "Regenerate recovery codes",
+    "regenerateDescription": "This invalidates your existing recovery codes. Confirm your password to continue.",
+    "passwordPlaceholder": "Password",
+    "regenerateButton": "Regenerate codes",
+    "disableButton": "Disable",
+    "disableTitle": "Disable two-factor authentication?",
+    "disableDescription": "Your account will only be protected by your password. Confirm your password to continue.",
+    "cancel": "Cancel",
+    "enrollInstructions": "Scan this QR code with your authenticator app (Google Authenticator, 1Password, Authy...), then enter the 6-digit code it generates.",
+    "qrAlt": "Two-factor authentication QR code",
+    "manualEntryPrefix": "Can't scan it? Enter this code manually:",
+    "verifyButton": "Verify and enable",
+    "recoveryCodesTitle": "Save your recovery codes",
+    "recoveryCodesDescription": "Each code can be used once to sign in if you lose access to your authenticator app. Store them somewhere safe — they won't be shown again.",
+    "savedCodesButton": "I've saved these codes",
+    "toastDisabled": "Two-factor authentication disabled",
+    "toastEnrollFailed": "Failed to start enrollment.",
+    "toastVerifyFailed": "Failed to verify code.",
+    "toastRegenFailed": "Failed to regenerate codes.",
+    "actions": {
+      "notAuthorized": "Not authorized",
+      "alreadyEnabled": "Two-factor authentication is already enabled.",
+      "startEnrollmentFirst": "Start enrollment first.",
+      "invalidCode": "Invalid code. Check your authenticator app and try again.",
+      "notEnabled": "Two-factor authentication is not enabled.",
+      "incorrectPassword": "Incorrect password."
+    }
+  },
+  "actions": {
+    "notAuthorized": "Not authorized",
+    "invalidInput": "Invalid input.",
+    "currentPasswordIncorrect": "Current password is incorrect.",
+    "passwordReused": "You've used that password before. Choose a different one.",
+    "sessionNotFound": "Session not found.",
+    "passwordChangedNotificationTitle": "Password changed",
+    "passwordChangedNotificationMessage": "Your password was changed. If this wasn't you, contact your administrator immediately."
+  }
+}

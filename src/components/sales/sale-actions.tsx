@@ -30,16 +30,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ReceiptDialog } from "@/components/sales/receipt-dialog";
 import { deleteSale, returnSaleItems, updateSaleDetails, getReturnBatchOptions, type ReturnBatchOption } from "@/actions/sales";
 import { round3 } from "@/lib/sale-math";
 import { formatCurrency } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/labels";
+import { PAYMENT_METHODS, paymentMethodLabel } from "@/lib/labels";
 import type { SaleListItem } from "@/lib/queries/sales";
 import type { PaymentMethod } from "@/generated/prisma/enums";
 
 export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: string }) {
+  const t = useTranslations("sales.list");
+  const tColumns = useTranslations("sales.list.columns");
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -51,28 +54,28 @@ export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: 
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${sale.invoiceNumber}`}>
+          <Button variant="ghost" size="icon-sm" aria-label={tColumns("actionsLabel", { invoiceNumber: sale.invoiceNumber })}>
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setReceiptOpen(true)}>
             <ReceiptText />
-            View receipt
+            {tColumns("viewReceipt")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!hasReturnableUnits} onClick={() => setReturnOpen(true)}>
             <Undo2 />
-            Return items
+            {tColumns("returnItems")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditOpen(true)}>
             <Pencil />
-            Edit details
+            {tColumns("editDetails")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
             <Trash2 />
-            Delete sale
+            {tColumns("deleteSale")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -100,16 +103,16 @@ export function SaleActions({ sale, currency }: { sale: SaleListItem; currency: 
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Delete ${sale.invoiceNumber}?`}
-        description="This removes the sale entirely and puts any units the customer still has back into stock. Use this for mistakes — for a customer returning goods, use “Return items” instead so the refund is recorded."
-        confirmLabel="Delete sale"
+        title={t("deleteDialog.title", { invoiceNumber: sale.invoiceNumber })}
+        description={t("deleteDialog.description")}
+        confirmLabel={t("deleteDialog.confirm")}
         destructive
         onConfirm={async () => {
           const result = await deleteSale(sale.id);
           if (result?.error) {
             toast.error(result.error);
           } else {
-            toast.success(`${sale.invoiceNumber} deleted — stock restored`);
+            toast.success(t("deleteDialog.toastDeleted", { invoiceNumber: sale.invoiceNumber }));
           }
         }}
       />
@@ -128,6 +131,7 @@ function ReturnDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("sales.list.returnDialog");
   const returnable = useMemo(
     () =>
       sale.items
@@ -175,7 +179,7 @@ function ReturnDialog({
 
   function handleSubmit() {
     if (selected.length === 0) {
-      toast.error("Choose at least one item to return");
+      toast.error(t("errorChooseItem"));
       return;
     }
     startTransition(async () => {
@@ -193,8 +197,8 @@ function ReturnDialog({
       }
       toast.success(
         result.fullyReturned
-          ? `${sale.invoiceNumber} fully returned — ${formatCurrency(result.refundAmount ?? 0, currency)} refunded`
-          : `Refunded ${formatCurrency(result.refundAmount ?? 0, currency)}`
+          ? t("toastFullyReturned", { invoiceNumber: sale.invoiceNumber, amount: formatCurrency(result.refundAmount ?? 0, currency) })
+          : t("toastRefunded", { amount: formatCurrency(result.refundAmount ?? 0, currency) })
       );
       onOpenChange(false);
     });
@@ -204,10 +208,9 @@ function ReturnDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Return items · {sale.invoiceNumber}</DialogTitle>
+          <DialogTitle>{t("title", { invoiceNumber: sale.invoiceNumber })}</DialogTitle>
           <DialogDescription>
-            Choose how many of each item the customer is bringing back. Stock is restored and the
-            refund is deducted from revenue.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -231,8 +234,7 @@ function ReturnDialog({
                     )}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {formatCurrency(item.sellingPrice, currency)} · {item.remaining} of {item.quantity}{" "}
-                    returnable
+                    {formatCurrency(item.sellingPrice, currency)} · {t("returnableOf", { remaining: item.remaining, quantity: item.quantity })}
                   </p>
                 </div>
                 {isDecimal ? (
@@ -245,7 +247,7 @@ function ReturnDialog({
                       value={qty}
                       onChange={(e) => setQty(item.id, Number(e.target.value) || 0, item.remaining)}
                       className="h-8 w-20 text-right tabular-nums"
-                      aria-label={`Return quantity for ${item.productName}`}
+                      aria-label={t("returnQuantityAriaLabel", { name: item.productName })}
                     />
                     <span className="w-6 text-xs text-muted-foreground">{item.unit}</span>
                   </div>
@@ -255,7 +257,7 @@ function ReturnDialog({
                       type="button"
                       variant="outline"
                       size="icon-sm"
-                      aria-label={`Return one fewer ${item.productName}`}
+                      aria-label={t("oneFewerAriaLabel", { name: item.productName })}
                       disabled={qty <= 0}
                       onClick={() => setQty(item.id, qty - 1, item.remaining)}
                     >
@@ -266,7 +268,7 @@ function ReturnDialog({
                       type="button"
                       variant="outline"
                       size="icon-sm"
-                      aria-label={`Return one more ${item.productName}`}
+                      aria-label={t("oneMoreAriaLabel", { name: item.productName })}
                       disabled={qty >= item.remaining}
                       onClick={() => setQty(item.id, qty + 1, item.remaining)}
                     >
@@ -283,14 +285,14 @@ function ReturnDialog({
                       onValueChange={(v) => setOverrides((prev) => ({ ...prev, [item.id]: v === "__original__" ? "" : v }))}
                     >
                       <SelectTrigger className="h-8 w-full text-xs">
-                        <SelectValue placeholder="Restore to original batch" />
+                        <SelectValue placeholder={t("restoreToOriginalPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__original__">Restore to original batch (default)</SelectItem>
+                        <SelectItem value="__original__">{t("restoreToOriginalDefault")}</SelectItem>
                         {batchOptions[item.id].map((b) => (
                           <SelectItem key={b.id} value={b.id}>
                             {b.batchCode}
-                            {b.expiryDate ? ` · exp ${b.expiryDate}` : ""}
+                            {b.expiryDate ? t("expLabel", { date: b.expiryDate }) : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -302,18 +304,18 @@ function ReturnDialog({
           })}
 
           <Field>
-            <FieldLabel htmlFor="return-reason">Reason (optional)</FieldLabel>
+            <FieldLabel htmlFor="return-reason">{t("reasonLabel")}</FieldLabel>
             <Textarea
               id="return-reason"
               rows={2}
-              placeholder="e.g. wrong size, no replacement in stock"
+              placeholder={t("reasonPlaceholder")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
           </Field>
 
           <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Refund amount</span>
+            <span className="text-muted-foreground">{t("refundAmount")}</span>
             <span className="font-semibold tabular-nums">
               {formatCurrency(estimatedRefund, currency)}
             </span>
@@ -322,11 +324,11 @@ function ReturnDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button type="button" disabled={isPending || selected.length === 0} onClick={handleSubmit}>
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            Refund {formatCurrency(estimatedRefund, currency)}
+            {t("refundButton", { amount: formatCurrency(estimatedRefund, currency) })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -343,6 +345,8 @@ function EditDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const tLabels = useTranslations("labels");
+  const t = useTranslations("sales.list.editDialog");
   const [customerName, setCustomerName] = useState(sale.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(sale.customerPhone ?? "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(sale.paymentMethod);
@@ -359,7 +363,7 @@ function EditDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Sale updated");
+      toast.success(t("toastUpdated"));
       onOpenChange(false);
     });
   }
@@ -368,25 +372,24 @@ function EditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit {sale.invoiceNumber}</DialogTitle>
+          <DialogTitle>{t("title", { invoiceNumber: sale.invoiceNumber })}</DialogTitle>
           <DialogDescription>
-            Correct the customer or payment details. To change what was sold, delete the sale and
-            ring it up again.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="edit-customer-name">Customer name</FieldLabel>
+            <FieldLabel htmlFor="edit-customer-name">{t("customerNameLabel")}</FieldLabel>
             <Input
               id="edit-customer-name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Walk-in"
+              placeholder={t("customerNamePlaceholder")}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="edit-customer-phone">Customer phone</FieldLabel>
+            <FieldLabel htmlFor="edit-customer-phone">{t("customerPhoneLabel")}</FieldLabel>
             <Input
               id="edit-customer-phone"
               value={customerPhone}
@@ -394,15 +397,15 @@ function EditDialog({
             />
           </Field>
           <Field>
-            <FieldLabel>Payment method</FieldLabel>
+            <FieldLabel>{t("paymentMethodLabel")}</FieldLabel>
             <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                {PAYMENT_METHODS.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {paymentMethodLabel(tLabels, value)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -412,11 +415,11 @@ function EditDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button type="button" disabled={isPending} onClick={handleSubmit}>
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            Save changes
+            {t("saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
